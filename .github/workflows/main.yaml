@@ -1,0 +1,21 @@
+name: Deploy notebooks
+on:
+  push:
+    branches:
+      - master
+jobs:
+  docker-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout current branch with lfs
+      uses: actions/checkout@master
+      with:
+        lfs: true
+    - name: Publish notebooks to docker hub
+      uses: elgohr/Publish-Docker-Github-Action@master
+      with:
+        name: schmelczera/declared-frontend
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        dockerfile: frontend/Dockerfile
+        tags: "latest"
