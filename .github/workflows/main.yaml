@@ -1,21 +1,36 @@
-name: Deploy notebooks
+name: Deploy everything
 on:
   push:
     branches:
       - master
 jobs:
-  docker-deploy:
+  deploying:
     runs-on: ubuntu-latest
     steps:
+
     - name: Checkout current branch with lfs
       uses: actions/checkout@master
       with:
         lfs: true
-    - name: Publish notebooks to docker hub
-      uses: elgohr/Publish-Docker-Github-Action@master
-      with:
-        name: schmelczera/declared-frontend
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        dockerfile: frontend/Dockerfile
-        tags: "latest"
+            
+    - name: Build frontend
+      run: |
+        docker build . -t declared-frontend
+        docker save -o declared-frontend.image declared-frontend
+      working-directory: frontend
+      
+    - name: Create id file
+      run: |
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > id
+        chmod 700 id
+
+    - name: Push artifacts
+      run: |
+        scp -i id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null frontend/declared-frontend.image root@decla.red:/root/images/declared-frontend.image
+        scp -i id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r infrastructure root@decla.red:/root/infra
+        
+    - name: Compose up
+      run: |
+        ssh -i id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@decla.red 'docker load < /root/images/declared-frontend.image && \
+        cd /root/infra && docker-compose up -d'
+        rm id
