@@ -47,7 +47,12 @@ jobs:
     needs:
     - build-frontend
     - build-ingress
-    steps:      
+    steps:
+    - name: Checkout current branch with lfs
+      uses: actions/checkout@master
+      with:
+        lfs: true
+
     - name: Setup auth tokens
       run: |
         # SSH key
