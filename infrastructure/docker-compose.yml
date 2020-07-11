@@ -1,24 +1,76 @@
-version: '3'
+version: '3.8'
 
 services:
   ingress:
+    init: true
     image: nginx:alpine
-    restart: unless-stopped
+    depends_on:
+      - certbot
+      - frontend
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 32M
+        reservations:
+          cpus: '0.10'
+          memory: 32M
+      update_config:
+        parallelism: 1
+        failure_action: rollback
+        delay: 10s
+        monitor: 10s
+      restart_policy:
+        condition: on-failure
+        window: 30s
     ports:
       - "80:80"
       - "443:443"
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     volumes:
-      - ./data/nginx:/etc/nginx/conf.d
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
-  frontend:
-    image: declared-frontend
-    restart: unless-stopped
+
   certbot:
+    init: true
     image: certbot/certbot
-    restart: unless-stopped
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.05'
+          memory: 16M
+        reservations:
+          cpus: '0.05'
+          memory: 16M
+      restart_policy:
+        condition: on-failure
+        window: 30s
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     volumes:
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
+  
+  frontend:
+    init: true
+    image: schmelczera/declared-frontend
+    ports:
+      - "80"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.15'
+          memory: 128M
+        reservations:
+          cpus: '0.15'
+          memory: 128M
+      update_config:
+        parallelism: 1
+        failure_action: rollback
+        delay: 10s
+        monitor: 10s
+      restart_policy:
+        condition: on-failure
+        window: 30s
