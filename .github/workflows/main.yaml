@@ -12,25 +12,31 @@ jobs:
       uses: actions/checkout@master
       with:
         lfs: true
-            
-    - name: Build frontend
-      run: |
-        docker build . -t declared-frontend
-        docker save -o declared-frontend.image declared-frontend
-      working-directory: frontend
       
-    - name: Create id file
+    - name: Setup auth tokens
       run: |
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > id
-        chmod 700 id
-
-    - name: Push artifacts
-      run: |
-        scp -i id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null frontend/declared-frontend.image root@decla.red:/root/images/declared-frontend.image
-        scp -i id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r infrastructure root@decla.red:/root/infra
+        # SSH key
+        mkdir ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+        chmod 400 ~/.ssh/id_ed25519
+        ssh -o StrictHostKeyChecking=no root@decla.red uptime
         
-    - name: Compose up
+        # Docker Hub
+        docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
+      
+    - name: Build and push ingress
       run: |
-        ssh -i id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@decla.red 'docker load < /root/images/declared-frontend.image && \
-        cd /root/infra && docker-compose up -d'
-        rm id
+        docker build . -t schmelczera/declared-ingress
+        docker push schmelczera/declared-ingress
+      working-directory: ingress
+  
+    - name: Build and push frontend
+      run: |
+        docker build . -t schmelczera/declared-frontend
+        docker push schmelczera/declared-frontend
+      working-directory: frontend
+
+    - name: Deploy
+      run: |
+          DOCKER_HOST=ssh://root@decla.red docker stack up declared -c docker-compose.yml
+      working-directory: infrastructure
