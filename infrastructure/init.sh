@@ -25,5 +25,5 @@ rm -rf /etc/update-motd.d/99-one-click
 docker swarm init --advertise-addr eth0
 
 ./init-letsencrypt.sh
-
+curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash
 docker-compose down
