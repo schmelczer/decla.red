@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   ingress:
@@ -11,11 +11,11 @@ services:
       replicas: 2
       resources:
         limits:
-          cpus: '0.10'
-          memory: 32M
+          cpus: "0.3"
+          memory: 128M
         reservations:
-          cpus: '0.10'
-          memory: 32M
+          cpus: "0.3"
+          memory: 128M
       update_config:
         parallelism: 1
         failure_action: rollback
@@ -27,7 +27,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
     volumes:
       - /root/data/certbot/conf:/etc/letsencrypt
       - /root/data/certbot/www:/var/www/certbot
@@ -39,10 +39,10 @@ services:
       replicas: 1
       resources:
         limits:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 16M
         reservations:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 16M
       restart_policy:
         condition: on-failure
@@ -51,7 +51,7 @@ services:
     volumes:
       - /root/data/certbot/conf:/etc/letsencrypt
       - /root/data/certbot/www:/var/www/certbot
-  
+
   frontend:
     init: true
     image: schmelczera/declared-frontend
@@ -61,11 +61,11 @@ services:
       replicas: 2
       resources:
         limits:
-          cpus: '0.15'
-          memory: 128M
+          cpus: "0.15"
+          memory: 64M
         reservations:
-          cpus: '0.15'
-          memory: 128M
+          cpus: "0.15"
+          memory: 64M
       update_config:
         parallelism: 1
         failure_action: rollback
