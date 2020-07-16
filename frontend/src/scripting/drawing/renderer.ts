@@ -1,4 +1,5 @@
 import * as twgl from 'twgl.js';
+import { TimeIt } from '../helper/timing';
 
 export class Renderer {
   private gl: WebGL2RenderingContext;
@@ -35,8 +36,10 @@ export class Renderer {
   }
 
   start() {
-    requestAnimationFrame(this.render.bind(this));
+    requestAnimationFrame(this.timedRender);
   }
+
+  private timedRender = TimeIt(this.render.bind(this), 240);
 
   private render(time: number) {
     const gl = this.gl;
@@ -58,6 +61,6 @@ export class Renderer {
     twgl.setUniforms(this.programInfo, uniforms);
     twgl.drawBufferInfo(this.gl, this.bufferInfo);
 
-    requestAnimationFrame(this.render.bind(this));
+    requestAnimationFrame(this.timedRender);
   }
 }
