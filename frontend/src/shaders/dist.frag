@@ -3,44 +3,77 @@
 precision mediump float;
 
 
-#define INFINITY 10000000.0
-
+#define INFINITY 1.0 / 0.0
 #define WORLD_SIZE 4
-
 #define N (20)
 
-out vec4 fragmentColor;
+#define CIRCLE 1
+#define LINE 2
+#define TRIANGLE 3
 
+out vec4 fragmentColor;
 uniform vec2 resolution;
-// uniform vec2 u_mouse;
 uniform float time;
 
-struct Circle {
-    vec2 center;
-  	float radius;
+
+struct Material {
     vec3 color;
 };
 
-Circle world[WORLD_SIZE];
+struct Primitive {
+    uint type;
+    uint index;
+};
 
-vec3 red = vec3(5.0, 0.0, 2.0);
-vec3 blue = vec3(0.0, 0.0, 3.0);
+struct Object {
+    Material material;
+    Primitive[10] primitives;
+};
 
-float sdPolygon( in vec2[N] v, in vec2 p )
+struct Circle {
+    uint parent;
+    vec2 center;
+  	float radius;
+};
+
+struct Line {
+    uint parent;
+    vec2 a;
+  	vec2 b;
+};
+
+struct Triangle {
+    uint parent;
+    vec2 a;
+  	vec2 b;
+  	vec2 c;
+};
+
+// uniform Object[100] objects;
+
+Circle[3] circles;
+Line[1] lines;
+Triangle[1] triangles;
+
+float triangleDistance(in vec2 position, in Triangle triangle)
 {
-    float d = dot(p-v[0],p-v[0]);
-    float s = 1.0;
-    const int num = v.length();
-    for( int i=0, j=num-1; i<N; j=i, i++ )
-    {
-        vec2 e = v[j] - v[i];
-        vec2 w = p - v[i];
-        vec2 b = w - e*clamp( dot(w,e)/dot(e,e), 0.0, 1.0 );
-        d = min( d, dot(b,b) );
-        bvec3 c = bvec3(p.y>=v[i].y,p.y<v[j].y,e.x*w.y>e.y*w.x);
-        if( all(c) || all(not(c)) ) s*=-1.0;  
-    }
-    return s*sqrt(d);
+    vec2 e0 = triangle.b - triangle.a, e1 = triangle.c - triangle.b, e2 = triangle.a - triangle.c;
+    vec2 v0 = position - triangle.a, v1 = position - triangle.b, v2 = position - triangle.c;
+    vec2 pq0 = v0 - e0 * clamp(dot(v0, e0) / dot(e0, e0), 0.0, 1.0);
+    vec2 pq1 = v1 - e1 * clamp(dot(v1, e1) / dot(e1, e1), 0.0, 1.0);
+    vec2 pq2 = v2 - e2 * clamp(dot(v2, e2) / dot(e2, e2), 0.0, 1.0);
+    float s = sign(e0.x*e2.y - e0.y*e2.x);
+    vec2 d = min(min(vec2(dot(pq0,pq0), s*(v0.x*e0.y-v0.y*e0.x)),
+                     vec2(dot(pq1,pq1), s*(v1.x*e1.y-v1.y*e1.x))),
+                     vec2(dot(pq2,pq2), s*(v2.x*e2.y-v2.y*e2.x)));
+    return -sqrt(d.x)*sign(d.y);
+} 
+
+float lineDistance(in vec2 position, in Line line)
+{
+    vec2 pa = position - line.a, ba = line.b - line.a;
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    return length(pa - ba*h);
 }
 
 float circleDistance(in vec2 position, in Circle circle)
@@ -48,30 +81,44 @@ float circleDistance(in vec2 position, in Circle circle)
 	return length(position - circle.center) - circle.radius;
 }
 
-float getDistance(in vec2 target) {
+float getDistance(in vec2 target, out uint nearestParentIndex) {
     float distance = INFINITY;
-    for (int i = 0; i < WORLD_SIZE; i++) {
-        distance = min(distance, circleDistance(target, world[i]));
-    }
-    return distance;
-}
 
-float getDistance(in vec2 target, out Circle nearest) {
-    float distance = INFINITY;
-    for (int i = 0; i < WORLD_SIZE; i++) {
-        float distanceToCurrent = circleDistance(target, world[i]);
+    for (int i = 0; i < circles.length(); i++) {
+        float distanceToCurrent = circleDistance(target, circles[i]);
         if (distanceToCurrent < distance) {
             distance = distanceToCurrent;
-            nearest = world[i];
+            nearestParentIndex = circles[i].parent;
         }
     }
+
+    for (int i = 0; i < lines.length(); i++) {
+        float distanceToCurrent = lineDistance(target, lines[i]);
+        if (distanceToCurrent < distance) {
+            distance = distanceToCurrent;
+            nearestParentIndex = lines[i].parent;
+        }
+    }
+
+    for (int i = 0; i < triangles.length(); i++) {
+        float distanceToCurrent = triangleDistance(target, triangles[i]);
+        if (distanceToCurrent < distance) {
+            distance = distanceToCurrent;
+            nearestParentIndex = triangles[i].parent;
+        }
+    }
+
     return distance;
 }
 
 void createWorld() {
-    world[0] = Circle(vec2(250.0, 100.0), 12.5, blue);   
-    world[1] = Circle(vec2(150.0, 50.0), 32.5, red);
-    world[2] = Circle(vec2(300.0, 350.0), 52.5, blue);
+    circles[0] = Circle(0u, vec2(250.0, 100.0), 12.5);   
+    circles[1] = Circle(0u, vec2(150.0, 50.0), 32.5);
+    circles[2] = Circle(0u, vec2(300.0, 350.0), 52.5);
+
+    lines[0] = Line(0u, vec2(100.0, 300.0), vec2(550.0, 140.0));
+
+    triangles[0] = Triangle(0u, vec2(400.0, 100.0), vec2(200.0, 240.0), vec2(600.0, 340.0));
 }
 
 float linearstep(float a, float b, float q) {
@@ -82,7 +129,7 @@ void main() {
     createWorld();
     
     vec2 position = gl_FragCoord.xy + vec2(0.5);
-    
-    vec3 color = vec3(1.0) * linearstep(0.0, 1.0, getDistance(position));
+    uint index;
+    vec3 color = vec3(1.0) * linearstep(0.0, 1.0, getDistance(position, index));
     fragmentColor = vec4(color, 1.0);
 }
