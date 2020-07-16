@@ -1,3 +1,5 @@
+#version 300 es
+
 #ifdef GL_ES
 precision mediump float;
 #endif
@@ -10,9 +12,9 @@ precision mediump float;
 #define LIGHT_PENETRATION 0.95
 #define ANTIALIASING_RADIUS 1.0
 
-uniform vec2 u_resolution;
-uniform vec2 u_mouse;
-uniform float u_time;
+uniform vec2 resolution;
+// uniform vec2 u_mouse;
+uniform float time;
 
 struct Light {
     vec2 center;

@@ -1,23 +1,19 @@
-#ifdef GL_ES
-precision mediump float;
-#endif
+#version 300 es
 
-#define INFINITY 1.0 / 0.0
+precision mediump float;
+
+
+#define INFINITY 10000000.0
 
 #define WORLD_SIZE 4
 
 #define N (20)
 
-uniform vec2 u_resolution;
-uniform vec2 u_mouse;
-uniform float u_time;
+out vec4 fragmentColor;
 
-struct Light {
-    vec2 center;
-  	float radius;
-    vec3 color;
-    float intensity;
-};
+uniform vec2 resolution;
+// uniform vec2 u_mouse;
+uniform float time;
 
 struct Circle {
     vec2 center;
@@ -48,11 +44,6 @@ float sdPolygon( in vec2[N] v, in vec2 p )
 }
 
 float circleDistance(in vec2 position, in Circle circle)
-{
-	return length(position - circle.center) - circle.radius;
-}
-
-float circleDistance(in vec2 position, in Light circle)
 {
 	return length(position - circle.center) - circle.radius;
 }
@@ -93,5 +84,5 @@ void main() {
     vec2 position = gl_FragCoord.xy + vec2(0.5);
     
     vec3 color = vec3(1.0) * linearstep(0.0, 1.0, getDistance(position));
-    gl_FragColor = vec4(color, 1.0);
+    fragmentColor = vec4(color, 1.0);
 }

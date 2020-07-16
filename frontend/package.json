@@ -1,17 +1,15 @@
 {
   "name": "decla.red",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "![logo](media/declared.png)",
   "private": true,
   "main": "index.js",
   "scripts": {
     "start": "webpack-dev-server --mode development",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack"
+    "build": "webpack && find dist -type f -not -name '*.html' | xargs rm"
   },
   "keywords": [],
   "author": "András Schmelczer",
-  "license": "UNLICENSED",
   "postcss": {
     "plugins": {
       "autoprefixer": {}
@@ -20,7 +18,9 @@
   "browserslist": [
     "defaults"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "*.scss"
+  ],
   "optimization": {
     "usedExports": true
   },

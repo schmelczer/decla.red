@@ -1,9 +1,4 @@
-function component() {
-    const element = document.createElement('div');
+import './styling/main.scss';
+import { main } from './scripting/main';
 
-    element.innerHTML = 'Hello world';
-
-    return element;
-  }
-
-document.body.appendChild(component());
+main();

@@ -1,0 +1,19 @@
+html, body, main {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+
+    background-color: #333;
+    main {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        canvas {
+            width: 100%;
+            background-color: hotpink;
+        }
+    }
+}
