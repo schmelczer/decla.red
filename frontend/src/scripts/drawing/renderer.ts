@@ -1,17 +1,20 @@
-import * as twgl from 'twgl.js';
+const twgl = require('twgl.js');
+
 import { TimeIt } from '../helper/timing';
-import { KeyboardListener } from '../helper/keyboard-listener';
-import { Vec2 } from '../shared/vec2';
+import { Vec2 } from '../math/vec2';
+import { ObjectContainer } from '../objects/object-container';
 
 export class Renderer {
   private gl: WebGL2RenderingContext;
   private programInfo: any;
   private bufferInfo: any;
   private vao: any;
-  private cameraPosition: Vec2 = { x: 0, y: 0 };
-  private keys: KeyboardListener = new KeyboardListener();
 
-  constructor(private canvas: HTMLCanvasElement, shaderSources: Array<string>) {
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private objects: ObjectContainer,
+    shaderSources: Array<string>
+  ) {
     twgl.setDefaults({ attribPrefix: 'a_' });
 
     this.gl = this.canvas.getContext('webgl2');
@@ -39,13 +42,7 @@ export class Renderer {
     );
   }
 
-  start() {
-    requestAnimationFrame(this.timedRender);
-  }
-
-  private timedRender = TimeIt(this.render.bind(this), 240);
-
-  private render(time: number) {
+  public render(time: number) {
     const gl = this.gl;
 
     twgl.resizeCanvasToDisplaySize(this.canvas);
@@ -53,24 +50,8 @@ export class Renderer {
 
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    if (this.keys.isKeyDown('w')) {
-      this.cameraPosition.y += 10;
-    }
-
-    if (this.keys.isKeyDown('s')) {
-      this.cameraPosition.y -= 10;
-    }
-
-    if (this.keys.isKeyDown('a')) {
-      this.cameraPosition.x -= 10;
-    }
-
-    if (this.keys.isKeyDown('d')) {
-      this.cameraPosition.x += 10;
-    }
-
     const uniforms = {
-      cameraPosition: [this.cameraPosition.x, this.cameraPosition.y],
+      cameraPosition: this.objects.camera.position.list,
       viewBoxSize: [this.gl.canvas.width, this.gl.canvas.height],
       resolution: [this.gl.canvas.width, this.gl.canvas.height],
     };
@@ -81,7 +62,5 @@ export class Renderer {
 
     twgl.setUniforms(this.programInfo, uniforms);
     twgl.drawBufferInfo(this.gl, this.bufferInfo);
-
-    requestAnimationFrame(this.timedRender);
   }
 }

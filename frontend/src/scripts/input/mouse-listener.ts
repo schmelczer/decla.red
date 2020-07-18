@@ -1,0 +1,56 @@
+import { CommandGenerator } from '../commands/command-generator';
+import { PrimaryActionCommand } from '../commands/types/primary-action';
+import { SecondaryActionCommand } from '../commands/types/secondary-action';
+import { Vec2 } from '../math/vec2';
+import { SwipeCommand } from '../commands/types/swipe';
+
+export class MouseListener extends CommandGenerator {
+  private previousPosition: Vec2 = null;
+  private isMouseDown = false;
+
+  constructor(private target: Element = document.body) {
+    super();
+
+    target.addEventListener('mousedown', (event: MouseEvent) => {
+      const position = this.positionFromEvent(event);
+
+      this.previousPosition = position;
+      this.isMouseDown = true;
+
+      if (event.button == 0) {
+        this.sendCommand(new PrimaryActionCommand(position));
+      }
+    });
+
+    target.addEventListener('mousemove', (event: MouseEvent) => {
+      if (this.isMouseDown) {
+        const position = this.positionFromEvent(event);
+        this.sendCommand(
+          new SwipeCommand(this.previousPosition.subtract(position))
+        );
+        this.previousPosition = position;
+      }
+    });
+
+    target.addEventListener('mouseup', (event: MouseEvent) => {
+      this.isMouseDown = false;
+    });
+
+    target.addEventListener('mouseleave', (event: MouseEvent) => {
+      this.isMouseDown = false;
+    });
+
+    target.addEventListener('contextmenu', (event: MouseEvent) => {
+      event.preventDefault();
+      const position = this.positionFromEvent(event);
+      this.sendCommand(new SecondaryActionCommand(position));
+    });
+  }
+
+  private positionFromEvent(event: MouseEvent): Vec2 {
+    return new Vec2(
+      -event.clientX / this.target.clientWidth,
+      event.clientY / this.target.clientHeight
+    );
+  }
+}

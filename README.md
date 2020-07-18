@@ -19,3 +19,7 @@ A good-looking 2D adventure.
 - lightweight object storage
 - 502 error page for ingress
 - vs code glsl formatter
+- docker engine dashboard?
+- local dev env
+- vs code config
+- prettier script
