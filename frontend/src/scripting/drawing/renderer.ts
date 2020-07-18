@@ -1,11 +1,15 @@
 import * as twgl from 'twgl.js';
 import { TimeIt } from '../helper/timing';
+import { KeyboardListener } from '../helper/keyboard-listener';
+import { Vec2 } from '../shared/vec2';
 
 export class Renderer {
   private gl: WebGL2RenderingContext;
   private programInfo: any;
   private bufferInfo: any;
   private vao: any;
+  private cameraPosition: Vec2 = { x: 0, y: 0 };
+  private keys: KeyboardListener = new KeyboardListener();
 
   constructor(private canvas: HTMLCanvasElement, shaderSources: Array<string>) {
     twgl.setDefaults({ attribPrefix: 'a_' });
@@ -49,9 +53,26 @@ export class Renderer {
 
     gl.clear(gl.COLOR_BUFFER_BIT);
 
+    if (this.keys.isKeyDown('w')) {
+      this.cameraPosition.y += 10;
+    }
+
+    if (this.keys.isKeyDown('s')) {
+      this.cameraPosition.y -= 10;
+    }
+
+    if (this.keys.isKeyDown('a')) {
+      this.cameraPosition.x -= 10;
+    }
+
+    if (this.keys.isKeyDown('d')) {
+      this.cameraPosition.x += 10;
+    }
+
     const uniforms = {
-      /*time: time * 0.001,
-            resolution: [this.gl.canvas.width, this.gl.canvas.height],*/
+      cameraPosition: [this.cameraPosition.x, this.cameraPosition.y],
+      viewBoxSize: [this.gl.canvas.width, this.gl.canvas.height],
+      resolution: [this.gl.canvas.width, this.gl.canvas.height],
     };
 
     this.gl.useProgram(this.programInfo.program);
