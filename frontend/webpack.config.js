@@ -20,9 +20,9 @@ module.exports = {
   },
   optimization: {
     minimizer: [
-      new TerserJSPlugin({
+      /*new TerserJSPlugin({
         sourceMap: !isProduction,
-      }),
+      }),*/
       new OptimizeCSSAssetsPlugin({}),
     ],
   },
