@@ -17,6 +17,6 @@ export class InfoText extends GameObject {
   private draw(e: DrawCommand) {
     let text = '';
     InfoText.records.forEach((v, k) => (text += `${k}\n\t${v}\n`));
-    e.drawer.drawCornerText(text);
+    e.drawer.drawInfoText(text);
   }
 }

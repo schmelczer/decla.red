@@ -1,84 +1,102 @@
-const twgl = require('twgl.js');
-
 import { Drawer } from './drawer';
 import { Vec2 } from '../math/vec2';
+import { createProgram } from './graphics-library/create-program';
+import { prepareScreenQuad } from './graphics-library/prepare-screen-quad';
 
 export class WebGl2Renderer implements Drawer {
   private gl: WebGL2RenderingContext;
-  private programInfo: any;
-  private bufferInfo: any;
-  private vao: any;
+  private program: WebGLProgram;
+  private vao: WebGLVertexArrayObject;
 
-  constructor(
-    private canvas: HTMLCanvasElement,
-    private overlay: HTMLElement,
-    shaderSources: Array<string>
-  ) {
-    twgl.setDefaults({ attribPrefix: 'a_' });
-
-    this.gl = this.canvas.getContext('webgl2');
-    if (!this.gl) {
-      throw new Error('WebGl2 not supported');
-    }
-
-    this.programInfo = twgl.createProgramInfo(this.gl, shaderSources);
-
-    const arrays = {
-      position: {
-        numComponents: 3,
-        data: [-1.0, -1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, -1.0, 0.0],
-      },
-      indices: {
-        numComponents: 3,
-        data: [0, 1, 2, 0, 2, 3],
-      },
-    };
-    this.bufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
-    this.vao = twgl.createVAOFromBufferInfo(
-      this.gl,
-      this.programInfo,
-      this.bufferInfo
-    );
-  }
-
-  startWaitingForInstructions() {
-    //throw new Error("Method not implemented.");
-  }
+  public enableHighDpiRendering = false;
+  public renderScale = 0.33;
 
   private cameraPosition: Vec2;
   private viewBoxSize: Vec2;
 
-  finishWaitingForInstructions() {
-    const gl = this.gl;
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private overlay: HTMLElement,
+    shaderSources: [string, string]
+  ) {
+    this.gl = this.canvas.getContext('webgl2');
+    if (!this.gl) {
+      throw new Error('WebGl2 is not supported');
+    }
 
-    twgl.resizeCanvasToDisplaySize(this.canvas);
-    this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+    this.program = createProgram(this.gl, ...shaderSources);
+    this.vao = prepareScreenQuad(this.gl, this.program, 'a_position');
+  }
 
-    gl.clear(gl.COLOR_BUFFER_BIT);
+  private handleResize() {
+    const realToCssPixels = window.devicePixelRatio * this.renderScale;
 
-    const uniforms = {
-      cameraPosition: this.cameraPosition.list,
-      viewBoxSize: this.viewBoxSize.list,
-      resolution: [this.gl.canvas.width, this.gl.canvas.height],
-    };
+    const displayWidth = Math.floor(this.canvas.clientWidth * realToCssPixels);
+    const displayHeight = Math.floor(
+      this.canvas.clientHeight * realToCssPixels
+    );
 
-    this.gl.useProgram(this.programInfo.program);
+    if (
+      this.canvas.width !== displayWidth ||
+      this.canvas.height !== displayHeight
+    ) {
+      this.canvas.width = displayWidth;
+      this.canvas.height = displayHeight;
+    }
+
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  public startFrame() {
+    this.handleResize();
+    this.gl.clearColor(0, 0, 0, 0);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+    this.gl.useProgram(this.program);
     this.gl.bindVertexArray(this.vao);
-    //twgl.setBuffersAndAttributes(this.gl, this.programInfo, this.bufferInfo);
+  }
 
-    twgl.setUniforms(this.programInfo, uniforms);
-    twgl.drawBufferInfo(this.gl, this.bufferInfo);
+  finishFrame() {
+    const resolutionUniformLocation = this.gl.getUniformLocation(
+      this.program,
+      'resolution'
+    );
+    this.gl.uniform2f(
+      resolutionUniformLocation,
+      this.canvas.width,
+      this.canvas.height
+    );
+
+    const viewBoxSizeUniformLocation = this.gl.getUniformLocation(
+      this.program,
+      'viewBoxSize'
+    );
+    this.gl.uniform2f(viewBoxSizeUniformLocation, ...this.viewBoxSize.list);
+
+    const cameraPositionUniformLocation = this.gl.getUniformLocation(
+      this.program,
+      'cameraPosition'
+    );
+    this.gl.uniform2f(
+      cameraPositionUniformLocation,
+      ...this.cameraPosition.list
+    );
+
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
 
   setCameraPosition(position: Vec2) {
     this.cameraPosition = position;
   }
 
-  setViewBoxSize(size: Vec2) {
-    this.viewBoxSize = size;
+  setInViewWidth(size: number): Vec2 {
+    const canvasAspectRatio =
+      this.canvas.clientHeight / this.canvas.clientWidth;
+
+    this.viewBoxSize = new Vec2(size, size * canvasAspectRatio);
+    return this.viewBoxSize;
   }
 
-  drawCornerText(text: string) {
+  drawInfoText(text: string) {
     if (this.overlay.innerText != text) {
       this.overlay.innerText = text;
     }

@@ -19,10 +19,27 @@ module.exports = {
     disableHostCheck: true,
   },
   optimization: {
+    minimize: true,
     minimizer: [
-      /*new TerserJSPlugin({
+      new TerserJSPlugin({
         sourceMap: !isProduction,
-      }),*/
+        cache: true,
+        terserOptions: {
+          ecma: 5,
+          warnings: false,
+          parse: {},
+          compress: {},
+          mangle: true,
+          module: false,
+          output: null,
+          toplevel: false,
+          nameCache: null,
+          ie8: false,
+          keep_classnames: true,
+          keep_fnames: true,
+          safari10: false,
+        },
+      }),
       new OptimizeCSSAssetsPlugin({}),
     ],
   },

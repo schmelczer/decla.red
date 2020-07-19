@@ -1,23 +1,22 @@
 import { GameObject } from '../game-object';
 import { DrawCommand } from '../../commands/types/draw';
-import { Vec2 } from '../../math/vec2';
 import { MoveToCommand } from '../../commands/types/move-to';
 
 export class Camera extends GameObject {
+  private inViewWidth = 1500;
   constructor() {
     super();
-    this._boundingBoxSize = new Vec2(1200, 800);
 
     this.addCommandExecutor(DrawCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));
   }
 
-  private draw(e: DrawCommand) {
-    e.drawer.setCameraPosition(this.position);
-    e.drawer.setViewBoxSize(this.boundingBoxSize);
+  private draw(c: DrawCommand) {
+    c.drawer.setCameraPosition(this.position);
+    this._boundingBoxSize = c.drawer.setInViewWidth(this.inViewWidth);
   }
 
-  private moveTo(e: MoveToCommand) {
-    this._position = e.position;
+  private moveTo(c: MoveToCommand) {
+    this._position = c.position;
   }
 }

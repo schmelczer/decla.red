@@ -21,5 +21,4 @@ A good-looking 2D adventure.
 - vs code glsl formatter
 - docker engine dashboard?
 - local dev env
-- vs code config
 - prettier script

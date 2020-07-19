@@ -48,7 +48,6 @@
     "svg-url-loader": "^6.0.0",
     "terser-webpack-plugin": "^2.3.5",
     "ts-loader": "^8.0.1",
-    "twgl.js": "^4.15.2",
     "typescript": "^3.8.3",
     "uuid": "^8.2.0",
     "webpack": "^4.43.0",

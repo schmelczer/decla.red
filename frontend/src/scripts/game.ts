@@ -16,6 +16,7 @@ export class Game {
   private previousTime: DOMHighResTimeStamp = 0;
   private objects: ObjectContainer = new ObjectContainer();
   private renderer: WebGl2Renderer;
+  private frameCount = 0;
 
   constructor() {
     const canvas: HTMLCanvasElement = document.querySelector('canvas#main');
@@ -47,14 +48,18 @@ export class Game {
   @timeIt()
   private gameLoop(time: DOMHighResTimeStamp) {
     const deltaTime = time - this.previousTime;
+    if (this.frameCount++ % 30 == 0) {
+      InfoText.modifyRecord('FPS', (1000 / deltaTime).toFixed(1));
+    }
+
     this.previousTime = time;
 
     this.objects.sendCommand(new StepCommand(deltaTime));
 
-    this.renderer.startWaitingForInstructions();
+    this.renderer.startFrame();
     this.objects.sendCommand(new DrawCommand(this.renderer));
-    this.renderer.finishWaitingForInstructions();
+    this.renderer.finishFrame();
 
-    requestAnimationFrame(this.gameLoop.bind(this));
+    window.requestAnimationFrame(this.gameLoop.bind(this));
   }
 }

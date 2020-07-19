@@ -1,9 +1,9 @@
 import { Vec2 } from '../math/vec2';
 
 export interface Drawer {
-  startWaitingForInstructions();
-  finishWaitingForInstructions();
+  startFrame();
+  finishFrame();
   setCameraPosition(position: Vec2);
-  setViewBoxSize(size: Vec2);
-  drawCornerText(text: string);
+  setInViewWidth(size: number): Vec2;
+  drawInfoText(text: string);
 }
