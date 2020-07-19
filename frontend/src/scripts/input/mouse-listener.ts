@@ -8,7 +8,7 @@ export class MouseListener extends CommandGenerator {
   private previousPosition: Vec2 = null;
   private isMouseDown = false;
 
-  constructor(private target: Element = document.body) {
+  constructor(private target: Element) {
     super();
 
     target.addEventListener('mousedown', (event: MouseEvent) => {
@@ -48,9 +48,11 @@ export class MouseListener extends CommandGenerator {
   }
 
   private positionFromEvent(event: MouseEvent): Vec2 {
+    const bb = this.target.getBoundingClientRect();
+
     return new Vec2(
-      -event.clientX / this.target.clientWidth,
-      event.clientY / this.target.clientHeight
-    );
+      (event.clientX - bb.x) / bb.width,
+      1 - (event.clientY - bb.y) / bb.height
+    ).clamped_0_1;
   }
 }

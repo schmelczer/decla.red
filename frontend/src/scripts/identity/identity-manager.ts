@@ -1,4 +1,8 @@
+import { Id } from './identity';
+import { v4 } from 'uuid';
+
 export class IdentityManager {
-  public static sourceId: string;
-  public static targetId: string;
+  public static generateId(): Id {
+    return v4();
+  }
 }

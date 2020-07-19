@@ -1,19 +1,39 @@
-html, body, main {
-    height: 100%;
+html,
+body,
+main {
+  height: 100%;
 }
 
 body {
-    margin: 0;
+  margin: 0;
+  background-color: #333;
 
-    background-color: #333;
-    main {
-        display: flex;
-        justify-content: center;
-        align-items: center;
+  main {
+    position: relative;
 
-        canvas {
-            width: 100%;
-            background-color: hotpink;
-        }
+    .canvas-container {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 100%;
+
+      #overlay {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 1em;
+        padding: 0.5em 1em;
+        user-select: none;
+        pointer-events: none;
+        position: absolute;
+        right: 0;
+        -webkit-text-stroke: 1px black;
+        -webkit-text-fill-color: white;
+        white-space: pre;
+      }
+
+      canvas#main {
+        width: 100%;
+        background-color: hotpink;
+      }
     }
+  }
 }

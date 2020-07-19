@@ -6,6 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "webpack-dev-server --mode development",
+    "start-unsafe": "webpack-dev-server --mode development --useLocalIp",
     "build": "webpack && find dist -type f -not -name '*.html' | xargs rm"
   },
   "keywords": [],
@@ -25,6 +26,7 @@
     "usedExports": true
   },
   "devDependencies": {
+    "@types/uuid": "^8.0.0",
     "autoprefixer": "^9.8.5",
     "clean-webpack-plugin": "^3.0.0",
     "css-loader": "^3.5.2",

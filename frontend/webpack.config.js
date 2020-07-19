@@ -7,7 +7,6 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 const Sharp = require('responsive-loader/sharp');
 const Sass = require('sass');
-const tsNameof = require('ts-nameof');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -123,9 +122,6 @@ module.exports = {
         test: /\.ts$/,
         use: {
           loader: 'ts-loader',
-          options: {
-            getCustomTransformers: () => ({ before: [tsNameof] }),
-          },
         },
         exclude: /node_modules/,
       },

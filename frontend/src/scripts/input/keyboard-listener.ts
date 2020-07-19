@@ -3,7 +3,7 @@ import { KeyDownCommand } from '../commands/types/key-down';
 import { KeyUpCommand } from '../commands/types/key-up';
 
 export class KeyboardListener extends CommandGenerator {
-  constructor(target: Element = document.body) {
+  constructor(target: Element) {
     super();
 
     target.addEventListener('keydown', (event: KeyboardEvent) => {

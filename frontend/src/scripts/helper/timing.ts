@@ -1,22 +1,37 @@
-export const TimeIt = (func, interval = 60) => {
-  let i = 0;
-  let values = [];
+import { InfoText } from '../objects/types/info-text';
 
-  return () => {
-    const start = performance.now();
-    func();
-    const end = performance.now();
+export function timeIt(interval = 60) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
+    let i = 0;
+    let previousTimes: Array<DOMHighResTimeStamp> = [];
 
-    values.push(end - start);
-    if (++i % interval == 0) {
-      values.sort();
-      console.log(
-        `${func.name}\n\tMax ${values[values.length - 1].toFixed(
+    const targetFunction = descriptor.value;
+
+    descriptor.value = function (...values) {
+      const start = performance.now();
+      targetFunction.bind(this)(...values);
+      const end = performance.now();
+
+      previousTimes.push(end - start);
+
+      if (i++ % interval == 0) {
+        previousTimes.sort();
+        const text = `Max: ${previousTimes[previousTimes.length - 1].toFixed(
           2
-        )} ms\n\tMedian ${values[Math.floor(values.length / 2)].toFixed(2)} ms`
-      );
+        )} ms\n\tMedian: ${previousTimes[
+          Math.floor(previousTimes.length / 2)
+        ].toFixed(2)} ms`;
 
-      values = [];
-    }
+        InfoText.modifyRecord(propertyKey, text);
+
+        previousTimes = [];
+      }
+    };
+
+    return descriptor;
   };
-};
+}

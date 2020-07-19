@@ -1,10 +1,9 @@
 const twgl = require('twgl.js');
 
-import { TimeIt } from '../helper/timing';
+import { Drawer } from './drawer';
 import { Vec2 } from '../math/vec2';
-import { ObjectContainer } from '../objects/object-container';
 
-export class Renderer {
+export class WebGl2Renderer implements Drawer {
   private gl: WebGL2RenderingContext;
   private programInfo: any;
   private bufferInfo: any;
@@ -12,7 +11,7 @@ export class Renderer {
 
   constructor(
     private canvas: HTMLCanvasElement,
-    private objects: ObjectContainer,
+    private overlay: HTMLElement,
     shaderSources: Array<string>
   ) {
     twgl.setDefaults({ attribPrefix: 'a_' });
@@ -42,7 +41,14 @@ export class Renderer {
     );
   }
 
-  public render(time: number) {
+  startWaitingForInstructions() {
+    //throw new Error("Method not implemented.");
+  }
+
+  private cameraPosition: Vec2;
+  private viewBoxSize: Vec2;
+
+  finishWaitingForInstructions() {
     const gl = this.gl;
 
     twgl.resizeCanvasToDisplaySize(this.canvas);
@@ -51,8 +57,8 @@ export class Renderer {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     const uniforms = {
-      cameraPosition: this.objects.camera.position.list,
-      viewBoxSize: [this.gl.canvas.width, this.gl.canvas.height],
+      cameraPosition: this.cameraPosition.list,
+      viewBoxSize: this.viewBoxSize.list,
       resolution: [this.gl.canvas.width, this.gl.canvas.height],
     };
 
@@ -62,5 +68,19 @@ export class Renderer {
 
     twgl.setUniforms(this.programInfo, uniforms);
     twgl.drawBufferInfo(this.gl, this.bufferInfo);
+  }
+
+  setCameraPosition(position: Vec2) {
+    this.cameraPosition = position;
+  }
+
+  setViewBoxSize(size: Vec2) {
+    this.viewBoxSize = size;
+  }
+
+  drawCornerText(text: string) {
+    if (this.overlay.innerText != text) {
+      this.overlay.innerText = text;
+    }
   }
 }
