@@ -4,6 +4,6 @@ export interface Drawer {
   startFrame();
   finishFrame();
   setCameraPosition(position: Vec2);
-  setInViewWidth(size: number): Vec2;
+  setInViewArea(size: number): Vec2;
   drawInfoText(text: string);
 }

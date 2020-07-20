@@ -5,12 +5,16 @@ import { TouchListener } from './input/touch-listener';
 import { CommandBroadcaster } from './commands/command-broadcaster';
 import { ObjectContainer } from './objects/object-container';
 import { DrawCommand } from './commands/types/draw';
-import passthroughVertexShader from '../shaders/passthrough.vert';
-import distanceFragmentShader from '../shaders/dist.frag';
+
 import { StepCommand } from './commands/types/step';
 import { Character } from './objects/types/character';
 import { InfoText } from './objects/types/info-text';
 import { timeIt } from './helper/timing';
+
+import { GlslShader, GlslVariable, GlslVariableMap } from 'webpack-glsl-minify';
+
+let passthroughVertexShader = require('../shaders/passthrough-vs.glsl') as GlslShader;
+let distanceFragmentShader = require('../shaders/cave-fs.glsl') as GlslShader;
 
 export class Game {
   private previousTime: DOMHighResTimeStamp = 0;
@@ -31,9 +35,11 @@ export class Game {
       [this.objects]
     );
 
+    console.log(distanceFragmentShader);
+
     this.renderer = new WebGl2Renderer(canvas, overlay, [
-      passthroughVertexShader,
-      distanceFragmentShader,
+      passthroughVertexShader.sourceCode,
+      distanceFragmentShader.sourceCode,
     ]);
 
     this.initializeScene();

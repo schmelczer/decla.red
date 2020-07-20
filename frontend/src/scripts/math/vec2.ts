@@ -13,16 +13,20 @@ export class Vec2 extends Typed {
     return new Vec2(this.x * scalar, this.y * scalar);
   }
 
-  public times(other: Vec2): Vec2 {
-    return new Vec2(this.x * other.x, this.y * other.y);
-  }
-
   public add(other: Vec2): Vec2 {
     return new Vec2(this.x + other.x, this.y + other.y);
   }
 
   public subtract(other: Vec2): Vec2 {
     return new Vec2(this.x - other.x, this.y - other.y);
+  }
+
+  public times(other: Vec2): Vec2 {
+    return new Vec2(this.x * other.x, this.y * other.y);
+  }
+
+  public divide(other: Vec2): Vec2 {
+    return new Vec2(this.x / other.x, this.y / other.y);
   }
 
   public get length(): number {

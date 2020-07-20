@@ -3,7 +3,8 @@ import { DrawCommand } from '../../commands/types/draw';
 import { MoveToCommand } from '../../commands/types/move-to';
 
 export class Camera extends GameObject {
-  private inViewWidth = 1500;
+  private inViewArea = 1920 * 1080;
+
   constructor() {
     super();
 
@@ -13,7 +14,7 @@ export class Camera extends GameObject {
 
   private draw(c: DrawCommand) {
     c.drawer.setCameraPosition(this.position);
-    this._boundingBoxSize = c.drawer.setInViewWidth(this.inViewWidth);
+    this._boundingBoxSize = c.drawer.setInViewArea(this.inViewArea);
   }
 
   private moveTo(c: MoveToCommand) {

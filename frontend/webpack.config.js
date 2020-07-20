@@ -5,10 +5,10 @@ const TerserJSPlugin = require('terser-webpack-plugin');
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
-const Sharp = require('responsive-loader/sharp');
 const Sass = require('sass');
 
 const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = !isProduction;
 
 module.exports = {
   watchOptions: {
@@ -70,13 +70,18 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.(jpe?g|png)$/i,
-        loader: 'responsive-loader',
-        options: {
-          adapter: Sharp,
-          outputPath: 'static/',
-          sizes: [200, 400, 800, 1200, 2000],
-          placeholder: false,
+        test: /\.(glsl)$/,
+        use: {
+          loader: 'webpack-glsl-minify',
+          options: {
+            output: 'object',
+            esModule: false,
+            stripVersion: false,
+            preserveDefines: false,
+            preserveUniforms: true,
+            preserveVariables: true,
+            disableMangle: false,
+          },
         },
       },
       {
@@ -85,12 +90,6 @@ module.exports = {
         options: {
           limit: 10 * 1024,
           noquotes: true,
-        },
-      },
-      {
-        test: /\.(frag|vert)$/i,
-        use: {
-          loader: 'raw-loader',
         },
       },
       {
@@ -145,7 +144,7 @@ module.exports = {
     ],
   },
   resolve: {
-    extensions: ['.ts', '.js'],
+    extensions: ['.ts', '.js', '.glsl'],
   },
   output: {
     filename: '[name].[contenthash].js',

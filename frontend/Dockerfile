@@ -1,12 +1,9 @@
-FROM python:3.8-alpine as build-error-pages
+FROM error-pages as build-error-pages
 
-WORKDIR /home/python
-COPY error-pages .
-RUN python build.py
+RUN python build.py 403 404 50x
 
 
 FROM node:latest as build-webpage
-
 WORKDIR /home/node
 
 COPY src src

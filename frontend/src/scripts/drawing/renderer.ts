@@ -2,6 +2,7 @@ import { Drawer } from './drawer';
 import { Vec2 } from '../math/vec2';
 import { createProgram } from './graphics-library/create-program';
 import { prepareScreenQuad } from './graphics-library/prepare-screen-quad';
+import { Mat3 } from '../math/mat3';
 
 export class WebGl2Renderer implements Drawer {
   private gl: WebGL2RenderingContext;
@@ -56,29 +57,20 @@ export class WebGl2Renderer implements Drawer {
   }
 
   finishFrame() {
-    const resolutionUniformLocation = this.gl.getUniformLocation(
-      this.program,
-      'resolution'
-    );
-    this.gl.uniform2f(
-      resolutionUniformLocation,
-      this.canvas.width,
-      this.canvas.height
-    );
+    const resolution = new Vec2(this.canvas.width, this.canvas.height);
+
+    const transform = Mat3.translateMatrix(new Vec2(0.5, 0.5))
+      .times(Mat3.scaleMatrix(this.viewBoxSize.divide(resolution)))
+      .times(Mat3.translateMatrix(this.cameraPosition));
 
     const viewBoxSizeUniformLocation = this.gl.getUniformLocation(
       this.program,
-      'viewBoxSize'
+      'transform'
     );
-    this.gl.uniform2f(viewBoxSizeUniformLocation, ...this.viewBoxSize.list);
-
-    const cameraPositionUniformLocation = this.gl.getUniformLocation(
-      this.program,
-      'cameraPosition'
-    );
-    this.gl.uniform2f(
-      cameraPositionUniformLocation,
-      ...this.cameraPosition.list
+    this.gl.uniformMatrix3fv(
+      viewBoxSizeUniformLocation,
+      false,
+      new Float32Array(transform.transposedFlat)
     );
 
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
@@ -88,11 +80,14 @@ export class WebGl2Renderer implements Drawer {
     this.cameraPosition = position;
   }
 
-  setInViewWidth(size: number): Vec2 {
+  setInViewArea(size: number): Vec2 {
     const canvasAspectRatio =
-      this.canvas.clientHeight / this.canvas.clientWidth;
+      this.canvas.clientWidth / this.canvas.clientHeight;
 
-    this.viewBoxSize = new Vec2(size, size * canvasAspectRatio);
+    this.viewBoxSize = new Vec2(
+      Math.sqrt(size * canvasAspectRatio),
+      Math.sqrt(size / canvasAspectRatio)
+    );
     return this.viewBoxSize;
   }
 

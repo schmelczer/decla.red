@@ -4,7 +4,7 @@ precision mediump float;
 
 const float smoothing = 10.0;
 const float inf = 1000000.0;
-const float pi = atan(1.0) * 4.0;
+const float pi = 3.141592654;
 
 float interpolate(float from, float to, float quotient) {
     float steppedQ = sin(quotient * pi - pi * 0.5) * 0.5 + 0.5;
@@ -16,14 +16,14 @@ vec2 rotate90deg(in vec2 vector) {
 }
 
 struct Line {
-    vec2 a;
-  	vec2 b;
+    vec2 from;
+  	vec2 to;
     vec2 normal;
     bool isLineEnd;
 }[16] lines;
 
 float lineDistance(in vec2 position, in Line line, out float h) {
-    vec2 pa = position - line.a, ba = line.b - line.a;
+    vec2 pa = position - line.from, ba = line.to - line.from;
     h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
     vec2 delta = pa - ba*h;
     // sign can return 0, double sign prevents this 
@@ -32,7 +32,7 @@ float lineDistance(in vec2 position, in Line line, out float h) {
 }
 
 Line endDummyLineFromLine(Line line) {
-    return Line(line.b, line.b + rotate90deg(line.normal), line.normal, false);
+    return Line(line.to, line.to + rotate90deg(line.normal), line.normal, false);
 }
 
 float getDistance(in vec2 target) {
@@ -55,7 +55,7 @@ float getDistance(in vec2 target) {
 
         float h;
         float distanceToCurrent = lineDistance(target, current, h);
-        float rightJoinAcuteness = dot(next.b - current.a, next.normal - current.normal);
+        float rightJoinAcuteness = dot(next.to - current.from, next.normal - current.normal);
         distanceToCurrent -= interpolate(
             sign(leftJoinAcuteness) * smoothing,
             sign(rightJoinAcuteness) * smoothing, h
@@ -64,8 +64,8 @@ float getDistance(in vec2 target) {
 
         if (
             !(
-                   dot(target - current.a, splitterLineNormalStart * -sign(dot(current.b - current.a, splitterLineNormalStart))) > 0.0 
-                || dot(target - current.b, splitterLineNormalEnd * sign(dot(current.a - current.b, splitterLineNormalEnd))) <= 0.0
+                   dot(target - current.from, splitterLineNormalStart * -sign(dot(current.to - current.from, splitterLineNormalStart))) > 0.0 
+                || dot(target - current.to, splitterLineNormalEnd * sign(dot(current.from - current.to, splitterLineNormalEnd))) <= 0.0
             ) && abs(distanceToCurrent) < abs(minDistance)
         ) {
             minDistance = distanceToCurrent;
@@ -95,24 +95,21 @@ void createWorld() {
     lines[15] = Line(vec2(1150, 420.0), vec2(10200, 650.0), vec2(-1.0), true);
 
     for (int i = 0; i < lines.length(); i++) {
-        vec2 tangent = lines[i].b - lines[i].a;
+        vec2 tangent = lines[i].to - lines[i].from;
         lines[i].normal = normalize(
             vec2(-lines[i].normal.x * tangent.y, lines[i].normal.x * tangent.x)
         );
     }
 }
 
-uniform vec2 cameraPosition;
-uniform vec2 viewBoxSize;
-uniform vec2 resolution;
-
+uniform mat3 transform;
 out vec4 fragmentColor;
 
 void main() {
     createWorld();
 
-    vec2 pixelPosition = gl_FragCoord.xy + vec2(0.5);
-    vec2 position = pixelPosition / resolution * viewBoxSize + cameraPosition;
+    vec3 projectiveXY = vec3(gl_FragCoord.xy, 1.0);
+    vec2 position = (projectiveXY * transform).xy;
     //fragmentColor = getDistance(position) > 0.0 ? vec4(0.0, 0.0, 0.0, 0.0) : vec4(0.0, 0.0, 0.0, 1.0);
     fragmentColor = vec4(vec3(1.0) * clamp(0.0, 1.0, getDistance(position)), 1.0);
 }
