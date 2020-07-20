@@ -1,32 +1,37 @@
 import { Drawer } from './drawer';
 import { Vec2 } from '../math/vec2';
-import { createProgram } from './graphics-library/create-program';
-import { prepareScreenQuad } from './graphics-library/prepare-screen-quad';
 import { Mat3 } from '../math/mat3';
+import { FragmentShaderOnlyProgram } from './graphics-library/fragment-shader-only-program';
+import { WebGlStopwatch } from './graphics-library/stopwatch';
+import { Rectangle } from '../math/rectangle';
 
 export class WebGl2Renderer implements Drawer {
   private gl: WebGL2RenderingContext;
-  private program: WebGLProgram;
-  private vao: WebGLVertexArrayObject;
+  private program: FragmentShaderOnlyProgram;
+  private stopwatch: WebGlStopwatch;
 
   public enableHighDpiRendering = false;
-  public renderScale = 0.33;
+  public renderScale = 0.5;
 
-  private cameraPosition: Vec2;
-  private viewBoxSize: Vec2;
+  private viewBox: Rectangle = new Rectangle();
+
+  private nextFrameUniforms: any;
 
   constructor(
     private canvas: HTMLCanvasElement,
     private overlay: HTMLElement,
-    shaderSources: [string, string]
+    shaderSources: Array<string>
   ) {
     this.gl = this.canvas.getContext('webgl2');
     if (!this.gl) {
       throw new Error('WebGl2 is not supported');
     }
 
-    this.program = createProgram(this.gl, ...shaderSources);
-    this.vao = prepareScreenQuad(this.gl, this.program, 'a_position');
+    this.program = new FragmentShaderOnlyProgram(this.gl, shaderSources[0]);
+
+    try {
+      this.stopwatch = new WebGlStopwatch(this.gl);
+    } catch {}
   }
 
   private handleResize() {
@@ -49,51 +54,56 @@ export class WebGl2Renderer implements Drawer {
   }
 
   public startFrame() {
+    this.stopwatch?.start();
+
     this.handleResize();
+
     this.gl.clearColor(0, 0, 0, 0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-    this.gl.useProgram(this.program);
-    this.gl.bindVertexArray(this.vao);
+
+    this.program.bind();
+    this.nextFrameUniforms = {};
   }
 
-  finishFrame() {
+  public finishFrame() {
     const resolution = new Vec2(this.canvas.width, this.canvas.height);
 
-    const transform = Mat3.translateMatrix(new Vec2(0.5, 0.5))
-      .times(Mat3.scaleMatrix(this.viewBoxSize.divide(resolution)))
-      .times(Mat3.translateMatrix(this.cameraPosition));
+    this.nextFrameUniforms.transform = Mat3.translateMatrix(new Vec2(0.5, 0.5))
+      .times(Mat3.scaleMatrix(this.viewBox.size.divide(resolution)))
+      .times(Mat3.translateMatrix(this.viewBox.topLeft));
 
-    const viewBoxSizeUniformLocation = this.gl.getUniformLocation(
-      this.program,
-      'transform'
-    );
-    this.gl.uniformMatrix3fv(
-      viewBoxSizeUniformLocation,
-      false,
-      new Float32Array(transform.transposedFlat)
-    );
+    this.program.setUniforms(this.nextFrameUniforms);
+    this.program.draw();
 
-    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+    this.stopwatch?.stop();
   }
 
-  setCameraPosition(position: Vec2) {
-    this.cameraPosition = position;
+  public setCameraPosition(position: Vec2) {
+    this.viewBox.topLeft = position;
   }
 
-  setInViewArea(size: number): Vec2 {
+  public giveUniforms(uniforms: any): void {
+    this.nextFrameUniforms = { ...this.nextFrameUniforms, ...uniforms };
+  }
+
+  public setInViewArea(size: number): Vec2 {
     const canvasAspectRatio =
       this.canvas.clientWidth / this.canvas.clientHeight;
 
-    this.viewBoxSize = new Vec2(
+    this.viewBox.size = new Vec2(
       Math.sqrt(size * canvasAspectRatio),
       Math.sqrt(size / canvasAspectRatio)
     );
-    return this.viewBoxSize;
+    return this.viewBox.size;
   }
 
-  drawInfoText(text: string) {
+  public drawInfoText(text: string) {
     if (this.overlay.innerText != text) {
       this.overlay.innerText = text;
     }
+  }
+
+  isOnScreen(position: Vec2): boolean {
+    return this.viewBox.isInside(position);
   }
 }

@@ -3,6 +3,7 @@ import { PrimaryActionCommand } from '../commands/types/primary-action';
 import { SecondaryActionCommand } from '../commands/types/secondary-action';
 import { Vec2 } from '../math/vec2';
 import { SwipeCommand } from '../commands/types/swipe';
+import { ZoomCommand } from '../commands/types/zoom';
 
 export class MouseListener extends CommandGenerator {
   private previousPosition: Vec2 = null;
@@ -44,6 +45,10 @@ export class MouseListener extends CommandGenerator {
       event.preventDefault();
       const position = this.positionFromEvent(event);
       this.sendCommand(new SecondaryActionCommand(position));
+    });
+
+    target.addEventListener('wheel', (event: MouseWheelEvent) => {
+      this.sendCommand(new ZoomCommand(event.deltaY > 0 ? 1.3 : 1 / 1.3));
     });
   }
 

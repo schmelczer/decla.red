@@ -1,4 +1,3 @@
-import { Drawer } from '../../drawing/drawer';
 import { Command } from '../command';
 import { Vec2 } from '../../math/vec2';
 

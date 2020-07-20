@@ -7,10 +7,10 @@ export const createShader = (
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
   const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-  if (success) {
-    return shader;
+
+  if (!success) {
+    throw new Error(gl.getShaderInfoLog(shader));
   }
 
-  console.log(gl.getShaderInfoLog(shader));
-  gl.deleteShader(shader);
+  return shader;
 };
