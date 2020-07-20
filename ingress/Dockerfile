@@ -1,4 +1,4 @@
-FROM error-pages as build-error-pages
+FROM schmelczera/declared-error-pages as build-error-pages
 
 RUN python build.py 502
 
