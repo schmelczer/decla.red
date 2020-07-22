@@ -22,3 +22,4 @@ A good-looking 2D adventure.
 - monitoring
 - traefik
 - digital ocean docker contianer registry
+- dynamic shader generation

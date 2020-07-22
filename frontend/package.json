@@ -26,11 +26,13 @@
     "usedExports": true
   },
   "devDependencies": {
+    "@types/gl-matrix": "^2.4.5",
     "@types/uuid": "^8.0.0",
     "autoprefixer": "^9.8.5",
     "clean-webpack-plugin": "^3.0.0",
     "css-loader": "^3.5.2",
     "cssnano": "^4.1.10",
+    "gl-matrix": "^3.3.0",
     "html-webpack-inline-source-plugin": "0.0.10",
     "html-webpack-plugin": "^3.2.0",
     "image-webpack-loader": "^6.0.0",

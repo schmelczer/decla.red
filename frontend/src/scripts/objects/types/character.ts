@@ -1,5 +1,4 @@
 import { GameObject } from '../game-object';
-import { Vec2 } from '../../math/vec2';
 import { ObjectContainer } from '../object-container';
 import { Camera } from './camera';
 import { MoveToCommand } from '../../commands/types/move-to';
@@ -7,6 +6,7 @@ import { StepCommand } from '../../commands/types/step';
 import { KeyDownCommand } from '../../commands/types/key-down';
 import { KeyUpCommand } from '../../commands/types/key-up';
 import { SwipeCommand } from '../../commands/types/swipe';
+import { vec2 } from 'gl-matrix';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();
@@ -23,12 +23,16 @@ export class Character extends GameObject {
     this.addCommandExecutor(KeyUpCommand, (c) => this.keysDown.delete(c.key));
     this.addCommandExecutor(SwipeCommand, (c) =>
       this.setPosition(
-        this.position.add(c.delta.times(this.camera.boundingBoxSize))
+        vec2.add(
+          vec2.create(),
+          this.position,
+          vec2.multiply(vec2.create(), c.delta, this.camera.boundingBoxSize)
+        )
       )
     );
   }
 
-  private setPosition(value: Vec2) {
+  private setPosition(value: vec2) {
     this._position = value;
     this.camera.sendCommand(new MoveToCommand(this.position));
   }
@@ -41,11 +45,17 @@ export class Character extends GameObject {
     const left = ~~this.keysDown.has('a');
     const right = ~~this.keysDown.has('d');
 
-    const movementVector = new Vec2(right - left, up - down);
+    const movementVector = vec2.fromValues(right - left, up - down);
     if (movementVector.length > 0) {
       this.setPosition(
-        this.position.add(
-          movementVector.normalized.scale(Character.speed * deltaTime)
+        vec2.add(
+          vec2.create(),
+          this.position,
+          vec2.scale(
+            vec2.create(),
+            vec2.normalize(movementVector, movementVector),
+            Character.speed * deltaTime
+          )
         )
       );
     }

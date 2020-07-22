@@ -28,5 +28,6 @@ out vec4 fragmentColor;
 void main() {
     vec2 position = (vec3(gl_FragCoord.xy, 1.0) * transformUV).xy;
     vec4 previous = texture(distanceTexture, position);
-    fragmentColor = smoothRainbow(previous.a);
+    //fragmentColor = smoothRainbow(previous.a);
+    fragmentColor = previous.a > 0.5 ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
 }

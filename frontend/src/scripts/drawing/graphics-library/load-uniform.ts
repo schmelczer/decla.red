@@ -1,5 +1,6 @@
-import { Vec2 } from '../../math/vec2';
-import { Mat3 } from '../../math/mat3';
+import { mat3, vec2 } from 'gl-matrix';
+
+const loaderMat3 = mat3.create();
 
 export const loadUniform = (
   gl: WebGL2RenderingContext,
@@ -22,23 +23,23 @@ export const loadUniform = (
 
     converters.set(
       WebGL2RenderingContext.FLOAT_VEC2,
-      (gl, v: Vec2 | Array<Vec2>, l) => {
-        if (v instanceof Array) {
+      (gl, v: vec2 | Array<vec2>, l) => {
+        if (v[0] instanceof Array) {
           const result = new Float32Array(v.length * 2);
           for (let i = 0; i < v.length; i++) {
-            result[2 * i] = v[i].x;
-            result[2 * i + 1] = v[i].y;
+            result[2 * i] = (v[i] as Array<number>).x;
+            result[2 * i + 1] = (v[i] as Array<number>).y;
           }
           gl.uniform2fv(l, new Float32Array(result));
         } else {
-          gl.uniform2fv(l, new Float32Array(v.list));
+          gl.uniform2fv(l, v as vec2);
         }
       }
     );
 
-    converters.set(WebGL2RenderingContext.FLOAT_MAT3, (gl, v: Mat3, l) =>
-      gl.uniformMatrix3fv(l, false, new Float32Array(v.transposedFlat))
-    );
+    converters.set(WebGL2RenderingContext.FLOAT_MAT3, (gl, v, l) => {
+      gl.uniformMatrix3fv(l, true, mat3.fromMat2d(loaderMat3, v));
+    });
 
     converters.set(WebGL2RenderingContext.BOOL, (gl, v, l) =>
       gl.uniform1i(l, v)

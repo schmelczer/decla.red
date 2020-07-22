@@ -1,8 +1,8 @@
 import { Command } from '../command';
-import { Vec2 } from '../../math/vec2';
+import { vec2 } from 'gl-matrix';
 
 export class SwipeCommand extends Command {
-  public constructor(public readonly delta?: Vec2) {
+  public constructor(public readonly delta?: vec2) {
     super();
   }
 }

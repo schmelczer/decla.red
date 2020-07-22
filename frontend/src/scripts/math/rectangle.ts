@@ -1,16 +1,16 @@
 import { Typed } from '../transport/serializable';
-import { Vec2 } from './vec2';
+import { vec2 } from 'gl-matrix';
 
 export class Rectangle extends Typed {
   public constructor(
-    public topLeft: Vec2 = new Vec2(),
-    public size: Vec2 = new Vec2()
+    public topLeft: vec2 = vec2.create(),
+    public size: vec2 = vec2.create()
   ) {
     super();
   }
 
-  public isInside(position: Vec2): boolean {
-    const translated = position.subtract(this.topLeft);
+  public isInside(position: vec2): boolean {
+    const translated = vec2.subtract(vec2.create(), position, this.topLeft);
     return (
       0 <= translated.x &&
       translated.x < this.size.x &&

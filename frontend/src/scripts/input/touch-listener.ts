@@ -1,11 +1,12 @@
 import { CommandGenerator } from '../commands/command-generator';
 import { PrimaryActionCommand } from '../commands/types/primary-action';
 import { SecondaryActionCommand } from '../commands/types/secondary-action';
-import { Vec2 } from '../math/vec2';
 import { SwipeCommand } from '../commands/types/swipe';
+import { vec2 } from 'gl-matrix';
+import { clamp01 } from '../helper/clamp';
 
 export class TouchListener extends CommandGenerator {
-  private previousPosition: Vec2 = null;
+  private previousPosition = vec2.create();
 
   constructor(private target: HTMLElement) {
     super();
@@ -30,19 +31,21 @@ export class TouchListener extends CommandGenerator {
       const position = this.positionFromEvent(event);
 
       this.sendCommand(
-        new SwipeCommand(position.subtract(this.previousPosition))
+        new SwipeCommand(
+          vec2.subtract(vec2.create(), position, this.previousPosition)
+        )
       );
 
       this.previousPosition = position;
     });
   }
 
-  private positionFromEvent(event: TouchEvent): Vec2 {
+  private positionFromEvent(event: TouchEvent): vec2 {
     const bb = this.target.getBoundingClientRect();
 
-    return new Vec2(
-      1 - (event.touches[0].clientX - bb.x) / bb.width,
-      (event.touches[0].clientY - bb.y) / bb.height
-    ).clamped_0_1;
+    return vec2.fromValues(
+      clamp01(1 - (event.touches[0].clientX - bb.x) / bb.width),
+      clamp01((event.touches[0].clientY - bb.y) / bb.height)
+    );
   }
 }

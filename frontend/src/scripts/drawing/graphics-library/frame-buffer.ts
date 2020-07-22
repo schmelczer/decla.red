@@ -1,11 +1,11 @@
-import { Vec2 } from '../../math/vec2';
 import { FragmentShaderOnlyProgram } from './fragment-shader-only-program';
+import { vec2 } from 'gl-matrix';
 
 export abstract class FrameBuffer {
   public renderScale = 1;
   public enableHighDpiRendering = false;
 
-  protected size: Vec2;
+  protected size: vec2;
   protected frameBuffer: WebGLFramebuffer;
 
   constructor(
@@ -39,10 +39,10 @@ export abstract class FrameBuffer {
     const displayWidth = Math.floor(canvasWidth * realToCssPixels);
     const displayHeight = Math.floor(canvasHeight * realToCssPixels);
 
-    this.size = new Vec2(displayWidth, displayHeight);
+    this.size = vec2.fromValues(displayWidth, displayHeight);
   }
 
-  public getSize(): Vec2 {
+  public getSize(): vec2 {
     return this.size;
   }
 }

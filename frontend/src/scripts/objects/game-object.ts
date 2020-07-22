@@ -1,19 +1,19 @@
 import { Typed } from '../transport/serializable';
-import { Vec2 } from '../math/vec2';
 import { IdentityManager } from '../identity/identity-manager';
 import { Command } from '../commands/command';
 import { CommandReceiver } from '../commands/command-receiver';
+import { vec2 } from 'gl-matrix';
 
 export abstract class GameObject extends Typed implements CommandReceiver {
   public readonly id = IdentityManager.generateId();
 
-  protected _position = new Vec2();
-  public get position(): Vec2 {
+  protected _position = vec2.create();
+  public get position(): vec2 {
     return this._position;
   }
 
-  protected _boundingBoxSize = new Vec2();
-  public get boundingBoxSize(): Vec2 {
+  protected _boundingBoxSize = vec2.create();
+  public get boundingBoxSize(): vec2 {
     return this._boundingBoxSize;
   }
 

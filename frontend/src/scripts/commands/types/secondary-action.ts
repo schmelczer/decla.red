@@ -1,8 +1,8 @@
 import { Command } from '../command';
-import { Vec2 } from '../../math/vec2';
+import { vec2 } from 'gl-matrix';
 
 export class SecondaryActionCommand extends Command {
-  public constructor(public readonly position?: Vec2) {
+  public constructor(public readonly position?: vec2) {
     super();
   }
 }

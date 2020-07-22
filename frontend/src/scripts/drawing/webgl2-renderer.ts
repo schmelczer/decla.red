@@ -1,6 +1,5 @@
 import { Drawer } from './drawer';
-import { Vec2 } from '../math/vec2';
-import { Mat3 } from '../math/mat3';
+import { mat2d, vec2, mat2, mat3 } from 'gl-matrix';
 import { FragmentShaderOnlyProgram } from './graphics-library/fragment-shader-only-program';
 import { WebGlStopwatch } from './graphics-library/stopwatch';
 import { Rectangle } from '../math/rectangle';
@@ -14,6 +13,7 @@ export class WebGl2Renderer implements Drawer {
 
   private viewBox: Rectangle = new Rectangle();
   private nextFrameUniforms: any;
+  private cursorPosition = vec2.create();
   private frameBuffers: Array<FrameBuffer> = [];
 
   constructor(
@@ -38,7 +38,7 @@ export class WebGl2Renderer implements Drawer {
       ])
     );
 
-    this.frameBuffers[0].renderScale = 0.2;
+    this.frameBuffers[0].renderScale = 1;
     this.frameBuffers[1].renderScale = 1;
 
     try {
@@ -53,19 +53,30 @@ export class WebGl2Renderer implements Drawer {
   }
 
   public finishFrame() {
-    const resolution = new Vec2(this.canvas.width, this.canvas.height);
+    const resolution = vec2.fromValues(this.canvas.width, this.canvas.height);
 
-    this.nextFrameUniforms.transform = Mat3.translateMatrix(new Vec2(0.5, 0.5))
-      .times(
-        Mat3.scaleMatrix(
-          this.viewBox.size.divide(this.frameBuffers[0].getSize())
-        )
+    const transform = mat2d.fromTranslation(
+      mat2d.create(),
+      this.viewBox.topLeft
+    );
+    mat2d.scale(
+      transform,
+      transform,
+      vec2.divide(
+        vec2.create(),
+        this.viewBox.size,
+        this.frameBuffers[0].getSize()
       )
-      .times(Mat3.translateMatrix(this.viewBox.topLeft));
+    );
+    mat2d.translate(transform, transform, vec2.fromValues(0.5, 0.5));
+    this.nextFrameUniforms.transform = transform;
 
-    this.nextFrameUniforms.transformUV = Mat3.translateMatrix(
-      new Vec2(0.5, 0.5)
-    ).times(Mat3.scaleMatrix(new Vec2(1).divide(resolution)));
+    const transformUV = mat2d.fromScaling(
+      mat2d.create(),
+      vec2.divide(vec2.create(), vec2.fromValues(1, 1), resolution)
+    );
+    mat2d.translate(transformUV, transformUV, vec2.fromValues(0.5, 0.5));
+    this.nextFrameUniforms.transformUV = transformUV;
 
     this.frameBuffers[0].render(this.nextFrameUniforms);
     this.frameBuffers[1].render(
@@ -76,19 +87,23 @@ export class WebGl2Renderer implements Drawer {
     this.stopwatch?.stop();
   }
 
-  public setCameraPosition(position: Vec2) {
+  public setCameraPosition(position: vec2) {
     this.viewBox.topLeft = position;
+  }
+
+  public setCursorPosition(position: vec2): void {
+    this.cursorPosition = position;
   }
 
   public giveUniforms(uniforms: any): void {
     this.nextFrameUniforms = { ...this.nextFrameUniforms, ...uniforms };
   }
 
-  public setInViewArea(size: number): Vec2 {
+  public setInViewArea(size: number): vec2 {
     const canvasAspectRatio =
       this.canvas.clientWidth / this.canvas.clientHeight;
 
-    this.viewBox.size = new Vec2(
+    this.viewBox.size = vec2.fromValues(
       Math.sqrt(size * canvasAspectRatio),
       Math.sqrt(size / canvasAspectRatio)
     );
@@ -101,7 +116,7 @@ export class WebGl2Renderer implements Drawer {
     }
   }
 
-  isOnScreen(position: Vec2): boolean {
+  isOnScreen(position: vec2): boolean {
     return this.viewBox.isInside(position);
   }
 }

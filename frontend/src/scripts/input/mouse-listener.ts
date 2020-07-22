@@ -1,12 +1,13 @@
 import { CommandGenerator } from '../commands/command-generator';
 import { PrimaryActionCommand } from '../commands/types/primary-action';
 import { SecondaryActionCommand } from '../commands/types/secondary-action';
-import { Vec2 } from '../math/vec2';
 import { SwipeCommand } from '../commands/types/swipe';
 import { ZoomCommand } from '../commands/types/zoom';
+import { vec2 } from 'gl-matrix';
+import { clamp01 } from '../helper/clamp';
 
 export class MouseListener extends CommandGenerator {
-  private previousPosition: Vec2 = null;
+  private previousPosition = vec2.create();
   private isMouseDown = false;
 
   constructor(private target: Element) {
@@ -27,7 +28,9 @@ export class MouseListener extends CommandGenerator {
       if (this.isMouseDown) {
         const position = this.positionFromEvent(event);
         this.sendCommand(
-          new SwipeCommand(this.previousPosition.subtract(position))
+          new SwipeCommand(
+            vec2.subtract(vec2.create(), this.previousPosition, position)
+          )
         );
         this.previousPosition = position;
       }
@@ -52,12 +55,12 @@ export class MouseListener extends CommandGenerator {
     });
   }
 
-  private positionFromEvent(event: MouseEvent): Vec2 {
+  private positionFromEvent(event: MouseEvent): vec2 {
     const bb = this.target.getBoundingClientRect();
 
-    return new Vec2(
-      (event.clientX - bb.x) / bb.width,
-      1 - (event.clientY - bb.y) / bb.height
-    ).clamped_0_1;
+    return vec2.fromValues(
+      clamp01((event.clientX - bb.x) / bb.width),
+      clamp01(1 - (event.clientY - bb.y) / bb.height)
+    );
   }
 }
