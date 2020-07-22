@@ -33,7 +33,7 @@ float lineDistance(in vec2 position, in Line line, out float h) {
 
 float getDistance(in vec2 target) {
     float positiveMinDistance = INFINITY;
-    float negativeMaxDistance = -INFINITY;
+    float negativeMaxDistance = INFINITY;
 
     float leftJoinAcuteness = 0.0;
     vec2 splitterLineNormalStart = vec2(-1.0, 0.0);
@@ -55,9 +55,9 @@ float getDistance(in vec2 target) {
                 || dot(target - lines[i].to, splitterLineNormalEnd * sign(dot(lines[i].from - lines[i].to, splitterLineNormalEnd))) <= 0.0
             )
         ) {
-            float distanceToCurrentSign = sign(distanceToCurrent);
-            positiveMinDistance = min(positiveMinDistance, 1.0 / (0.5 + distanceToCurrentSign / 2.0) * distanceToCurrent);
-            negativeMaxDistance = max(negativeMaxDistance, -1.0 / (0.5 - distanceToCurrentSign / 2.0) * distanceToCurrent);
+            float distanceToCurrentSign = sign(distanceToCurrent) / 2.0;
+            positiveMinDistance = min(positiveMinDistance, 1.0 / (0.5 + distanceToCurrentSign) * abs(distanceToCurrent));
+            negativeMaxDistance = min(negativeMaxDistance, 1.0 / (0.5 - distanceToCurrentSign) * abs(distanceToCurrent));
         }
         splitterLineNormalStart = splitterLineNormalEnd;
     }
@@ -71,4 +71,5 @@ out vec4 fragmentColor;
 void main() {
     vec2 position = (vec3(gl_FragCoord.xy, 1.0) * transform).xy;
     fragmentColor = vec4(vec3(1.0) * clamp(0.0, 1.0, getDistance(position)), 1.0);
+    
 }

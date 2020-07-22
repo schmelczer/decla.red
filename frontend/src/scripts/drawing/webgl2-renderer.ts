@@ -4,18 +4,17 @@ import { Mat3 } from '../math/mat3';
 import { FragmentShaderOnlyProgram } from './graphics-library/fragment-shader-only-program';
 import { WebGlStopwatch } from './graphics-library/stopwatch';
 import { Rectangle } from '../math/rectangle';
+import { IntermediateFrameBuffer } from './graphics-library/intermediate-frame-buffer';
+import { FrameBuffer } from './graphics-library/frame-buffer';
+import { DefaultFrameBuffer } from './graphics-library/default-frame-buffer';
 
 export class WebGl2Renderer implements Drawer {
   private gl: WebGL2RenderingContext;
-  private program: FragmentShaderOnlyProgram;
   private stopwatch: WebGlStopwatch;
 
-  public enableHighDpiRendering = false;
-  public renderScale = 0.5;
-
   private viewBox: Rectangle = new Rectangle();
-
   private nextFrameUniforms: any;
+  private frameBuffers: Array<FrameBuffer> = [];
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -27,53 +26,52 @@ export class WebGl2Renderer implements Drawer {
       throw new Error('WebGl2 is not supported');
     }
 
-    this.program = new FragmentShaderOnlyProgram(this.gl, shaderSources[0]);
+    this.frameBuffers.push(
+      new IntermediateFrameBuffer(this.gl, [
+        new FragmentShaderOnlyProgram(this.gl, shaderSources[0]),
+      ])
+    );
+
+    this.frameBuffers.push(
+      new DefaultFrameBuffer(this.gl, [
+        new FragmentShaderOnlyProgram(this.gl, shaderSources[1]),
+      ])
+    );
+
+    this.frameBuffers[0].renderScale = 0.2;
+    this.frameBuffers[1].renderScale = 1;
 
     try {
       this.stopwatch = new WebGlStopwatch(this.gl);
     } catch {}
   }
 
-  private handleResize() {
-    const realToCssPixels = window.devicePixelRatio * this.renderScale;
-
-    const displayWidth = Math.floor(this.canvas.clientWidth * realToCssPixels);
-    const displayHeight = Math.floor(
-      this.canvas.clientHeight * realToCssPixels
-    );
-
-    if (
-      this.canvas.width !== displayWidth ||
-      this.canvas.height !== displayHeight
-    ) {
-      this.canvas.width = displayWidth;
-      this.canvas.height = displayHeight;
-    }
-
-    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-  }
-
-  public startFrame() {
+  startFrame(): void {
     this.stopwatch?.start();
-
-    this.handleResize();
-
-    this.gl.clearColor(0, 0, 0, 0);
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-
-    this.program.bind();
     this.nextFrameUniforms = {};
+    this.frameBuffers.forEach((f) => f.setSize());
   }
 
   public finishFrame() {
     const resolution = new Vec2(this.canvas.width, this.canvas.height);
 
     this.nextFrameUniforms.transform = Mat3.translateMatrix(new Vec2(0.5, 0.5))
-      .times(Mat3.scaleMatrix(this.viewBox.size.divide(resolution)))
+      .times(
+        Mat3.scaleMatrix(
+          this.viewBox.size.divide(this.frameBuffers[0].getSize())
+        )
+      )
       .times(Mat3.translateMatrix(this.viewBox.topLeft));
 
-    this.program.setUniforms(this.nextFrameUniforms);
-    this.program.draw();
+    this.nextFrameUniforms.transformUV = Mat3.translateMatrix(
+      new Vec2(0.5, 0.5)
+    ).times(Mat3.scaleMatrix(new Vec2(1).divide(resolution)));
+
+    this.frameBuffers[0].render(this.nextFrameUniforms);
+    this.frameBuffers[1].render(
+      this.nextFrameUniforms,
+      (this.frameBuffers[0] as IntermediateFrameBuffer).texture
+    );
 
     this.stopwatch?.stop();
   }

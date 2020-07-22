@@ -59,6 +59,19 @@ export class FragmentShaderOnlyProgram {
         type: glUniform.type,
       });
     }
+
+    console.log(this.uniforms);
+
+    this.uniforms.map((u1) => {
+      const isSingle =
+        this.uniforms.filter((u2) => u2.name.includes(u1.name[0])).length == 1;
+      if (u1.name.includes('0') && isSingle) {
+        u1.name = u1.name.slice(0, -1);
+      }
+      return u1;
+    });
+
+    console.log(this.uniforms);
   }
 
   private createProgram(fragmentShaderSource: string) {

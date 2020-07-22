@@ -1,8 +1,6 @@
 #version 300 es
 
-#ifdef GL_ES
 precision mediump float;
-#endif
 
 #define INFINITY 1.0 / 0.0
 
@@ -13,8 +11,11 @@ precision mediump float;
 #define ANTIALIASING_RADIUS 1.0
 
 uniform vec2 resolution;
-// uniform vec2 u_mouse;
-uniform float time;
+uniform vec2 mouse;
+uniform sampler2D distanceTexture;
+uniform mat3 transformUV;
+
+out vec4 fragmentColor;
 
 struct Light {
     vec2 center;
@@ -66,7 +67,7 @@ float getDistance(in vec2 target, out Circle nearest) {
 }
 
 void createWorld() {
-    lights[0] = Light(u_mouse, 40.5, vec3(1.0), 25.0);
+    lights[0] = Light(mouse, 40.5, vec3(1.0), 25.0);
     lights[1] = Light(vec2(100.0, 350.0), 52.5,vec3(2.0, 1.0, 0.25), 20.5);
     
     world[0] = Circle(vec2(250.0, 100.0), 12.5, blue);   
@@ -155,5 +156,5 @@ void main() {
     vec2 position = gl_FragCoord.xy + vec2(0.5);
 	vec3 color = getPixelColorAntialiased(position);
     
-    gl_FragColor = vec4(color, 1.0);
+    fragmentColor = vec4(color, 1.0);
 }

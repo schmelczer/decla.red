@@ -16,12 +16,24 @@ export const loadUniform = (
     ) => void
   > = new Map();
   {
-    converters.set(WebGL2RenderingContext.FLOAT, (gl, v, l) =>
-      gl.uniform1f(l, v)
-    );
+    converters.set(WebGL2RenderingContext.FLOAT, (gl, v, l) => {
+      gl.uniform1fv(l, new Float32Array(v));
+    });
 
-    converters.set(WebGL2RenderingContext.FLOAT_VEC2, (gl, v: Vec2, l) =>
-      gl.uniform2fv(l, new Float32Array(v.list))
+    converters.set(
+      WebGL2RenderingContext.FLOAT_VEC2,
+      (gl, v: Vec2 | Array<Vec2>, l) => {
+        if (v instanceof Array) {
+          const result = new Float32Array(v.length * 2);
+          for (let i = 0; i < v.length; i++) {
+            result[2 * i] = v[i].x;
+            result[2 * i + 1] = v[i].y;
+          }
+          gl.uniform2fv(l, new Float32Array(result));
+        } else {
+          gl.uniform2fv(l, new Float32Array(v.list));
+        }
+      }
     );
 
     converters.set(WebGL2RenderingContext.FLOAT_MAT3, (gl, v: Mat3, l) =>

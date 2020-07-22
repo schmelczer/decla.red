@@ -19,3 +19,6 @@ A good-looking 2D adventure.
 - docker engine dashboard?
 - local dev env
 - prettier script
+- monitoring
+- traefik
+- digital ocean docker contianer registry

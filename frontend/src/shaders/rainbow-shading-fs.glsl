@@ -1,3 +1,8 @@
+#version 300 es
+
+precision mediump float;
+
+
 vec3 rainbow(float level) {
 	float r = float(level <= 2.0) + float(level > 4.0) * 0.5;
 	float g = max(1.0 - abs(level - 2.0) * 0.5, 0.0);
@@ -15,4 +20,13 @@ vec4 smoothRainbow(float x) {
     return vec4(mix(a, b, fract(x*6.0)), 1.0);
 }
 
-fragmentColor = smoothRainbow(getDistance(position) / 30.0 + 0.5);
+
+uniform sampler2D distanceTexture;
+uniform mat3 transformUV;
+out vec4 fragmentColor;
+
+void main() {
+    vec2 position = (vec3(gl_FragCoord.xy, 1.0) * transformUV).xy;
+    vec4 previous = texture(distanceTexture, position);
+    fragmentColor = smoothRainbow(previous.a);
+}
