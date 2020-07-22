@@ -36,11 +36,11 @@ float getDistance(in vec2 target) {
     return -minDistance;
 }
 
-uniform mat3 transform;
+uniform mat3 distanceScreenToWorld;
 out vec4 fragmentColor;
 
 void main() {
-    vec2 position = (vec3(gl_FragCoord.xy, 1.0) * transform).xy;
+    vec2 position = (vec3(gl_FragCoord.xy, 1.0) * distanceScreenToWorld).xy;
     float distance = getDistance(position);
     fragmentColor = vec4(vec3(0.0), distance / 256.0 + 0.5);
 }

@@ -20,10 +20,10 @@ export class Dungeon extends GameObject {
     let previousRadius = 0;
     let previousEnd = vec2.create();
 
-    for (let i = 0; i < 5000; i += 50) {
-      const height = previousEnd.y + (Math.random() - 0.5) * 200;
+    for (let i = 0; i < 500000; i += 500) {
+      const height = previousEnd.y + (Math.random() - 0.5) * 2000;
       const currentEnd = vec2.fromValues(i, height);
-      const currentToRadius = Math.random() * 10 + 30;
+      const currentToRadius = Math.random() * 10 + 300;
 
       this.lines.push({
         start: previousEnd,

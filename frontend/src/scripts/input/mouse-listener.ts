@@ -5,6 +5,7 @@ import { SwipeCommand } from '../commands/types/swipe';
 import { ZoomCommand } from '../commands/types/zoom';
 import { vec2 } from 'gl-matrix';
 import { clamp01 } from '../helper/clamp';
+import { CursorMoveCommand } from '../commands/types/cursor-move-command';
 
 export class MouseListener extends CommandGenerator {
   private previousPosition = vec2.create();
@@ -25,8 +26,9 @@ export class MouseListener extends CommandGenerator {
     });
 
     target.addEventListener('mousemove', (event: MouseEvent) => {
+      const position = this.positionFromEvent(event);
+
       if (this.isMouseDown) {
-        const position = this.positionFromEvent(event);
         this.sendCommand(
           new SwipeCommand(
             vec2.subtract(vec2.create(), this.previousPosition, position)
@@ -34,6 +36,8 @@ export class MouseListener extends CommandGenerator {
         );
         this.previousPosition = position;
       }
+
+      this.sendCommand(new CursorMoveCommand(position));
     });
 
     target.addEventListener('mouseup', (event: MouseEvent) => {

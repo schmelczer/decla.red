@@ -2,20 +2,12 @@
 
 precision mediump float;
 
-#define INFINITY 1.0 / 0.0
+#define INFINITY 10000.0
 
-#define WORLD_SIZE 4
-#define LIGHTS_SIZE 2
+#define LIGHTS_SIZE 3
 
 #define LIGHT_PENETRATION 0.95
 #define ANTIALIASING_RADIUS 1.0
-
-uniform vec2 resolution;
-uniform vec2 mouse;
-uniform sampler2D distanceTexture;
-uniform mat3 transformUV;
-
-out vec4 fragmentColor;
 
 struct Light {
     vec2 center;
@@ -24,62 +16,38 @@ struct Light {
     float intensity;
 };
 
-struct Circle {
-    vec2 center;
-  	float radius;
-    vec3 color;
-};
+uniform sampler2D distanceTexture;
+uniform mat3 worldToDistanceUV;
+uniform mat3 lightingScreenToWorld;
+uniform vec2 cursorPosition;
+
 
 Light lights[LIGHTS_SIZE];
-Circle world[WORLD_SIZE];
-
-vec3 red = vec3(5.0, 0.0, 2.0);
-vec3 blue = vec3(0.0, 0.0, 3.0);
-
-float circleDistance(in vec2 position, in Circle circle)
-{
-	return length(position - circle.center) - circle.radius;
-}
 
 float circleDistance(in vec2 position, in Light circle)
 {
 	return length(position - circle.center) - circle.radius;
 }
 
-float getDistance(in vec2 target) {
-    float distance = INFINITY;
-    for (int i = 0; i < WORLD_SIZE; i++) {
-        distance = min(distance, circleDistance(target, world[i]));
-    }
-    return distance;
-}
-
-float getDistance(in vec2 target, out Circle nearest) {
-    float distance = INFINITY;
-    for (int i = 0; i < WORLD_SIZE; i++) {
-        float distanceToCurrent = circleDistance(target, world[i]);
-        if (distanceToCurrent < distance) {
-            distance = distanceToCurrent;
-            nearest = world[i];
-        }
-    }
-    return distance;
+float getDistance(in vec2 target, out vec3 color) {
+    vec2 targetUV = (vec3(target.xy, 1.0) * worldToDistanceUV).xy;
+    vec4 values = texture(distanceTexture, targetUV);
+    color = values.rgb;
+    return (values.a - 0.5) * 256.0;
 }
 
 void createWorld() {
-    lights[0] = Light(mouse, 40.5, vec3(1.0), 25.0);
+    lights[0] = Light(vec2(600, 700), 40.5, vec3(1.0), 25.0);
     lights[1] = Light(vec2(100.0, 350.0), 52.5,vec3(2.0, 1.0, 0.25), 20.5);
-    
-    world[0] = Circle(vec2(250.0, 100.0), 12.5, blue);   
-    world[1] = Circle(vec2(150.0, 50.0), 32.5, red);
-    world[2] = Circle(vec2(300.0, 350.0), 52.5, blue);
+    lights[2] = Light(cursorPosition, 52.5,vec3(0.63, 0.07, 0.19), 200.5);
 }
 
 float escapeFromObject(inout vec2 position, in vec2 direction) {
     float fractionOfLightPenetrating = 1.0;
     float rayLength = 0.0;
     for (int i = 0; i < 64; i++) {
-        float minDistance = getDistance(position);
+        vec3 color;
+        float minDistance = getDistance(position, color);
         if (minDistance >= 0.0) {
             return fractionOfLightPenetrating;
         }
@@ -94,10 +62,11 @@ float escapeFromObject(inout vec2 position, in vec2 direction) {
 
 float getFractionOfLightArriving(in vec2 position, in vec2 direction, in float lightDistance, in float lightRadius) {
     float fractionOfLightArriving = 1.0;
+    vec3 color;
 
     float rayLength = 0.0;
     for (int j = 0; j < 64; j++) {
-        float minDistance = getDistance(position + direction * rayLength);
+        float minDistance = getDistance(position + direction * rayLength, color);
         fractionOfLightArriving = min(fractionOfLightArriving, minDistance / rayLength);
         rayLength += max(1.0, abs(minDistance));
 
@@ -110,25 +79,27 @@ float getFractionOfLightArriving(in vec2 position, in vec2 direction, in float l
     return 0.0;
 }
 
-vec3 getPixelColor(in vec2 position, in bool startsInside, in vec3 colorBias) {
+vec3 getPixelColor(in vec2 targetLighting, in bool startsInside, in vec3 colorBias) {
     vec3 result = vec3(0.0);
     
     for (int i = 0; i < LIGHTS_SIZE; i++) {
         Light light = lights[i];
         
-        float lightDistance = circleDistance(position, light);
-        vec3 lightColor = normalize(light.color) * light.intensity / mix(1.0,  lightDistance, clamp(lightDistance, 0.0, 1.0));
+        float lightDistance = circleDistance(targetLighting, light);
+        vec3 lightColor = normalize(light.color) * light.intensity 
+                         / mix(1.0, lightDistance, clamp(lightDistance, 0.0, 1.0));
+
         if (lightDistance < 0.0) {
             return lightColor;
         }       
         
-        vec2 lightDirection = normalize(light.center - position);
-        vec2 rayStart = position;
+        vec2 lightDirection = normalize(light.center - targetLighting);
+        vec2 rayStart = targetLighting;
         
         
         float fractionOfLightPenetrating = 1.0;
         if (startsInside) {
-            fractionOfLightPenetrating =  escapeFromObject(rayStart, lightDirection);
+            fractionOfLightPenetrating = escapeFromObject(rayStart, lightDirection);
             lightColor *= colorBias;
     	}
 
@@ -139,7 +110,8 @@ vec3 getPixelColor(in vec2 position, in bool startsInside, in vec3 colorBias) {
     return clamp(result, 0.0, 1.0);
 }
 
-vec3 getPixelColorAntialiased(in vec2 position) {
+
+/*vec3 getPixelColorAntialiased(in vec2 position) {
     Circle nearest;
     float minDistance = getDistance(position, nearest);
     if (0.0 < minDistance && minDistance < 1.0) {
@@ -148,13 +120,23 @@ vec3 getPixelColorAntialiased(in vec2 position) {
     }
     
     return getPixelColor(position, minDistance < 0.0, minDistance < 0.0 ? nearest.color : vec3(1.0));
-}
+}*/
+
+out vec4 fragmentColor;
+
 
 void main() {
     createWorld();
-    
-    vec2 position = gl_FragCoord.xy + vec2(0.5);
-	vec3 color = getPixelColorAntialiased(position);
+
+    vec2 pixelWorldCoordinates = (vec3(gl_FragCoord.xy, 1.0) * lightingScreenToWorld).xy;
+
+    vec3 color;
+    float minDistance = getDistance(pixelWorldCoordinates, color);
+    color = getPixelColor(pixelWorldCoordinates, minDistance < 0.0, minDistance < 0.0 ? color : vec3(1.0));
     
     fragmentColor = vec4(color, 1.0);
+
+    if (distance(cursorPosition, pixelWorldCoordinates) < 50.0) {
+        fragmentColor = vec4(vec3(1.0, 1.0, 0.0), 1.0);
+    }
 }

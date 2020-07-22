@@ -12,8 +12,8 @@ import { InfoText } from './objects/types/info-text';
 import { timeIt } from './helper/timing';
 
 import caveFragmentShader from '../shaders/cave-distance-fs.glsl';
-import lightsShader from '../shaders/rainbow-shading-fs.glsl';
-//import lightsShader from '../shaders/lights-shading-fs.glsl';
+// import lightsShader from '../shaders/rainbow-shading-fs.glsl';
+import lightsShader from '../shaders/lights-shading-fs.glsl';
 import { Dungeon } from './objects/types/dungeon';
 import { BeforeDrawCommand } from './commands/types/before-draw';
 

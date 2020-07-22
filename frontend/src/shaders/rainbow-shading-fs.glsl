@@ -22,12 +22,28 @@ vec4 smoothRainbow(float x) {
 
 
 uniform sampler2D distanceTexture;
-uniform mat3 transformUV;
+uniform mat3 worldToDistanceUV;
+uniform mat3 lightingScreenToWorld;
 out vec4 fragmentColor;
+uniform vec2 cursorPosition;
+
+
+float getDistance(in vec2 targetUV, out vec3 color) {
+    vec4 values = texture(distanceTexture, targetUV);
+    color = values.rgb;
+    return values.a;
+}
 
 void main() {
-    vec2 position = (vec3(gl_FragCoord.xy, 1.0) * transformUV).xy;
-    vec4 previous = texture(distanceTexture, position);
+    vec2 targetUV = (vec3(gl_FragCoord.xy, 1.0) * worldToDistanceUV).xy;
+    vec2 targetLighting = (vec3(gl_FragCoord.xy, 1.0) * lightingScreenToWorld).xy;
+
+    vec4 previous = texture(distanceTexture, targetUV);
+
     //fragmentColor = smoothRainbow(previous.a);
     fragmentColor = previous.a > 0.5 ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
+
+    if (distance(targetLighting, cursorPosition) < 0.01) {
+        fragmentColor = vec4(1.0, 1.0, 0.0, 1.0);
+    }
 }

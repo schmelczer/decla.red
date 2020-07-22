@@ -4,6 +4,7 @@ import { ZoomCommand } from '../../commands/types/zoom';
 import { BeforeDrawCommand } from '../../commands/types/before-draw';
 import { PrimaryActionCommand } from '../../commands/types/primary-action';
 import { vec2 } from 'gl-matrix';
+import { CursorMoveCommand } from '../../commands/types/cursor-move-command';
 
 export class Camera extends GameObject {
   private inViewArea = 1920 * 1080;
@@ -14,11 +15,11 @@ export class Camera extends GameObject {
 
     this.addCommandExecutor(BeforeDrawCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));
-    this.addCommandExecutor(ZoomCommand, this.zoom.bind(this));
     this.addCommandExecutor(
-      PrimaryActionCommand,
+      CursorMoveCommand,
       this.setCursorPosition.bind(this)
     );
+    this.addCommandExecutor(ZoomCommand, this.zoom.bind(this));
   }
 
   private draw(c: BeforeDrawCommand) {
@@ -35,7 +36,7 @@ export class Camera extends GameObject {
     this.inViewArea *= c.factor;
   }
 
-  private setCursorPosition(c: PrimaryActionCommand) {
+  private setCursorPosition(c: CursorMoveCommand) {
     this.cursorPosition = c.position;
   }
 }
