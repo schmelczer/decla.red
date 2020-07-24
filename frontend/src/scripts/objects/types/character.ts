@@ -1,12 +1,12 @@
+import { vec2 } from 'gl-matrix';
+import { KeyDownCommand } from '../../commands/types/key-down';
+import { KeyUpCommand } from '../../commands/types/key-up';
+import { MoveToCommand } from '../../commands/types/move-to';
+import { StepCommand } from '../../commands/types/step';
+import { SwipeCommand } from '../../commands/types/swipe';
 import { GameObject } from '../game-object';
 import { ObjectContainer } from '../object-container';
 import { Camera } from './camera';
-import { MoveToCommand } from '../../commands/types/move-to';
-import { StepCommand } from '../../commands/types/step';
-import { KeyDownCommand } from '../../commands/types/key-down';
-import { KeyUpCommand } from '../../commands/types/key-up';
-import { SwipeCommand } from '../../commands/types/swipe';
-import { vec2 } from 'gl-matrix';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();

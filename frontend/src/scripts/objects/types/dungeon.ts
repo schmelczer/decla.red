@@ -1,6 +1,6 @@
-import { GameObject } from '../game-object';
-import { DrawCommand } from '../../commands/types/draw';
 import { vec2 } from 'gl-matrix';
+import { DrawCommand } from '../../commands/types/draw';
+import { GameObject } from '../game-object';
 
 export interface Line {
   start: vec2;
@@ -17,13 +17,13 @@ export class Dungeon extends GameObject {
 
     this.addCommandExecutor(DrawCommand, this.draw.bind(this));
 
-    let previousRadius = 0;
+    let previousRadius = 350;
     let previousEnd = vec2.create();
 
     for (let i = 0; i < 500000; i += 500) {
       const height = previousEnd.y + (Math.random() - 0.5) * 2000;
       const currentEnd = vec2.fromValues(i, height);
-      const currentToRadius = Math.random() * 10 + 300;
+      const currentToRadius = Math.random() * 300 + 150;
 
       this.lines.push({
         start: previousEnd,

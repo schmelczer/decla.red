@@ -1,4 +1,3 @@
-import passthroughVertexShader from '../../../shaders/passthrough-vs.glsl';
 import { createShader } from './create-shader';
 import { loadUniform } from './load-uniform';
 
@@ -15,9 +14,10 @@ export class FragmentShaderOnlyProgram {
 
   constructor(
     private gl: WebGL2RenderingContext,
+    passthroughVertexShaderSource: string,
     fragmentShaderSource: string
   ) {
-    this.createProgram(fragmentShaderSource);
+    this.createProgram(passthroughVertexShaderSource, fragmentShaderSource);
     this.prepareScreenQuad('a_position');
     this.queryUniforms();
   }
@@ -74,13 +74,16 @@ export class FragmentShaderOnlyProgram {
     console.log(this.uniforms);
   }
 
-  private createProgram(fragmentShaderSource: string) {
+  private createProgram(
+    passthroughVertexShaderSource: string,
+    fragmentShaderSource: string
+  ) {
     this.program = this.gl.createProgram();
 
     const vertexShader = createShader(
       this.gl,
       this.gl.VERTEX_SHADER,
-      passthroughVertexShader
+      passthroughVertexShaderSource
     );
     this.gl.attachShader(this.program, vertexShader);
     this.shaders.push(vertexShader);

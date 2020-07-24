@@ -36,11 +36,18 @@ float getDistance(in vec2 target) {
     return -minDistance;
 }
 
-uniform mat3 distanceScreenToWorld;
+vec3 branchlessTernary(float condition, vec3 ifPositive, vec3 ifNegative) {
+    float isPositive = (sign(condition) + 1.0) * 0.5;
+    return ifPositive * abs(isPositive) + ifNegative * (1.0 - isPositive);
+}
+
+in vec2 worldCoordinates;
 out vec4 fragmentColor;
 
 void main() {
-    vec2 position = (vec3(gl_FragCoord.xy, 1.0) * distanceScreenToWorld).xy;
-    float distance = getDistance(position);
-    fragmentColor = vec4(vec3(0.0), distance / 256.0 + 0.5);
+    float distance = getDistance(worldCoordinates);
+    fragmentColor = vec4(
+        branchlessTernary(distance, vec3(1.0), vec3(0.0, 1.0, 0.5)),
+        distance / 128.0 + 0.5
+    );
 }

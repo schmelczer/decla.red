@@ -1,8 +1,8 @@
-import { Typed } from '../transport/serializable';
-import { IdentityManager } from '../identity/identity-manager';
+import { vec2 } from 'gl-matrix';
 import { Command } from '../commands/command';
 import { CommandReceiver } from '../commands/command-receiver';
-import { vec2 } from 'gl-matrix';
+import { IdentityManager } from '../identity/identity-manager';
+import { Typed } from '../transport/serializable';
 
 export abstract class GameObject extends Typed implements CommandReceiver {
   public readonly id = IdentityManager.generateId();

@@ -1,16 +1,14 @@
-import { Drawer } from './drawer';
-import { mat2d, vec2, mat2, mat3 } from 'gl-matrix';
-import { FragmentShaderOnlyProgram } from './graphics-library/fragment-shader-only-program';
-import { WebGlStopwatch } from './graphics-library/stopwatch';
+import { mat2d, vec2 } from 'gl-matrix';
 import { Rectangle } from '../math/rectangle';
-import { IntermediateFrameBuffer } from './graphics-library/intermediate-frame-buffer';
-import { FrameBuffer } from './graphics-library/frame-buffer';
+import { Drawer } from './drawer';
 import { DefaultFrameBuffer } from './graphics-library/default-frame-buffer';
-import { translate } from 'gl-matrix/src/gl-matrix/mat2d';
+import { FragmentShaderOnlyProgram } from './graphics-library/fragment-shader-only-program';
+import { IntermediateFrameBuffer } from './graphics-library/intermediate-frame-buffer';
+import { WebGlStopwatch } from './graphics-library/stopwatch';
 
 export class WebGl2Renderer implements Drawer {
   private gl: WebGL2RenderingContext;
-  private stopwatch: WebGlStopwatch;
+  private stopwatch?: WebGlStopwatch;
 
   private viewBox: Rectangle = new Rectangle();
   private uniforms: any;
@@ -21,7 +19,7 @@ export class WebGl2Renderer implements Drawer {
   constructor(
     private canvas: HTMLCanvasElement,
     private overlay: HTMLElement,
-    shaderSources: Array<string>
+    shaderSources: Array<[string, string]>
   ) {
     this.gl = this.canvas.getContext('webgl2');
     if (!this.gl) {
@@ -29,14 +27,14 @@ export class WebGl2Renderer implements Drawer {
     }
 
     this.distanceFieldFrameBuffer = new IntermediateFrameBuffer(this.gl, [
-      new FragmentShaderOnlyProgram(this.gl, shaderSources[0]),
+      new FragmentShaderOnlyProgram(this.gl, ...shaderSources[0]),
     ]);
 
     this.lightingFrameBuffer = new DefaultFrameBuffer(this.gl, [
-      new FragmentShaderOnlyProgram(this.gl, shaderSources[1]),
+      new FragmentShaderOnlyProgram(this.gl, ...shaderSources[1]),
     ]);
 
-    this.distanceFieldFrameBuffer.renderScale = 0.2;
+    this.distanceFieldFrameBuffer.renderScale = 1;
     this.lightingFrameBuffer.renderScale = 1;
 
     try {
@@ -44,7 +42,7 @@ export class WebGl2Renderer implements Drawer {
     } catch {}
   }
 
-  startFrame(): void {
+  public startFrame(): void {
     this.stopwatch?.start();
     this.uniforms = {};
     this.distanceFieldFrameBuffer.setSize();
@@ -52,15 +50,31 @@ export class WebGl2Renderer implements Drawer {
   }
 
   public finishFrame() {
+    this.calculateOwnUniforms();
+
+    this.distanceFieldFrameBuffer.render(this.uniforms);
+    this.lightingFrameBuffer.render(
+      this.uniforms,
+      this.distanceFieldFrameBuffer.texture
+    );
+
+    this.stopwatch?.stop();
+  }
+
+  private calculateOwnUniforms() {
     const resolution = vec2.fromValues(this.canvas.width, this.canvas.height);
 
     const distanceScreenToWorld = this.getScreenToWorldTransform(
       this.distanceFieldFrameBuffer.getSize()
     );
 
-    const lightingScreenToWorld = this.getScreenToWorldTransform(
-      this.lightingFrameBuffer.getSize()
+    const ndcToWorld = mat2d.fromTranslation(
+      mat2d.create(),
+      this.viewBox.topLeft
     );
+    mat2d.scale(ndcToWorld, ndcToWorld, this.viewBox.size);
+    mat2d.scale(ndcToWorld, ndcToWorld, vec2.fromValues(0.5, 0.5));
+    mat2d.translate(ndcToWorld, ndcToWorld, vec2.fromValues(1, 1));
 
     const screenToWorld = this.getScreenToWorldTransform(resolution);
 
@@ -79,18 +93,10 @@ export class WebGl2Renderer implements Drawer {
 
     this.giveUniforms({
       distanceScreenToWorld,
-      lightingScreenToWorld,
       worldToDistanceUV,
       cursorPosition,
+      ndcToWorld,
     });
-
-    this.distanceFieldFrameBuffer.render(this.uniforms);
-    this.lightingFrameBuffer.render(
-      this.uniforms,
-      this.distanceFieldFrameBuffer.texture
-    );
-
-    this.stopwatch?.stop();
   }
 
   private getScreenToWorldTransform(screenSize: vec2) {

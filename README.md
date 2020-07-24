@@ -17,9 +17,10 @@ A good-looking 2D adventure.
 - procedural piano
 - lightweight object storage
 - docker engine dashboard?
+- dockerswarm.rocks
 - local dev env
 - prettier script
 - monitoring
 - traefik
-- digital ocean docker contianer registry
+- digital ocean docker container registry
 - dynamic shader generation

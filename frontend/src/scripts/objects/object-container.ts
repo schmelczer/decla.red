@@ -1,7 +1,7 @@
-import { GameObject } from './game-object';
-import { Id } from '../identity/identity';
 import { Command } from '../commands/command';
 import { CommandReceiver } from '../commands/command-receiver';
+import { Id } from '../identity/identity';
+import { GameObject } from './game-object';
 
 export class ObjectContainer implements CommandReceiver {
   private objects: Map<Id, GameObject> = new Map();

@@ -34,16 +34,17 @@ float getDistance(in vec2 targetUV, out vec3 color) {
     return values.a;
 }
 
+in vec2 worldCoordinates;
+
 void main() {
-    vec2 targetUV = (vec3(gl_FragCoord.xy, 1.0) * worldToDistanceUV).xy;
-    vec2 targetLighting = (vec3(gl_FragCoord.xy, 1.0) * lightingScreenToWorld).xy;
+    vec2 targetUV = (vec3(worldCoordinates.xy, 1.0) * worldToDistanceUV).xy;
 
     vec4 previous = texture(distanceTexture, targetUV);
 
     //fragmentColor = smoothRainbow(previous.a);
     fragmentColor = previous.a > 0.5 ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
 
-    if (distance(targetLighting, cursorPosition) < 0.01) {
+    if (distance(worldCoordinates, cursorPosition) < 10.0) {
         fragmentColor = vec4(1.0, 1.0, 0.0, 1.0);
     }
 }

@@ -18,18 +18,27 @@ export const loadUniform = (
   > = new Map();
   {
     converters.set(WebGL2RenderingContext.FLOAT, (gl, v, l) => {
+      if (v.length == 0) {
+        return;
+      }
       gl.uniform1fv(l, new Float32Array(v));
     });
 
     converters.set(
       WebGL2RenderingContext.FLOAT_VEC2,
       (gl, v: vec2 | Array<vec2>, l) => {
+        if (v.length == 0) {
+          return;
+        }
+
         if (v[0] instanceof Array) {
           const result = new Float32Array(v.length * 2);
+
           for (let i = 0; i < v.length; i++) {
             result[2 * i] = (v[i] as Array<number>).x;
             result[2 * i + 1] = (v[i] as Array<number>).y;
           }
+
           gl.uniform2fv(l, new Float32Array(result));
         } else {
           gl.uniform2fv(l, v as vec2);
