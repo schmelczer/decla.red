@@ -4,7 +4,7 @@ precision mediump float;
 
 #define INFINITY 10000.0
 #define LIGHT_COUNT 5
-#define AMBIENT_LIGHT vec3(0.05)
+#define AMBIENT_LIGHT vec3(0.15)
 #define LIGHT_DROP 800.0
 #define SHADOW_BIAS 0.01
 

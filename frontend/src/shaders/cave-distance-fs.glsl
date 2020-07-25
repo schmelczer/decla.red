@@ -40,10 +40,10 @@ out vec4 fragmentColor;
 
 void main() {
     float distance = getDistance(worldCoordinates);
-    const vec3 caveColor = vec3(0.0);
+    const vec3 caveColor = vec3(0.36, 0.38, 0.76);
     const vec3 airColor = vec3(1.0);
     fragmentColor = vec4(
-        mix(caveColor, airColor, distance),
+        mix(caveColor, airColor, clamp(distance, 0.0, 1.0)),
         distance / 32.0
     );
 }

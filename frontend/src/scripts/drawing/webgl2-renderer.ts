@@ -24,7 +24,7 @@ export class WebGl2Renderer implements Drawer {
   private multiplicativeQualityDecrease = 1.5;
   private timeSinceLastAdjusment = 0;
   private adjusmentRate = 500;
-  private maxRenderScale = 2;
+  private maxRenderScale = 1.5;
   private minRenderScale = 0.2;
 
   private exponentialDecayedDeltaTime = 0.0;

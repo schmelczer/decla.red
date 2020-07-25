@@ -24,7 +24,7 @@ export const createDungeon = (objects: ObjectContainer) => {
           Math.random() * 20 + 30,
           vec3.scale(
             vec3.create(),
-            vec3.normalize(vec3.create(), vec3.random(vec3.create())),
+            vec3.normalize(vec3.create(), vec3.fromValues(0.5, 0.1, 0.8)),
             Math.random() * 0.5 + 0.5
           )
         )

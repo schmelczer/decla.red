@@ -1,5 +1,6 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { DrawCommand } from '../../commands/types/draw';
+import { MoveToCommand } from '../../commands/types/move-to';
 import { GameObject } from '../game-object';
 
 export class CircleLight extends GameObject {
@@ -11,6 +12,7 @@ export class CircleLight extends GameObject {
     super();
 
     this.addCommandExecutor(DrawCommand, this.draw.bind(this));
+    this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));
   }
 
   private draw(c: DrawCommand) {
@@ -21,5 +23,9 @@ export class CircleLight extends GameObject {
         value: this.value,
       });
     }
+  }
+
+  private moveTo(c: MoveToCommand) {
+    this.center = c.position;
   }
 }

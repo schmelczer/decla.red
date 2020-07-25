@@ -1,16 +1,16 @@
-import { GameObject } from '../game-object';
+import { vec2 } from 'gl-matrix';
+import { BeforeDrawCommand } from '../../commands/types/before-draw';
+import { CursorMoveCommand } from '../../commands/types/cursor-move-command';
 import { MoveToCommand } from '../../commands/types/move-to';
 import { ZoomCommand } from '../../commands/types/zoom';
-import { BeforeDrawCommand } from '../../commands/types/before-draw';
-import { PrimaryActionCommand } from '../../commands/types/primary-action';
-import { vec2 } from 'gl-matrix';
-import { CursorMoveCommand } from '../../commands/types/cursor-move-command';
+import { GameObject } from '../game-object';
+import { CircleLight } from './circle-light';
 
 export class Camera extends GameObject {
   private inViewArea = 1920 * 1080;
   private cursorPosition = vec2.create();
 
-  constructor() {
+  constructor(private light: CircleLight) {
     super();
 
     this.addCommandExecutor(BeforeDrawCommand, this.draw.bind(this));
@@ -30,6 +30,15 @@ export class Camera extends GameObject {
 
   private moveTo(c: MoveToCommand) {
     this._position = c.position;
+    this.light.sendCommand(
+      new MoveToCommand(
+        vec2.add(
+          vec2.create(),
+          c.position,
+          vec2.scale(vec2.create(), this.boundingBoxSize, 0.5)
+        )
+      )
+    );
   }
 
   private zoom(c: ZoomCommand) {
