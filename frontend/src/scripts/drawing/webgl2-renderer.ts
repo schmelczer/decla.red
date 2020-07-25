@@ -20,7 +20,7 @@ export class WebGl2Renderer implements Drawer {
   private distanceFieldFrameBuffer: IntermediateFrameBuffer;
   private lightingFrameBuffer: DefaultFrameBuffer;
 
-  private targetDeltaTime = (1 / 50) * 1000;
+  private targetDeltaTime = (1 / 30) * 1000;
   private deltaTimeError = (1 / 1000) * 1000;
   private additiveQualityIncrease = 0.05;
   private multiplicativeQualityDecrease = 1.5;
