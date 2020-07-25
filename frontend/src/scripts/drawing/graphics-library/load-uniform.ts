@@ -1,4 +1,4 @@
-import { mat3, vec2 } from 'gl-matrix';
+import { mat3, ReadonlyVec3, vec2, vec3 } from 'gl-matrix';
 
 const loaderMat3 = mat3.create();
 
@@ -18,10 +18,15 @@ export const loadUniform = (
   > = new Map();
   {
     converters.set(WebGL2RenderingContext.FLOAT, (gl, v, l) => {
-      if (v.length == 0) {
-        return;
+      if (v instanceof Array) {
+        if (v.length == 0) {
+          return;
+        }
+
+        gl.uniform1fv(l, new Float32Array(v));
+      } else {
+        gl.uniform1f(l, v);
       }
-      gl.uniform1fv(l, new Float32Array(v));
     });
 
     converters.set(
@@ -39,9 +44,32 @@ export const loadUniform = (
             result[2 * i + 1] = (v[i] as Array<number>).y;
           }
 
-          gl.uniform2fv(l, new Float32Array(result));
+          gl.uniform2fv(l, result);
         } else {
           gl.uniform2fv(l, v as vec2);
+        }
+      }
+    );
+
+    converters.set(
+      WebGL2RenderingContext.FLOAT_VEC3,
+      (gl, v: ReadonlyVec3 | Array<vec3>, l) => {
+        if (v.length == 0) {
+          return;
+        }
+
+        if (v[0] instanceof Array) {
+          const result = new Float32Array(v.length * 3);
+
+          for (let i = 0; i < v.length; i++) {
+            result[3 * i] = (v[i] as Array<number>)[0];
+            result[3 * i + 1] = (v[i] as Array<number>)[1];
+            result[3 * i + 2] = (v[i] as Array<number>)[2];
+          }
+
+          gl.uniform3fv(l, result);
+        } else {
+          gl.uniform3fv(l, v as vec3);
         }
       }
     );
@@ -55,7 +83,7 @@ export const loadUniform = (
     );
 
     if (!converters.has(type)) {
-      throw new Error('Unimplemented webgl type');
+      throw new Error(`Unimplemented webgl type: ${type}`);
     }
 
     converters.get(type)(gl, value, location);

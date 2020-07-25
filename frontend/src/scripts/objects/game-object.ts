@@ -28,6 +28,10 @@ export abstract class GameObject extends Typed implements CommandReceiver {
     this.commandExecutors[commandType.name] = handler;
   }
 
+  public reactsToCommand<T extends Command>(commandType: new () => T): boolean {
+    return this.commandExecutors.hasOwnProperty(commandType.name);
+  }
+
   public sendCommand(command: Command) {
     const commandType = command.constructor.name;
 

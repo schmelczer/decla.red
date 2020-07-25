@@ -1,11 +1,9 @@
 #version 300 es
 
-precision lowp float;
+precision mediump float;
 
-
-#define INFINITY 10000.0
+#define INFINITY 200.0
 #define LINE_COUNT 50
-
 
 uniform vec2[LINE_COUNT * 2] lines;
 uniform float[LINE_COUNT * 2] radii;
@@ -18,8 +16,9 @@ float lineDistance(
     in float radiusTo
 ) {
     vec2 pa = target - start, ba = end - start;
-    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-    return distance(pa, ba * h) - mix(radiusFrom, radiusTo, h);
+    float baLength = length(ba);
+    float h = clamp(dot(pa / baLength, ba / baLength), 0.0, 1.0);
+    return length(pa - ba * h) - mix(radiusFrom, radiusTo, h);
 }
 
 float getDistance(in vec2 target) {

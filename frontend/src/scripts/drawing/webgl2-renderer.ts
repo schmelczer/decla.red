@@ -34,15 +34,15 @@ export class WebGl2Renderer implements Drawer {
       new FragmentShaderOnlyProgram(this.gl, ...shaderSources[1]),
     ]);
 
-    this.distanceFieldFrameBuffer.renderScale = 0.5;
-    this.lightingFrameBuffer.renderScale = 1;
+    this.distanceFieldFrameBuffer.renderScale = 0.1;
+    this.lightingFrameBuffer.renderScale = 0.2;
 
     try {
       this.stopwatch = new WebGlStopwatch(this.gl);
     } catch {}
   }
 
-  public startFrame(): void {
+  public startFrame(deltaTime: DOMHighResTimeStamp): void {
     this.stopwatch?.start();
     this.uniforms = {};
     this.distanceFieldFrameBuffer.setSize();
@@ -76,8 +76,6 @@ export class WebGl2Renderer implements Drawer {
     mat2d.scale(ndcToWorld, ndcToWorld, vec2.fromValues(0.5, 0.5));
     mat2d.translate(ndcToWorld, ndcToWorld, vec2.fromValues(1, 1));
 
-    const screenToWorld = this.getScreenToWorldTransform(resolution);
-
     const worldToDistanceUV = mat2d.scale(
       mat2d.create(),
       distanceScreenToWorld,
@@ -85,11 +83,7 @@ export class WebGl2Renderer implements Drawer {
     );
     mat2d.invert(worldToDistanceUV, worldToDistanceUV);
 
-    const cursorPosition = vec2.transformMat2d(
-      vec2.create(),
-      vec2.multiply(vec2.create(), this.cursorPosition, resolution),
-      screenToWorld
-    );
+    const cursorPosition = this.screenUvToWorldCoordinate(this.cursorPosition);
 
     this.giveUniforms({
       distanceScreenToWorld,
@@ -115,12 +109,32 @@ export class WebGl2Renderer implements Drawer {
     return transform;
   }
 
+  public screenUvToWorldCoordinate(screenUvPosition: vec2): vec2 {
+    const resolution = vec2.fromValues(this.canvas.width, this.canvas.height);
+
+    return vec2.transformMat2d(
+      vec2.create(),
+      vec2.multiply(vec2.create(), screenUvPosition, resolution),
+      this.getScreenToWorldTransform(resolution)
+    );
+  }
+
   public setCameraPosition(position: vec2) {
     this.viewBox.topLeft = position;
   }
 
   public setCursorPosition(position: vec2): void {
     this.cursorPosition = position;
+  }
+
+  public appendToUniformList(listName: string, ...values: any[]): void {
+    if (!this.uniforms.hasOwnProperty(listName)) {
+      this.uniforms[listName] = [];
+    }
+
+    for (let value of values) {
+      this.uniforms[listName].push(value);
+    }
   }
 
   public giveUniforms(uniforms: any): void {
@@ -144,7 +158,7 @@ export class WebGl2Renderer implements Drawer {
     }
   }
 
-  isOnScreen(position: vec2): boolean {
+  public isOnScreen(position: vec2): boolean {
     return this.viewBox.isInside(position);
   }
 }

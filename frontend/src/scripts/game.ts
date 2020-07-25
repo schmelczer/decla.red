@@ -13,9 +13,9 @@ import { KeyboardListener } from './input/keyboard-listener';
 import { MouseListener } from './input/mouse-listener';
 import { TouchListener } from './input/touch-listener';
 import { ObjectContainer } from './objects/object-container';
-import { Character } from './objects/types/character';
-import { Dungeon } from './objects/types/dungeon';
 import { InfoText } from './objects/types/info-text';
+import { createCharacter } from './objects/world/create-character';
+import { createDungeon } from './objects/world/create-dungeon';
 
 export class Game {
   private previousTime: DOMHighResTimeStamp = 0;
@@ -46,9 +46,9 @@ export class Game {
   }
 
   private initializeScene() {
-    this.objects.addObject(new Character(this.objects));
     this.objects.addObject(new InfoText());
-    this.objects.addObject(new Dungeon());
+    createCharacter(this.objects);
+    createDungeon(this.objects);
   }
 
   @timeIt()
@@ -59,7 +59,7 @@ export class Game {
 
     this.objects.sendCommand(new StepCommand(deltaTime));
 
-    this.renderer.startFrame();
+    this.renderer.startFrame(deltaTime);
     this.objects.sendCommand(new BeforeDrawCommand(this.renderer));
     this.objects.sendCommand(new DrawCommand(this.renderer));
     this.renderer.finishFrame();

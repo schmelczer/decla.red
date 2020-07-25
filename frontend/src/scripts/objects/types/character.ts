@@ -5,19 +5,16 @@ import { MoveToCommand } from '../../commands/types/move-to';
 import { StepCommand } from '../../commands/types/step';
 import { SwipeCommand } from '../../commands/types/swipe';
 import { GameObject } from '../game-object';
-import { ObjectContainer } from '../object-container';
 import { Camera } from './camera';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();
-  private camera = new Camera();
 
   private static speed = 0.5;
 
-  constructor(objects: ObjectContainer) {
+  constructor(private camera: Camera) {
     super();
 
-    objects.addObject(this.camera);
     this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
     this.addCommandExecutor(KeyDownCommand, (c) => this.keysDown.add(c.key));
     this.addCommandExecutor(KeyUpCommand, (c) => this.keysDown.delete(c.key));
