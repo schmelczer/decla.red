@@ -10,7 +10,6 @@ float interpolate(float from, float to, float quotient) {
     return from + (to - from) * clamp(steppedQ, 0.0, 1.0);
 }
 
-
 float noise(float x){
     return fract(sin(x) * 43758.5453123);
 }
