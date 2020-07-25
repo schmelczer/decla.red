@@ -1,5 +1,6 @@
 import { mat2d, vec2 } from 'gl-matrix';
 import { clamp } from '../helper/clamp';
+import { Circle } from '../math/circle';
 import { Rectangle } from '../math/rectangle';
 import { InfoText } from '../objects/types/info-text';
 import { Drawer } from './drawer';
@@ -13,6 +14,7 @@ export class WebGl2Renderer implements Drawer {
   private stopwatch?: WebGlStopwatch;
 
   private viewBox: Rectangle = new Rectangle();
+  private viewCircle: Circle = new Circle(vec2.create(), 0);
   private uniforms: any;
   private cursorPosition = vec2.create();
   private distanceFieldFrameBuffer: IntermediateFrameBuffer;
@@ -212,6 +214,15 @@ export class WebGl2Renderer implements Drawer {
       Math.sqrt(size * canvasAspectRatio),
       Math.sqrt(size / canvasAspectRatio)
     );
+
+    const halfDiagonal = vec2.scale(vec2.create(), this.viewBox.size, 0.5);
+    this.viewCircle.center = vec2.add(
+      vec2.create(),
+      this.viewBox.topLeft,
+      halfDiagonal
+    );
+    this.viewCircle.radius = vec2.length(halfDiagonal);
+
     return this.viewBox.size;
   }
 
@@ -221,7 +232,7 @@ export class WebGl2Renderer implements Drawer {
     }
   }
 
-  public isOnScreen(position: vec2): boolean {
-    return this.viewBox.isInside(position);
+  public isOnScreen(boundingCircle: Circle): boolean {
+    return this.viewCircle.areIntersecting(boundingCircle);
   }
 }

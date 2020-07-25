@@ -1,10 +1,13 @@
 import { vec2 } from 'gl-matrix';
 import { DrawCommand } from '../../commands/types/draw';
+import { Circle } from '../../math/circle';
 import { GameObject } from '../game-object';
 
 export interface Line {}
 
 export class Tunnel extends GameObject {
+  private boundingCircle: Circle;
+
   constructor(
     private from: vec2,
     private to: vec2,
@@ -13,11 +16,15 @@ export class Tunnel extends GameObject {
   ) {
     super();
 
+    this.boundingCircle = new Circle(
+      vec2.fromValues(from.x / 2 + to.x / 2, from.y / 2 + to.y / 2),
+      radiusFrom + radiusTo + vec2.distance(from, to)
+    );
     this.addCommandExecutor(DrawCommand, this.draw.bind(this));
   }
 
   private draw(c: DrawCommand) {
-    if (c.drawer.isOnScreen(this.from) || c.drawer.isOnScreen(this.to)) {
+    if (c.drawer.isOnScreen(this.boundingCircle)) {
       c.drawer.appendToUniformList('lines', this.from, this.to);
       c.drawer.appendToUniformList('radii', this.radiusFrom, this.radiusTo);
     }

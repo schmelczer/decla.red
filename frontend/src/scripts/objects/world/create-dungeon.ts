@@ -17,7 +17,7 @@ export const createDungeon = (objects: ObjectContainer) => {
       new Tunnel(previousEnd, currentEnd, previousRadius, currentToRadius)
     );
 
-    if (deltaHeight > 0) {
+    if (deltaHeight > 0 && Math.random() > 0.5) {
       objects.addObject(
         new CircleLight(
           currentEnd,

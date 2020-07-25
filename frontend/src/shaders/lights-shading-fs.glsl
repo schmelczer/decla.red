@@ -2,8 +2,8 @@
 
 precision mediump float;
 
-#define INFINITY 10000.0
-#define LIGHT_COUNT 5
+#define INFINITY 1000.0
+#define LIGHT_COUNT 10
 #define AMBIENT_LIGHT vec3(0.15)
 #define LIGHT_DROP 800.0
 #define SHADOW_BIAS 0.01
@@ -24,7 +24,7 @@ float square(in float a) {
 float getDistance(in vec2 target, out vec3 color) {
     vec4 values = texture(distanceTexture, target);
     color = values.rgb;
-    return  values.w * 32.0;
+    return values.w * 32.0;
 }
 
 float getDistance(in vec2 target) {

@@ -7,7 +7,7 @@ import { GameObject } from '../game-object';
 import { CircleLight } from './circle-light';
 
 export class Camera extends GameObject {
-  private inViewArea = 1920 * 1080;
+  private inViewArea = 1920 * 1080 * 5;
   private cursorPosition = vec2.create();
 
   constructor(private light: CircleLight) {
