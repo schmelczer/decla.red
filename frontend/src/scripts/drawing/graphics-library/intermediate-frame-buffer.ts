@@ -19,7 +19,7 @@ export class IntermediateFrameBuffer extends FrameBuffer {
     this.setSize();
   }
 
-  public get texture(): WebGLTexture {
+  public get colorTexture(): WebGLTexture {
     return this.frameTexture;
   }
 
@@ -43,7 +43,11 @@ export class IntermediateFrameBuffer extends FrameBuffer {
 
   private configureTexture() {
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.frameTexture);
-
+    this.gl.texParameteri(
+      this.gl.TEXTURE_2D,
+      this.gl.TEXTURE_MAG_FILTER,
+      this.gl.NEAREST
+    );
     this.gl.texParameteri(
       this.gl.TEXTURE_2D,
       this.gl.TEXTURE_MIN_FILTER,

@@ -1,6 +1,6 @@
 #version 300 es
 
-precision mediump float;
+precision lowp float;
 
 
 #define INFINITY 10000.0
@@ -19,7 +19,7 @@ float lineDistance(
 ) {
     vec2 pa = target - start, ba = end - start;
     float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-    return distance(pa, ba * h) - mix(radiusFrom, radiusTo, smoothstep(0.0, 1.0, h));
+    return distance(pa, ba * h) - mix(radiusFrom, radiusTo, h);
 }
 
 float getDistance(in vec2 target) {
@@ -36,18 +36,15 @@ float getDistance(in vec2 target) {
     return -minDistance;
 }
 
-vec3 branchlessTernary(float condition, vec3 ifPositive, vec3 ifNegative) {
-    float isPositive = (sign(condition) + 1.0) * 0.5;
-    return ifPositive * abs(isPositive) + ifNegative * (1.0 - isPositive);
-}
-
 in vec2 worldCoordinates;
 out vec4 fragmentColor;
 
 void main() {
     float distance = getDistance(worldCoordinates);
+    const vec3 caveColor = vec3(0.0);
+    const vec3 airColor = vec3(1.0);
     fragmentColor = vec4(
-        branchlessTernary(distance, vec3(1.0), vec3(0.0, 1.0, 0.5)),
-        distance / 128.0 + 0.5
+        mix(caveColor, airColor, distance),
+        distance / 32.0
     );
 }

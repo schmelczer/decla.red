@@ -34,7 +34,7 @@ export class WebGl2Renderer implements Drawer {
       new FragmentShaderOnlyProgram(this.gl, ...shaderSources[1]),
     ]);
 
-    this.distanceFieldFrameBuffer.renderScale = 1;
+    this.distanceFieldFrameBuffer.renderScale = 0.5;
     this.lightingFrameBuffer.renderScale = 1;
 
     try {
@@ -55,7 +55,7 @@ export class WebGl2Renderer implements Drawer {
     this.distanceFieldFrameBuffer.render(this.uniforms);
     this.lightingFrameBuffer.render(
       this.uniforms,
-      this.distanceFieldFrameBuffer.texture
+      this.distanceFieldFrameBuffer.colorTexture
     );
 
     this.stopwatch?.stop();
@@ -96,6 +96,7 @@ export class WebGl2Renderer implements Drawer {
       worldToDistanceUV,
       cursorPosition,
       ndcToWorld,
+      viewBoxSize: this.viewBox.size,
     });
   }
 

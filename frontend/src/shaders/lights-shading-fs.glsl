@@ -4,21 +4,24 @@ precision mediump float;
 
 #define INFINITY 10000.0
 #define LIGHT_COUNT 3
-#define LIGHT_PENETRATION 1000.0
-#define ANTIALIASING_RADIUS 1.0
-#define AMBIENT_LIGHT vec3(0.075)
+#define AMBIENT_LIGHT vec3(0.05)
+#define LIGHT_DROP 800.0
+#define SHADOW_BIAS 0.01
 
 struct Light {
     vec2 center;
   	float radius;
     vec3 value;
-};
+}[LIGHT_COUNT] lights;
 
 uniform sampler2D distanceTexture;
 uniform mat3 worldToDistanceUV;
 uniform vec2 cursorPosition;
+uniform vec2 viewBoxSize;
 
-Light lights[LIGHT_COUNT];
+float square(in float a) {
+    return a*a;
+}
 
 float getDistance(in vec2 target, out vec3 color) {
     // should avoid this matrix multiplication
@@ -26,7 +29,7 @@ float getDistance(in vec2 target, out vec3 color) {
 
     vec4 values = texture(distanceTexture, targetUV);
     color = values.rgb;
-    return (values.a - 0.5) * 128.0;
+    return  values.w * 32.0;
 }
 
 float getDistance(in vec2 target) {
@@ -34,81 +37,67 @@ float getDistance(in vec2 target) {
     vec2 targetUV = (vec3(target.xy, 1.0) * worldToDistanceUV).xy;
 
     vec4 values = texture(distanceTexture, targetUV);
-    return (values.a - 0.5) * 128.0;
+    return values.w * 32.0;
 }
 
 void createWorld() {
-    lights[0] = Light(vec2(600, 700), 40.5, normalize(vec3(1.0)) * 2.0);
-    lights[1] = Light(vec2(100.0, 350.0), 52.5, normalize(vec3(2.0, 1.0, 0.25)) * 0.5);
-    lights[2] = Light(cursorPosition, 52.5, normalize(vec3(0.63, 0.25, 0.5)) * 1.0);
+    //lights[0] = Light(vec2(600, 700), 40.5, normalize(vec3(1.0)) * 2.0);
+    //lights[1] = Light(vec2(100.0, 350.0), 52.5, normalize(vec3(2.0, 1.0, 0.25)) * 0.5);
+    lights[2] = Light(cursorPosition, 52.5, normalize(vec3(0.93, 0.25, 0.5)) * 1.0);
 }
 
 float getFractionOfLightArriving(
     in vec2 target, 
     in vec2 direction, 
+    in float startingDistance,
     in float lightDistance, 
     in float lightRadius
 ) {
     float q = INFINITY;
     float rayLength = 0.0;
 
+    float movingAverageMeanDistance = startingDistance;
+
     for (int j = 0; j < 64; j++) {
         float minDistance = getDistance(target + direction * rayLength);
-        q = min(q, minDistance / rayLength);
-        rayLength = min(lightDistance, rayLength + max(1.0, minDistance));
+        movingAverageMeanDistance = movingAverageMeanDistance / 2.0 + minDistance / 2.0;
+        q = min(q, movingAverageMeanDistance / rayLength);
+        rayLength = min(lightDistance, rayLength + max(0.0001, minDistance));
     }
-    return smoothstep(0.0, 1.0, q * (lightDistance + lightRadius) / lightRadius);
+    return smoothstep(0.0, 1.0, (q - SHADOW_BIAS) * (lightDistance + lightRadius) / lightRadius);
 }
 
-float square(in float a) {
-    return a*a;
-}
-
-vec3 getPixelColor(in vec2 worldCoordinates) {
-    vec3 result = vec3(0.0);
-
+vec3 getPixelColor(in vec2 worldCoordinates, in vec2 uvCoordinates) {
     vec3 colorAtPosition;
     float startingDistance = getDistance(worldCoordinates, colorAtPosition);
-    float fractionOfLightPenetrating = smoothstep(0.0, 1.0, 
-        1.0 - (min(0.0, startingDistance) / LIGHT_PENETRATION)
-    );
+
+    vec3 result = colorAtPosition * AMBIENT_LIGHT;
     
     for (int i = 0; i < LIGHT_COUNT; i++) {
         Light light = lights[i];
         
         float lightDistance = distance(worldCoordinates, light.center) - light.radius;
-        vec3 lightColorAtPosition = light.value / square(max(0.0, lightDistance / 200.0) + 1.0);
+        vec3 lightColorAtPosition = light.value / square(max(0.0, lightDistance / LIGHT_DROP) + 1.0);
         vec2 lightDirection = normalize(light.center - worldCoordinates);
 
         float fractionOfLightArriving = getFractionOfLightArriving(
-            worldCoordinates, lightDirection, max(0.0, lightDistance), light.radius
+            worldCoordinates, lightDirection, startingDistance, 
+            max(0.0, lightDistance), light.radius
         );
 
-        result += colorAtPosition * lightColorAtPosition * fractionOfLightArriving * fractionOfLightPenetrating;
+        result += colorAtPosition * lightColorAtPosition * fractionOfLightArriving;
     }
-
-    // Add ambient light
-    result += colorAtPosition * AMBIENT_LIGHT;
     
     return clamp(result, 0.0, 1.0);
 }
 
-/*vec3 getPixelColorAntialiased(in vec2 position) {
-    Circle nearest;
-    float minDistance = getDistance(position, nearest);
-    if (0.0 < minDistance && minDistance < 1.0) {
-		vec2 closerDirection = normalize(nearest.center - position);
-        return mix(getPixelColor(position + closerDirection, true, nearest.color), getPixelColor(position - closerDirection, false, nearest.color), minDistance);
-    }
-    
-    return getPixelColor(position, minDistance < 0.0, minDistance < 0.0 ? nearest.color : vec3(1.0));
-}*/
 
 in vec2 worldCoordinates;
+in vec2 uvCoordinates;
 out vec4 fragmentColor;
 
 void main() {
     createWorld();
-    // log2 for compenstaion?
-    fragmentColor = vec4(getPixelColor(worldCoordinates), 1.0);
+
+    fragmentColor = vec4(getPixelColor(worldCoordinates, uvCoordinates), 1.0);
 }

@@ -1,4 +1,3 @@
-import { WebGl2Renderer } from '../webgl2-renderer';
 import { InfoText } from '../../objects/types/info-text';
 
 // https://www.khronos.org/registry/webgl/extensions/EXT_disjoint_timer_query_webgl2/

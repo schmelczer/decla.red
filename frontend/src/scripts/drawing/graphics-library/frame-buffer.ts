@@ -1,5 +1,5 @@
-import { FragmentShaderOnlyProgram } from './fragment-shader-only-program';
 import { vec2 } from 'gl-matrix';
+import { FragmentShaderOnlyProgram } from './fragment-shader-only-program';
 
 export abstract class FrameBuffer {
   public renderScale = 1;
@@ -13,11 +13,11 @@ export abstract class FrameBuffer {
     protected programs: Array<FragmentShaderOnlyProgram>
   ) {}
 
-  public render(uniforms: any, input?: WebGLTexture) {
+  public render(uniforms: any, colorInput?: WebGLTexture) {
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.frameBuffer);
 
-    if (input !== null) {
-      this.gl.bindTexture(this.gl.TEXTURE_2D, input);
+    if (colorInput !== null) {
+      this.gl.bindTexture(this.gl.TEXTURE_2D, colorInput);
     }
 
     this.gl.viewport(0, 0, this.size.x, this.size.y);
