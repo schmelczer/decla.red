@@ -19,7 +19,7 @@ jobs:
       - name: Setup auth tokens
         run: |
           # Docker Hub
-          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }}
+          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }} $CONTAINER_REGISTRY
 
       - name: Build and push error pages
         run: |
@@ -40,7 +40,7 @@ jobs:
       - name: Setup auth tokens
         run: |
           # Docker Hub
-          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }}
+          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }} $CONTAINER_REGISTRY
 
       - name: Build and push ingress
         run: |
@@ -61,7 +61,7 @@ jobs:
       - name: Setup auth tokens
         run: |
           # Docker Hub
-          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }}
+          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }} $CONTAINER_REGISTRY
 
       - name: Build and push frontend
         run: |
