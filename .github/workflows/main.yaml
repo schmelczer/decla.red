@@ -3,6 +3,10 @@ on:
   push:
     branches:
       - master
+env:
+  CONTAINER_REGISTRY: registry.digitalocean.com/declared
+  DOMAIN: decla.red
+
 jobs:
   build-error-pages:
     runs-on: ubuntu-latest
@@ -15,12 +19,12 @@ jobs:
       - name: Setup auth tokens
         run: |
           # Docker Hub
-          docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and push error pages
         run: |
-          docker build . -t schmelczera/declared-error-pages
-          docker push schmelczera/declared-error-pages
+          docker build . -t $CONTAINER_REGISTRY/declared-error-pages
+          docker push $CONTAINER_REGISTRY/declared-error-pages
         working-directory: error-pages
 
   build-ingress:
@@ -36,12 +40,12 @@ jobs:
       - name: Setup auth tokens
         run: |
           # Docker Hub
-          docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and push ingress
         run: |
-          docker build . -t schmelczera/declared-ingress
-          docker push schmelczera/declared-ingress
+          docker build . -t $CONTAINER_REGISTRY/declared-ingress
+          docker push $CONTAINER_REGISTRY/declared-ingress
         working-directory: ingress
 
   build-frontend:
@@ -57,12 +61,12 @@ jobs:
       - name: Setup auth tokens
         run: |
           # Docker Hub
-          docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and push frontend
         run: |
-          docker build . -t schmelczera/declared-frontend
-          docker push schmelczera/declared-frontend
+          docker build . -t $CONTAINER_REGISTRY/declared-frontend
+          docker push $CONTAINER_REGISTRY/declared-frontend
         working-directory: frontend
 
   deploy:
@@ -82,9 +86,9 @@ jobs:
           mkdir ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 400 ~/.ssh/id_ed25519
-          ssh -o StrictHostKeyChecking=no root@decla.red uptime
+          ssh -o StrictHostKeyChecking=no root@$DOMAIN uptime
 
       - name: Stack up
         run: |
-          DOCKER_HOST=ssh://root@decla.red docker stack up declared -c docker-compose.yml
+          DOCKER_HOST=ssh://root@$DOMAIN docker stack up declared -c docker-compose.yml
         working-directory: infrastructure

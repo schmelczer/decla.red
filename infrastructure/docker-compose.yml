@@ -3,7 +3,7 @@ version: "3.8"
 services:
   ingress:
     init: true
-    image: schmelczera/declared-ingress
+    image: ${CONTAINER_REGISTRY}/declared-ingress
     depends_on:
       - certbot
       - frontend
@@ -54,7 +54,7 @@ services:
 
   frontend:
     init: true
-    image: schmelczera/declared-frontend
+    image: ${CONTAINER_REGISTRY}/declared-frontend
     ports:
       - "80"
     deploy:
