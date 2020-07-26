@@ -2,7 +2,7 @@ name: Deploy everything
 on:
   push:
     branches:
-      - master
+      - main
 env:
   CONTAINER_REGISTRY: registry.digitalocean.com/declared
   DOMAIN: decla.red
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current branch with lfs
-        uses: actions/checkout@master
+        uses: actions/checkout@main
         with:
           lfs: true
 
@@ -33,7 +33,7 @@ jobs:
       - build-error-pages
     steps:
       - name: Checkout current branch with lfs
-        uses: actions/checkout@master
+        uses: actions/checkout@main
         with:
           lfs: true
 
@@ -54,7 +54,7 @@ jobs:
       - build-error-pages
     steps:
       - name: Checkout current branch with lfs
-        uses: actions/checkout@master
+        uses: actions/checkout@main
         with:
           lfs: true
 
@@ -76,7 +76,7 @@ jobs:
       - build-ingress
     steps:
       - name: Checkout current branch with lfs
-        uses: actions/checkout@master
+        uses: actions/checkout@main
         with:
           lfs: true
 
