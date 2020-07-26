@@ -1,5 +1,7 @@
 #version 300 es
 
+precision mediump float;
+
 uniform mat3 ndcToWorld;
 in vec4 a_position;
 out vec2 worldCoordinates;

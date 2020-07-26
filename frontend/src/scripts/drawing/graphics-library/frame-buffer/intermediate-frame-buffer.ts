@@ -1,13 +1,10 @@
-import { FragmentShaderOnlyProgram } from './fragment-shader-only-program';
+import { IProgram } from '../program/i-program';
 import { FrameBuffer } from './frame-buffer';
 
 export class IntermediateFrameBuffer extends FrameBuffer {
   private frameTexture: WebGLTexture;
 
-  constructor(
-    gl: WebGL2RenderingContext,
-    programs: Array<FragmentShaderOnlyProgram>
-  ) {
+  constructor(gl: WebGL2RenderingContext, programs: Array<IProgram>) {
     super(gl, programs);
 
     this.frameTexture = this.gl.createTexture();
@@ -46,7 +43,7 @@ export class IntermediateFrameBuffer extends FrameBuffer {
     this.gl.texParameteri(
       this.gl.TEXTURE_2D,
       this.gl.TEXTURE_MAG_FILTER,
-      this.gl.NEAREST
+      this.gl.LINEAR
     );
     this.gl.texParameteri(
       this.gl.TEXTURE_2D,

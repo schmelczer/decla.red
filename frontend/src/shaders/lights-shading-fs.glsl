@@ -3,9 +3,11 @@
 precision mediump float;
 
 #define INFINITY 1000.0
-#define LIGHT_COUNT 8
+#define LIGHT_COUNT {lightCount}
 #define AMBIENT_LIGHT vec3(0.15)
 #define LIGHT_DROP 400.0
+#define MIN_STEP 3.0
+#define EDGE_SMOOTHING 5.0
 
 uniform struct Light {
     vec2 center;
@@ -16,6 +18,7 @@ uniform struct Light {
 uniform sampler2D distanceTexture;
 uniform vec2 viewBoxSize;
 
+in vec2[LIGHT_COUNT] directions;
 
 float getDistance(in vec2 target, out vec3 color) {
     vec4 values = texture(distanceTexture, target);
@@ -44,37 +47,10 @@ float getFractionOfLightArriving(
         float minDistance = getDistance(target + direction * rayLength);
         movingAverageMeanDistance = movingAverageMeanDistance / 2.0 + minDistance / 2.0;
         q = min(q, movingAverageMeanDistance / rayLength);
-        rayLength = min(lightDistance, rayLength + max(5.0, minDistance));
+        rayLength = min(lightDistance, rayLength + max(MIN_STEP, minDistance));
     }
 
     return clamp(q * (lightDistance + lightRadius) / lightRadius, 0.0, 1.0);
-}
-
-vec3 getPixelColor(in vec2 worldCoordinates, in vec2 uvCoordinates) {
-    vec3 colorAtPosition;
-    float startingDistance = getDistance(uvCoordinates, colorAtPosition);
-
-    vec3 result = colorAtPosition * AMBIENT_LIGHT;
-    
-    for (int i = 0; i < LIGHT_COUNT; i++) {
-        Light light = lights[i];
-        
-        vec2 lightDelta = light.center - worldCoordinates;
-        float lightDistance = length(lightDelta);
-        vec2 lightDirection = lightDelta / lightDistance;
-
-        float r = lightDistance / LIGHT_DROP + 1.0;
-        vec3 lightColorAtPosition = light.value / (r * r);
-
-        float fractionOfLightArriving = getFractionOfLightArriving(
-            uvCoordinates, lightDirection, startingDistance, 
-            lightDistance, light.radius
-        );
-
-        result += colorAtPosition * lightColorAtPosition * fractionOfLightArriving;
-    }
-    
-    return result;
 }
 
 in vec2 worldCoordinates;
@@ -82,5 +58,29 @@ in vec2 uvCoordinates;
 out vec4 fragmentColor;
 
 void main() {
-    fragmentColor = vec4(getPixelColor(worldCoordinates, uvCoordinates), 1.0);
+    vec3 colorAtPosition;
+    float startingDistance = getDistance(uvCoordinates, colorAtPosition);
+
+    vec3 ligthing = vec3(0.0);
+    
+    for (int i = 0; i < LIGHT_COUNT; i++) {
+        Light light = lights[i];
+        float lightDistance = distance(light.center, worldCoordinates);
+
+        float r = lightDistance / LIGHT_DROP + 1.0;
+        vec3 lightColorAtPosition = light.value / (r * r);
+
+        float fractionOfLightArriving = getFractionOfLightArriving(
+            uvCoordinates, normalize(directions[i]), startingDistance, 
+            lightDistance, light.radius
+        );
+
+        ligthing += lightColorAtPosition * fractionOfLightArriving;
+    }
+
+    fragmentColor = vec4(
+        colorAtPosition * (AMBIENT_LIGHT + 
+        step(EDGE_SMOOTHING / 2.0, clamp(startingDistance, 0.0, EDGE_SMOOTHING)) * ligthing),
+        1.0
+    );
 }

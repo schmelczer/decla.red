@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { FragmentShaderOnlyProgram } from './fragment-shader-only-program';
+import { IProgram } from '../program/i-program';
 
 export abstract class FrameBuffer {
   public renderScale = 1;
@@ -10,7 +10,7 @@ export abstract class FrameBuffer {
 
   constructor(
     protected gl: WebGL2RenderingContext,
-    protected programs: Array<FragmentShaderOnlyProgram>
+    protected programs: Array<IProgram>
   ) {}
 
   public render(uniforms: any, colorInput?: WebGLTexture) {
@@ -25,8 +25,7 @@ export abstract class FrameBuffer {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
     this.programs.forEach((p) => {
-      p.bind();
-      p.setUniforms(uniforms);
+      p.bindAndSetUniforms(uniforms);
       p.draw();
     });
   }

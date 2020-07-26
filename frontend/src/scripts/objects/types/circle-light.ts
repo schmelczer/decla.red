@@ -23,7 +23,7 @@ export class CircleLight extends GameObject {
   }
 
   private draw(c: DrawCommand) {
-    if (c.drawer.isOnScreen(this.boundingCircle)) {
+    if (c.drawer.isPositionOnScreen(this.center)) {
       c.drawer.appendToUniformList('lights', {
         center: this.center,
         radius: this.radius,

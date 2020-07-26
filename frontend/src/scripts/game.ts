@@ -18,7 +18,7 @@ import { createCharacter } from './objects/world/create-character';
 import { createDungeon } from './objects/world/create-dungeon';
 
 export class Game {
-  private previousTime: DOMHighResTimeStamp = 0;
+  private previousTime?: DOMHighResTimeStamp = null;
   private objects: ObjectContainer = new ObjectContainer();
   private renderer: WebGl2Renderer;
   private previousFpsValues: Array<number> = [];
@@ -26,6 +26,11 @@ export class Game {
   constructor() {
     const canvas: HTMLCanvasElement = document.querySelector('canvas#main');
     const overlay: HTMLElement = document.querySelector('#overlay');
+
+    document.addEventListener(
+      'visibilitychange',
+      this.handleVisibilityChange.bind(this)
+    );
 
     new CommandBroadcaster(
       [
@@ -51,8 +56,18 @@ export class Game {
     createDungeon(this.objects);
   }
 
+  private handleVisibilityChange() {
+    if (!document.hidden) {
+      this.previousTime = null;
+    }
+  }
+
   @timeIt()
   private gameLoop(time: DOMHighResTimeStamp) {
+    if (this.previousTime === null) {
+      this.previousTime = time;
+    }
+
     const deltaTime = time - this.previousTime;
     this.previousTime = time;
     this.calculateFps(deltaTime);
@@ -70,6 +85,7 @@ export class Game {
   private calculateFps(deltaTime: number) {
     this.previousFpsValues.push(1000 / deltaTime);
     if (this.previousFpsValues.length > 30) {
+      this.previousFpsValues.sort();
       const text = `Min: ${this.previousFpsValues[0].toFixed(
         2
       )}\n\tMedian: ${this.previousFpsValues[

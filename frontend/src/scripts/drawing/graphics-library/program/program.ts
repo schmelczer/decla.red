@@ -1,11 +1,11 @@
-import { createShader } from './create-shader';
-import { loadUniform } from './load-uniform';
+import { createShader } from '../helper/create-shader';
+import { loadUniform } from '../helper/load-uniform';
+import { IProgram } from './i-program';
 
-export class FragmentShaderOnlyProgram {
-  program: WebGLProgram;
-  shaders: Array<WebGLShader> = [];
+export abstract class Program implements IProgram {
+  protected program: WebGLProgram;
+  private shaders: Array<WebGLShader> = [];
 
-  private vao: WebGLVertexArrayObject;
   private uniforms: Array<{
     name: Array<string>;
     location: WebGLUniformLocation;
@@ -13,25 +13,25 @@ export class FragmentShaderOnlyProgram {
   }> = [];
 
   constructor(
-    private gl: WebGL2RenderingContext,
-    passthroughVertexShaderSource: string,
-    fragmentShaderSource: string
+    protected gl: WebGL2RenderingContext,
+    vertexShaderSource: string,
+    fragmentShaderSource: string,
+    substitutions: { [name: string]: string }
   ) {
-    this.createProgram(passthroughVertexShaderSource, fragmentShaderSource);
-    this.prepareScreenQuad('a_position');
+    this.createProgram(vertexShaderSource, fragmentShaderSource, substitutions);
     this.queryUniforms();
+  }
+
+  public bindAndSetUniforms(values: { [name: string]: any }) {
+    this.bind();
+    this.setUniforms(values);
   }
 
   public bind() {
     this.gl.useProgram(this.program);
-    this.gl.bindVertexArray(this.vao);
   }
 
-  public draw() {
-    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-  }
-
-  public setUniforms(values: any) {
+  public setUniforms(values: { [name: string]: any }) {
     this.uniforms.forEach(({ name, location, type }) => {
       const value = name.reduce(
         (prev, prop) => (prev !== null && prop in prev ? prev[prop] : null),
@@ -43,6 +43,13 @@ export class FragmentShaderOnlyProgram {
       }
     });
   }
+
+  public delete() {
+    this.shaders.forEach((s) => this.gl.deleteShader(s));
+    this.gl.deleteProgram(this.program);
+  }
+
+  public abstract draw(): void;
 
   private queryUniforms() {
     const uniformCount = this.gl.getProgramParameter(
@@ -60,8 +67,6 @@ export class FragmentShaderOnlyProgram {
       });
     }
 
-    console.log(this.uniforms);
-
     this.uniforms.map((u1) => {
       const isSingle =
         this.uniforms.filter((u2) => u2.name.includes(u1.name[0])).length == 1;
@@ -70,20 +75,20 @@ export class FragmentShaderOnlyProgram {
       }
       return u1;
     });
-
-    console.log(this.uniforms);
   }
 
   private createProgram(
     passthroughVertexShaderSource: string,
-    fragmentShaderSource: string
+    fragmentShaderSource: string,
+    substitutions: { [name: string]: string }
   ) {
     this.program = this.gl.createProgram();
 
     const vertexShader = createShader(
       this.gl,
       this.gl.VERTEX_SHADER,
-      passthroughVertexShaderSource
+      passthroughVertexShaderSource,
+      substitutions
     );
     this.gl.attachShader(this.program, vertexShader);
     this.shaders.push(vertexShader);
@@ -91,7 +96,8 @@ export class FragmentShaderOnlyProgram {
     const fragmentShader = createShader(
       this.gl,
       this.gl.FRAGMENT_SHADER,
-      fragmentShaderSource
+      fragmentShaderSource,
+      substitutions
     );
     this.gl.attachShader(this.program, fragmentShader);
     this.shaders.push(fragmentShader);
@@ -102,36 +108,9 @@ export class FragmentShaderOnlyProgram {
       this.program,
       this.gl.LINK_STATUS
     );
+
     if (!success) {
       throw new Error(this.gl.getProgramInfoLog(this.program));
     }
-  }
-
-  private prepareScreenQuad(attributeName: string) {
-    const positionAttributeLocation = this.gl.getAttribLocation(
-      this.program,
-      attributeName
-    );
-
-    const positionBuffer = this.gl.createBuffer();
-
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
-    this.gl.bufferData(
-      this.gl.ARRAY_BUFFER,
-      new Float32Array([-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0]),
-      this.gl.STATIC_DRAW
-    );
-    this.vao = this.gl.createVertexArray();
-
-    this.gl.bindVertexArray(this.vao);
-    this.gl.enableVertexAttribArray(positionAttributeLocation);
-    this.gl.vertexAttribPointer(
-      positionAttributeLocation,
-      2,
-      this.gl.FLOAT,
-      false,
-      0,
-      0
-    );
   }
 }

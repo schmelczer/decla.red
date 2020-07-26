@@ -3,13 +3,13 @@ import { clamp } from '../helper/clamp';
 import { Circle } from '../math/circle';
 import { Rectangle } from '../math/rectangle';
 import { InfoText } from '../objects/types/info-text';
-import { Drawer } from './drawer';
-import { DefaultFrameBuffer } from './graphics-library/default-frame-buffer';
-import { FragmentShaderOnlyProgram } from './graphics-library/fragment-shader-only-program';
-import { IntermediateFrameBuffer } from './graphics-library/intermediate-frame-buffer';
-import { WebGlStopwatch } from './graphics-library/stopwatch';
+import { DefaultFrameBuffer } from './graphics-library/frame-buffer/default-frame-buffer';
+import { IntermediateFrameBuffer } from './graphics-library/frame-buffer/intermediate-frame-buffer';
+import { WebGlStopwatch } from './graphics-library/helper/stopwatch';
+import { UniformArrayAutoScalingProgram } from './graphics-library/program/uniform-array-autoscaling-program';
+import { IRenderer } from './i-renderer';
 
-export class WebGl2Renderer implements Drawer {
+export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
   private stopwatch?: WebGlStopwatch;
 
@@ -22,10 +22,10 @@ export class WebGl2Renderer implements Drawer {
 
   private targetDeltaTime = (1 / 30) * 1000;
   private deltaTimeError = (1 / 1000) * 1000;
-  private additiveQualityIncrease = 0.05;
-  private multiplicativeQualityDecrease = 1.5;
+  private additiveQualityIncrease = 0.03;
+  private multiplicativeQualityDecrease = 1.2;
   private timeSinceLastAdjusment = 0;
-  private adjusmentRate = 500;
+  private adjusmentRate = 300;
   private maxRenderScale = 1.5;
   private minRenderScale = 0.2;
 
@@ -46,7 +46,7 @@ export class WebGl2Renderer implements Drawer {
       this.targetDeltaTime - this.deltaTimeError
     ) {
       this.distanceFieldFrameBuffer.renderScale +=
-        this.additiveQualityIncrease / 2;
+        this.additiveQualityIncrease / 4;
       this.lightingFrameBuffer.renderScale += this.additiveQualityIncrease;
     } else if (
       this.exponentialDecayedDeltaTime >
@@ -58,7 +58,7 @@ export class WebGl2Renderer implements Drawer {
 
     this.distanceFieldFrameBuffer.renderScale = clamp(
       this.distanceFieldFrameBuffer.renderScale,
-      this.minRenderScale,
+      0.1,
       this.maxRenderScale
     );
     this.lightingFrameBuffer.renderScale = clamp(
@@ -92,11 +92,33 @@ export class WebGl2Renderer implements Drawer {
     }
 
     this.distanceFieldFrameBuffer = new IntermediateFrameBuffer(this.gl, [
-      new FragmentShaderOnlyProgram(this.gl, ...shaderSources[0]),
+      new UniformArrayAutoScalingProgram(
+        this.gl,
+        shaderSources[0][0],
+        shaderSources[0][1],
+        {
+          getValueFromUniforms: (v) => (v.lines ? v.lines.length / 2 : 0),
+          uniformArraySizeName: 'lineCount',
+          startingValue: 5,
+          steps: 5,
+          maximumValue: 100,
+        }
+      ),
     ]);
 
     this.lightingFrameBuffer = new DefaultFrameBuffer(this.gl, [
-      new FragmentShaderOnlyProgram(this.gl, ...shaderSources[1]),
+      new UniformArrayAutoScalingProgram(
+        this.gl,
+        shaderSources[1][0],
+        shaderSources[1][1],
+        {
+          getValueFromUniforms: (v) => (v.lights ? v.lights.length : 0),
+          uniformArraySizeName: 'lightCount',
+          startingValue: 1,
+          steps: 1,
+          maximumValue: 8,
+        }
+      ),
     ]);
 
     this.distanceFieldFrameBuffer.renderScale = 0.5;
@@ -118,7 +140,6 @@ export class WebGl2Renderer implements Drawer {
 
   public finishFrame() {
     this.calculateOwnUniforms();
-
     this.distanceFieldFrameBuffer.render(this.uniforms);
     this.lightingFrameBuffer.render(
       this.uniforms,
@@ -234,5 +255,9 @@ export class WebGl2Renderer implements Drawer {
 
   public isOnScreen(boundingCircle: Circle): boolean {
     return this.viewCircle.areIntersecting(boundingCircle);
+  }
+
+  public isPositionOnScreen(position: vec2): boolean {
+    return this.viewCircle.isInside(position);
   }
 }

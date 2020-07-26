@@ -1,8 +1,8 @@
-import { Drawer } from '../../drawing/drawer';
+import { IRenderer } from '../../drawing/i-renderer';
 import { Command } from '../command';
 
 export class BeforeDrawCommand extends Command {
-  public constructor(public readonly drawer?: Drawer) {
+  public constructor(public readonly drawer?: IRenderer) {
     super();
   }
 }

@@ -1,11 +1,8 @@
-import { FragmentShaderOnlyProgram } from './fragment-shader-only-program';
+import { IProgram } from '../program/i-program';
 import { FrameBuffer } from './frame-buffer';
 
 export class DefaultFrameBuffer extends FrameBuffer {
-  constructor(
-    gl: WebGL2RenderingContext,
-    programs: Array<FragmentShaderOnlyProgram>
-  ) {
+  constructor(gl: WebGL2RenderingContext, programs: Array<IProgram>) {
     super(gl, programs);
     this.frameBuffer = null;
 

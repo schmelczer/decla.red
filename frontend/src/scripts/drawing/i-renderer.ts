@@ -1,7 +1,7 @@
 import { vec2 } from 'gl-matrix';
 import { Circle } from '../math/circle';
 
-export interface Drawer {
+export interface IRenderer {
   startFrame(deltaTime: DOMHighResTimeStamp): void;
   finishFrame(): void;
   giveUniforms(uniforms: any): void;
@@ -12,4 +12,5 @@ export interface Drawer {
   screenUvToWorldCoordinate(mousePosition: vec2): vec2;
   drawInfoText(text: string): void;
   isOnScreen(boundingCircle: Circle): boolean;
+  isPositionOnScreen(position: vec2): boolean;
 }

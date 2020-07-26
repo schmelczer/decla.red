@@ -24,6 +24,10 @@ body {
       $outline-width $outline-width 0 #000;
     color: white;
     white-space: pre;
+
+    @media (max-width: 800px) {
+      font-size: 0.75em;
+    }
   }
 
   canvas#main {

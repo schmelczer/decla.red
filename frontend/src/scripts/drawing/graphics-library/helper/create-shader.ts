@@ -1,8 +1,14 @@
 export const createShader = (
   gl: WebGL2RenderingContext,
   type: GLenum,
-  source: string
+  source: string,
+  substitutions: { [name: string]: string }
 ): WebGLShader => {
+  source = source.replace(
+    /{(.+)}/gm,
+    (_, name: string): string => substitutions[name]
+  );
+
   const shader = gl.createShader(type);
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
