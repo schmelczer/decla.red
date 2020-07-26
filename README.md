@@ -22,5 +22,3 @@ A good-looking 2D adventure.
 - prettier script
 - monitoring
 - traefik
-- digital ocean docker container registry
-- dynamic shader generation
