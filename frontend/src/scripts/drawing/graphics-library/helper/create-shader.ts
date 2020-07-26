@@ -4,10 +4,13 @@ export const createShader = (
   source: string,
   substitutions: { [name: string]: string }
 ): WebGLShader => {
-  source = source.replace(
-    /{(.+)}/gm,
-    (_, name: string): string => substitutions[name]
-  );
+  source = source.replace(/{(.+)}/gm, (_, name: string): string => {
+    const value = substitutions[name];
+    if (Number.isInteger(value)) {
+      return `${value}.0`;
+    }
+    return value;
+  });
 
   const shader = gl.createShader(type);
   gl.shaderSource(shader, source);

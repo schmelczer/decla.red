@@ -3,11 +3,12 @@
 precision mediump float;
 
 #define INFINITY 1000.0
-#define LIGHT_COUNT {lightCount}
 #define AMBIENT_LIGHT vec3(0.15)
 #define LIGHT_DROP 400.0
 #define MIN_STEP 3.0
 #define EDGE_SMOOTHING 5.0
+#define LIGHT_COUNT {lightCount}
+#define DISTANCE_SCALE {distanceScale}
 
 uniform struct Light {
     vec2 center;
@@ -23,11 +24,11 @@ in vec2[LIGHT_COUNT] directions;
 float getDistance(in vec2 target, out vec3 color) {
     vec4 values = texture(distanceTexture, target);
     color = values.rgb;
-    return values.w * 32.0;
+    return values.w * DISTANCE_SCALE;
 }
 
 float getDistance(in vec2 target) {
-    return texture(distanceTexture, target).w * 32.0;
+    return texture(distanceTexture, target).w * DISTANCE_SCALE;
 }
 
 float getFractionOfLightArriving(
@@ -43,7 +44,7 @@ float getFractionOfLightArriving(
 
     direction /= viewBoxSize;
 
-    for (int j = 0; j < 48; j++) {
+    for (int j = 0; j < 32; j++) {
         float minDistance = getDistance(target + direction * rayLength);
         movingAverageMeanDistance = movingAverageMeanDistance / 2.0 + minDistance / 2.0;
         q = min(q, movingAverageMeanDistance / rayLength);
@@ -67,7 +68,7 @@ void main() {
         Light light = lights[i];
         float lightDistance = distance(light.center, worldCoordinates);
 
-        float r = lightDistance / LIGHT_DROP + 1.0;
+        float r = (lightDistance + light.radius) / LIGHT_DROP + 1.0;
         vec3 lightColorAtPosition = light.value / (r * r);
 
         float fractionOfLightArriving = getFractionOfLightArriving(

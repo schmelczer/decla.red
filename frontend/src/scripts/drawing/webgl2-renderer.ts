@@ -91,11 +91,14 @@ export class WebGl2Renderer implements IRenderer {
       throw new Error('WebGl2 is not supported');
     }
 
+    const distanceScale = 64;
+
     this.distanceFieldFrameBuffer = new IntermediateFrameBuffer(this.gl, [
       new UniformArrayAutoScalingProgram(
         this.gl,
         shaderSources[0][0],
         shaderSources[0][1],
+        { distanceScale },
         {
           getValueFromUniforms: (v) => (v.lines ? v.lines.length / 2 : 0),
           uniformArraySizeName: 'lineCount',
@@ -111,6 +114,7 @@ export class WebGl2Renderer implements IRenderer {
         this.gl,
         shaderSources[1][0],
         shaderSources[1][1],
+        { distanceScale },
         {
           getValueFromUniforms: (v) => (v.lights ? v.lights.length : 0),
           uniformArraySizeName: 'lightCount',

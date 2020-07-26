@@ -54,6 +54,7 @@ export class Game {
     this.objects.addObject(new InfoText());
     createCharacter(this.objects);
     createDungeon(this.objects);
+    createDungeon(this.objects);
   }
 
   private handleVisibilityChange() {

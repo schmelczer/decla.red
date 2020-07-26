@@ -13,6 +13,7 @@ export class UniformArrayAutoScalingProgram implements IProgram {
     private gl: WebGL2RenderingContext,
     private vertexShaderSource: string,
     private fragmentShaderSource: string,
+    private substitutions: { [name: string]: any },
     private options: {
       getValueFromUniforms: (values: { [name: string]: any }) => number;
       uniformArraySizeName: string;
@@ -63,6 +64,7 @@ export class UniformArrayAutoScalingProgram implements IProgram {
       this.fragmentShaderSource,
       {
         [this.options.uniformArraySizeName]: Math.floor(arraySize).toString(),
+        ...this.substitutions,
       }
     );
 
