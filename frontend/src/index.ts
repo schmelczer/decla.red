@@ -1,9 +1,13 @@
-import './styles/main.scss';
+import { glMatrix } from 'gl-matrix';
 import { Game } from './scripts/game';
 import { applyArrayPlugins } from './scripts/helper/array';
-import { glMatrix } from 'gl-matrix';
+import './styles/main.scss';
 
 glMatrix.setMatrixArrayType(Array);
 applyArrayPlugins();
 
-new Game();
+try {
+  new Game();
+} catch (e) {
+  alert(e);
+}

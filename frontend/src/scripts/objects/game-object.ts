@@ -18,9 +18,10 @@ export abstract class GameObject extends Typed implements CommandReceiver {
   }
 
   private commandExecutors: {
-    [commandName: string]: (e: Command) => void;
+    [commandType: string]: (e: Command) => void;
   } = {};
 
+  // can only be called inside the constructor 
   protected addCommandExecutor<T extends Command>(
     commandType: new () => T,
     handler: (command: T) => void
@@ -28,8 +29,8 @@ export abstract class GameObject extends Typed implements CommandReceiver {
     this.commandExecutors[commandType.name] = handler;
   }
 
-  public reactsToCommand<T extends Command>(commandType: new () => T): boolean {
-    return this.commandExecutors.hasOwnProperty(commandType.name);
+  public reactsToCommand(commandType: string): boolean {
+    return this.commandExecutors.hasOwnProperty(commandType);
   }
 
   public sendCommand(command: Command) {
