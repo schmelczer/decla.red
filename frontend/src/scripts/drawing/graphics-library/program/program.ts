@@ -1,3 +1,4 @@
+import { mat2d, vec2 } from 'gl-matrix';
 import { createShader } from '../helper/create-shader';
 import { loadUniform } from '../helper/load-uniform';
 import { IProgram } from './i-program';
@@ -5,6 +6,8 @@ import { IProgram } from './i-program';
 export abstract class Program implements IProgram {
   protected program: WebGLProgram;
   private shaders: Array<WebGLShader> = [];
+  private modelTransform = mat2d.identity(mat2d.create());
+  private readonly ndcToUv: mat2d;
 
   private uniforms: Array<{
     name: Array<string>;
@@ -20,15 +23,22 @@ export abstract class Program implements IProgram {
   ) {
     this.createProgram(vertexShaderSource, fragmentShaderSource, substitutions);
     this.queryUniforms();
+
+    this.ndcToUv = mat2d.fromScaling(mat2d.create(), vec2.fromValues(0.5, 0.5));
+    mat2d.translate(this.ndcToUv, this.ndcToUv, vec2.fromValues(1, 1));
   }
 
   public bindAndSetUniforms(values: { [name: string]: any }) {
     this.bind();
-    this.setUniforms(values);
+    this.setUniforms({ modelTransform: this.modelTransform, ...values });
   }
 
-  public bind() {
-    this.gl.useProgram(this.program);
+  public setDrawingRectangle(topLeft: vec2, size: vec2) {
+    mat2d.invert(this.modelTransform, this.ndcToUv);
+
+    mat2d.translate(this.modelTransform, this.modelTransform, topLeft);
+    mat2d.scale(this.modelTransform, this.modelTransform, size);
+    mat2d.multiply(this.modelTransform, this.modelTransform, this.ndcToUv);
   }
 
   public setUniforms(values: { [name: string]: any }) {
@@ -50,6 +60,10 @@ export abstract class Program implements IProgram {
   }
 
   public abstract draw(): void;
+
+  protected bind() {
+    this.gl.useProgram(this.program);
+  }
 
   private queryUniforms() {
     const uniformCount = this.gl.getProgramParameter(

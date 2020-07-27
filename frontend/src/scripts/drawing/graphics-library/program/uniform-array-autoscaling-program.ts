@@ -1,4 +1,4 @@
-import { InfoText } from '../../../objects/types/info-text';
+import { vec2 } from 'gl-matrix';
 import { FragmentShaderOnlyProgram } from './fragment-shader-only-program';
 import { IProgram } from './i-program';
 
@@ -9,6 +9,9 @@ export class UniformArrayAutoScalingProgram implements IProgram {
   }> = [];
   private current: FragmentShaderOnlyProgram;
 
+  private drawingRectangleTopLeft = vec2.fromValues(0, 0);
+  private drawingRectangleSize = vec2.fromValues(1, 1);
+
   constructor(
     private gl: WebGL2RenderingContext,
     private vertexShaderSource: string,
@@ -17,6 +20,7 @@ export class UniformArrayAutoScalingProgram implements IProgram {
     private options: {
       getValueFromUniforms: (values: { [name: string]: any }) => number;
       uniformArraySizeName: string;
+      enablingMacro: string;
       startingValue: number;
       steps: number;
       maximumValue: number;
@@ -31,11 +35,9 @@ export class UniformArrayAutoScalingProgram implements IProgram {
     }
   }
 
-  bindAndSetUniforms(values: { [name: string]: any }): void {
+  public bindAndSetUniforms(values: { [name: string]: any }): void {
     let value = this.options.getValueFromUniforms(values);
     value = Math.min(this.options.maximumValue, value);
-
-    InfoText.modifyRecord(this.options.uniformArraySizeName, value.toString());
 
     const closest = this.programs.find(
       (p) => value < p.value && value + this.options.steps >= p.value
@@ -46,14 +48,23 @@ export class UniformArrayAutoScalingProgram implements IProgram {
       this.current = this.createProgram(value + this.options.steps);
     }
 
+    this.current.setDrawingRectangle(
+      this.drawingRectangleTopLeft,
+      this.drawingRectangleSize
+    );
     this.current.bindAndSetUniforms(values);
   }
 
-  draw(): void {
+  public setDrawingRectangle(topLeft: vec2, size: vec2) {
+    this.drawingRectangleTopLeft = topLeft;
+    this.drawingRectangleSize = size;
+  }
+
+  public draw(): void {
     this.current.draw();
   }
 
-  delete(): void {
+  public delete(): void {
     this.programs.forEach((p) => p.program.delete());
   }
 
@@ -64,6 +75,7 @@ export class UniformArrayAutoScalingProgram implements IProgram {
       this.fragmentShaderSource,
       {
         [this.options.uniformArraySizeName]: Math.floor(arraySize).toString(),
+        [this.options.enablingMacro]: arraySize > 0 ? '1' : '0',
         ...this.substitutions,
       }
     );

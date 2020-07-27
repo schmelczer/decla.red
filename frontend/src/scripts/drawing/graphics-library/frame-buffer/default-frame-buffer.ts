@@ -1,9 +1,8 @@
-import { IProgram } from '../program/i-program';
 import { FrameBuffer } from './frame-buffer';
 
 export class DefaultFrameBuffer extends FrameBuffer {
-  constructor(gl: WebGL2RenderingContext, programs: Array<IProgram>) {
-    super(gl, programs);
+  constructor(gl: WebGL2RenderingContext) {
+    super(gl);
     this.frameBuffer = null;
 
     this.setSize();

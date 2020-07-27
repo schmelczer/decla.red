@@ -1,7 +1,7 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { DrawCommand } from '../../commands/types/draw';
+import { RenderCommand } from '../../commands/types/draw';
 import { MoveToCommand } from '../../commands/types/move-to';
-import { Circle } from '../../math/circle';
+import { Circle } from '../../drawing/primitives/circle';
 import { GameObject } from '../game-object';
 
 const range = 2000;
@@ -18,13 +18,13 @@ export class CircleLight extends GameObject {
 
     this.boundingCircle = new Circle(center, range);
 
-    this.addCommandExecutor(DrawCommand, this.draw.bind(this));
+    this.addCommandExecutor(RenderCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));
   }
 
-  private draw(c: DrawCommand) {
-    if (c.drawer.isPositionOnScreen(this.center)) {
-      c.drawer.appendToUniformList('lights', {
+  private draw(c: RenderCommand) {
+    if (c.renderer.isPositionOnScreen(this.center)) {
+      c.renderer.appendToUniformList('lights', {
         center: this.center,
         radius: this.radius,
         value: this.value,

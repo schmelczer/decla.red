@@ -1,5 +1,4 @@
 import { vec2 } from 'gl-matrix';
-import { IProgram } from '../program/i-program';
 
 export abstract class FrameBuffer {
   public renderScale = 1;
@@ -8,12 +7,9 @@ export abstract class FrameBuffer {
   protected size: vec2;
   protected frameBuffer: WebGLFramebuffer;
 
-  constructor(
-    protected gl: WebGL2RenderingContext,
-    protected programs: Array<IProgram>
-  ) {}
+  constructor(protected gl: WebGL2RenderingContext) {}
 
-  public render(uniforms: any, colorInput?: WebGLTexture) {
+  public bindAndClear(colorInput?: WebGLTexture) {
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.frameBuffer);
 
     if (colorInput !== null) {
@@ -23,11 +19,6 @@ export abstract class FrameBuffer {
     this.gl.viewport(0, 0, this.size.x, this.size.y);
     this.gl.clearColor(0, 0, 0, 0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-
-    this.programs.forEach((p) => {
-      p.bindAndSetUniforms(uniforms);
-      p.draw();
-    });
   }
 
   public setSize() {

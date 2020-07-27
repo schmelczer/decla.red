@@ -4,8 +4,8 @@ import caveVertexShader from '../shaders/passthrough-distance-vs.glsl';
 import lightsVertexShader from '../shaders/passthrough-shading-vs.glsl';
 // import lightsShader from '../shaders/rainbow-shading-fs.glsl';
 import { CommandBroadcaster } from './commands/command-broadcaster';
-import { BeforeDrawCommand } from './commands/types/before-draw';
-import { DrawCommand } from './commands/types/draw';
+import { BeforeRenderCommand } from './commands/types/before-render';
+import { RenderCommand } from './commands/types/draw';
 import { StepCommand } from './commands/types/step';
 import { WebGl2Renderer } from './drawing/webgl2-renderer';
 import { timeIt } from './helper/timing';
@@ -76,8 +76,8 @@ export class Game {
     this.objects.sendCommand(new StepCommand(deltaTime));
 
     this.renderer.startFrame(deltaTime);
-    this.objects.sendCommand(new BeforeDrawCommand(this.renderer));
-    this.objects.sendCommand(new DrawCommand(this.renderer));
+    this.objects.sendCommand(new BeforeRenderCommand(this.renderer));
+    this.objects.sendCommand(new RenderCommand(this.renderer));
     this.renderer.finishFrame();
 
     window.requestAnimationFrame(this.gameLoop.bind(this));

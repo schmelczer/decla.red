@@ -1,11 +1,10 @@
-import { IProgram } from '../program/i-program';
 import { FrameBuffer } from './frame-buffer';
 
 export class IntermediateFrameBuffer extends FrameBuffer {
   private frameTexture: WebGLTexture;
 
-  constructor(gl: WebGL2RenderingContext, programs: Array<IProgram>) {
-    super(gl, programs);
+  constructor(gl: WebGL2RenderingContext) {
+    super(gl);
 
     this.frameTexture = this.gl.createTexture();
     this.configureTexture();

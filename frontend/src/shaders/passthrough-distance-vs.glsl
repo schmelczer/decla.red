@@ -2,11 +2,15 @@
 
 precision mediump float;
 
-uniform mat3 ndcToWorld;
-in vec4 a_position;
+uniform mat3 modelTransform;
+uniform mat3 uvToWorld;
+uniform mat3 ndcToUv;
+
+in vec4 vertexPosition;
 out vec2 worldCoordinates;
 
 void main() {
-    worldCoordinates = (vec3(a_position.xy, 1.0) * ndcToWorld).xy;
-    gl_Position = a_position;
+    vec3 vertexPosition2D = vec3(vertexPosition.xy, 1.0) * modelTransform;
+    worldCoordinates = (vertexPosition2D * ndcToUv * uvToWorld).xy;
+    gl_Position = vec4(vertexPosition2D.xy, 0.0, 1.0);
 }

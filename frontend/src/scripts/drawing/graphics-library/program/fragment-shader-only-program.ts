@@ -10,7 +10,7 @@ export class FragmentShaderOnlyProgram extends Program {
     substitutions: { [name: string]: string }
   ) {
     super(gl, vertexShaderSource, fragmentShaderSource, substitutions);
-    this.prepareScreenQuad('a_position');
+    this.prepareScreenQuad('vertexPosition');
   }
 
   public bind() {

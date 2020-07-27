@@ -1,8 +1,8 @@
 import { IRenderer } from '../../drawing/i-renderer';
 import { Command } from '../command';
 
-export class DrawCommand extends Command {
-  public constructor(public readonly drawer?: IRenderer) {
+export class RenderCommand extends Command {
+  public constructor(public readonly renderer?: IRenderer) {
     super();
   }
 }

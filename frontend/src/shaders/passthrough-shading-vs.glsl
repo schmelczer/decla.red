@@ -4,11 +4,13 @@ precision mediump float;
 
 #define LIGHT_COUNT {lightCount}
 
-uniform mat3 ndcToWorld;
-in vec4 a_position;
+uniform mat3 ndcToUv;
+uniform mat3 uvToWorld;
+
+in vec4 vertexPosition;
+
 out vec2 worldCoordinates;
 out vec2 uvCoordinates;
-
 
 uniform struct Light {
     vec2 center;
@@ -19,12 +21,14 @@ uniform struct Light {
 out vec2[LIGHT_COUNT] directions;
 
 void main() {
-    worldCoordinates = (vec3(a_position.xy, 1.0) * ndcToWorld).xy;
-    uvCoordinates = ((a_position.xy + vec2(1.0)) / 2.0).xy;
+    vec3 vertexPosition2D = vec3(vertexPosition.xy, 1.0);
+    vec3 uvCoordinates1 = vertexPosition2D * ndcToUv;
+    worldCoordinates = (uvCoordinates1 * uvToWorld).xy;
+    uvCoordinates = (uvCoordinates1).xy;
 
     for (int i = 0; i < LIGHT_COUNT; i++) {
         directions[i] = lights[i].center - worldCoordinates;
     }
 
-    gl_Position = a_position;
+    gl_Position = vertexPosition;
 }

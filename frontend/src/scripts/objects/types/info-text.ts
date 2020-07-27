@@ -1,11 +1,11 @@
+import { RenderCommand } from '../../commands/types/draw';
 import { GameObject } from '../game-object';
-import { DrawCommand } from '../../commands/types/draw';
 
 export class InfoText extends GameObject {
   constructor() {
     super();
 
-    this.addCommandExecutor(DrawCommand, this.draw.bind(this));
+    this.addCommandExecutor(RenderCommand, this.draw.bind(this));
   }
 
   private static records: Map<string, string> = new Map();
@@ -14,9 +14,9 @@ export class InfoText extends GameObject {
     InfoText.records.set(key, value);
   }
 
-  private draw(e: DrawCommand) {
+  private draw(e: RenderCommand) {
     let text = '';
     InfoText.records.forEach((v, k) => (text += `${k}\n\t${v}\n`));
-    e.drawer.drawInfoText(text);
+    e.renderer.drawInfoText(text);
   }
 }

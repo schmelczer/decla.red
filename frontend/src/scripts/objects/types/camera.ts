@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { BeforeDrawCommand } from '../../commands/types/before-draw';
+import { BeforeRenderCommand } from '../../commands/types/before-render';
 import { CursorMoveCommand } from '../../commands/types/cursor-move-command';
 import { MoveToCommand } from '../../commands/types/move-to';
 import { ZoomCommand } from '../../commands/types/zoom';
@@ -13,7 +13,7 @@ export class Camera extends GameObject {
   constructor(private light: CircleLight) {
     super();
 
-    this.addCommandExecutor(BeforeDrawCommand, this.draw.bind(this));
+    this.addCommandExecutor(BeforeRenderCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));
     this.addCommandExecutor(
       CursorMoveCommand,
@@ -22,10 +22,10 @@ export class Camera extends GameObject {
     this.addCommandExecutor(ZoomCommand, this.zoom.bind(this));
   }
 
-  private draw(c: BeforeDrawCommand) {
-    c.drawer.setCameraPosition(this.position);
-    c.drawer.setCursorPosition(this.cursorPosition);
-    this._boundingBoxSize = c.drawer.setInViewArea(this.inViewArea);
+  private draw(c: BeforeRenderCommand) {
+    c.renderer.setCameraPosition(this.position);
+    c.renderer.setCursorPosition(this.cursorPosition);
+    this._boundingBoxSize = c.renderer.setInViewArea(this.inViewArea);
   }
 
   private moveTo(c: MoveToCommand) {
