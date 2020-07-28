@@ -15,6 +15,7 @@ A good-looking 2D adventure.
 
 - Frontend nginx disable logging
 - procedural piano
+- obfuscate function names
 - lightweight object storage
 - docker engine dashboard?
 - dockerswarm.rocks

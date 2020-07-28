@@ -90,5 +90,5 @@ jobs:
 
       - name: Stack up
         run: |
-          DOCKER_HOST=ssh://root@$DOMAIN docker stack up declared -c docker-compose.yml
+          DOCKER_HOST=ssh://root@$DOMAIN docker stack up declared -c docker-compose.yml --with-registry-auth
         working-directory: infrastructure

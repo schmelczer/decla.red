@@ -19,6 +19,8 @@ apt upgrade -y          &&\
 apt install zsh         &&\
 sh -c "$(CHSH=yes curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
+docker login -u $DOCKER_TOKEN -p $DOCKER_TOKEN registry.digitalocean.com/declared
+
 echo Removing banner
 rm -rf /etc/update-motd.d/99-one-click
 
