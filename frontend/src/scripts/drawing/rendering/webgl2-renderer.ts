@@ -1,124 +1,69 @@
 import { mat2d, vec2 } from 'gl-matrix';
-import { clamp } from '../helper/clamp';
-import { InfoText } from '../objects/types/info-text';
-import { DefaultFrameBuffer } from './graphics-library/frame-buffer/default-frame-buffer';
-import { IntermediateFrameBuffer } from './graphics-library/frame-buffer/intermediate-frame-buffer';
-import { WebGlStopwatch } from './graphics-library/helper/stopwatch';
-import { IProgram } from './graphics-library/program/i-program';
-import { UniformArrayAutoScalingProgram } from './graphics-library/program/uniform-array-autoscaling-program';
+import { InfoText } from '../../objects/types/info-text';
+import { DefaultFrameBuffer } from '../graphics-library/frame-buffer/default-frame-buffer';
+import { IntermediateFrameBuffer } from '../graphics-library/frame-buffer/intermediate-frame-buffer';
+import { WebGlStopwatch } from '../graphics-library/helper/stopwatch';
+import { IProgram } from '../graphics-library/program/i-program';
+import { UniformArrayAutoScalingProgram } from '../graphics-library/program/uniform-array-autoscaling-program';
 import { IRenderer } from './i-renderer';
-import { Circle } from './primitives/circle';
-import { IPrimitive } from './primitives/i-primitive';
-import { Rectangle } from './primitives/rectangle';
-import { TunnelShape } from './primitives/tunnel-shape';
+import { Circle } from '../primitives/circle';
+import { IPrimitive } from '../primitives/i-primitive';
+import { Rectangle } from '../primitives/rectangle';
+import { TunnelShape } from '../primitives/tunnel-shape';
+import { Autoscaler } from './autoscaler';
+import { ILight } from '../lights/i-light';
+import { toPercent } from '../../helper/to-percent';
+import { exponentialDecay } from '../../helper/exponential-decay';
+import { settings } from './settings';
 
 export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
+  private qualityScaler: Autoscaler;
   private stopwatch?: WebGlStopwatch;
 
   private viewBox: Rectangle = new Rectangle();
-  private viewCircle: Circle = new Circle(vec2.create(), 0);
-  private uniforms: any;
+  private viewCircle: Circle = new Circle();
+
   private cursorPosition = vec2.create();
+
   private distanceFieldFrameBuffer: IntermediateFrameBuffer;
   private lightingFrameBuffer: DefaultFrameBuffer;
   private distanceProgram: IProgram;
   private lightingProgram: IProgram;
 
   private primitives: Array<IPrimitive>;
-
-  private tileMultiplier = 5;
-
-  private targetDeltaTime = (1 / 30) * 1000;
-  private deltaTimeError = (1 / 1000) * 1000;
-  private additiveQualityIncrease = 0.03;
-  private multiplicativeQualityDecrease = 1.2;
-  private timeSinceLastAdjusment = 0;
-  private adjusmentRate = 300;
-  private maxRenderScale = 1.5;
-  private minRenderScale = 0.2;
-
-  private exponentialDecayedDeltaTime = 0.0;
-
-  private configureRenderScale(deltaTime: DOMHighResTimeStamp) {
-    this.timeSinceLastAdjusment += deltaTime;
-    if (this.timeSinceLastAdjusment < this.adjusmentRate) {
-      return;
-    }
-    this.timeSinceLastAdjusment = 0;
-
-    this.exponentialDecayedDeltaTime =
-      (15 / 16) * this.exponentialDecayedDeltaTime + deltaTime / 16;
-
-    if (
-      this.exponentialDecayedDeltaTime <=
-      this.targetDeltaTime - this.deltaTimeError
-    ) {
-      this.distanceFieldFrameBuffer.renderScale +=
-        this.additiveQualityIncrease / 3;
-      this.lightingFrameBuffer.renderScale += this.additiveQualityIncrease;
-    } else if (
-      this.exponentialDecayedDeltaTime >
-      this.targetDeltaTime + this.deltaTimeError
-    ) {
-      this.distanceFieldFrameBuffer.renderScale /= this.multiplicativeQualityDecrease;
-      this.lightingFrameBuffer.renderScale /= this.multiplicativeQualityDecrease;
-    }
-
-    this.distanceFieldFrameBuffer.renderScale = clamp(
-      this.distanceFieldFrameBuffer.renderScale,
-      0.1,
-      this.maxRenderScale
-    );
-    this.lightingFrameBuffer.renderScale = clamp(
-      this.lightingFrameBuffer.renderScale,
-      this.minRenderScale,
-      this.maxRenderScale
-    );
-
-    InfoText.modifyRecord(
-      'dt decay',
-      this.exponentialDecayedDeltaTime.toFixed(2)
-    );
-    InfoText.modifyRecord(
-      'q1',
-      this.distanceFieldFrameBuffer.renderScale.toFixed(2)
-    );
-    InfoText.modifyRecord(
-      'q2',
-      this.lightingFrameBuffer.renderScale.toFixed(2)
-    );
-  }
+  private lights: Array<ILight>;
 
   constructor(
     private canvas: HTMLCanvasElement,
     private overlay: HTMLElement,
     shaderSources: Array<[string, string]>
   ) {
-    this.gl = this.canvas.getContext('webgl2');
-    if (!this.gl) {
-      throw new Error('WebGl2 is not supported');
-    }
-
+    this.getContext();
     this.createPipeline(shaderSources);
-
-    this.distanceFieldFrameBuffer.renderScale = 0.5;
-    this.lightingFrameBuffer.renderScale = 1;
+    this.setupAutoscaling();
 
     try {
       this.stopwatch = new WebGlStopwatch(this.gl);
     } catch {}
   }
 
+  private getContext() {
+    this.gl = this.canvas.getContext('webgl2');
+    if (!this.gl) {
+      throw new Error('WebGl2 is not supported');
+    }
+  }
+
   private createPipeline(shaderSources: Array<[string, string]>) {
-    const distanceScale = 64;
+    const distanceScale = settings.shaderUniforms.distanceScale;
 
     this.distanceFieldFrameBuffer = new IntermediateFrameBuffer(this.gl);
     this.distanceProgram = new UniformArrayAutoScalingProgram(
       this.gl,
       shaderSources[0][0],
       shaderSources[0][1],
-      { distanceScale },
+      { ...settings.shaderUniforms },
       {
         getValueFromUniforms: (v) => (v.lines ? v.lines.length / 2 : 0),
         uniformArraySizeName: 'lineCount',
@@ -134,7 +79,7 @@ export class WebGl2Renderer implements IRenderer {
       this.gl,
       shaderSources[1][0],
       shaderSources[1][1],
-      { distanceScale },
+      { ...settings.shaderUniforms },
       {
         getValueFromUniforms: (v) => (v.lights ? v.lights.length : 0),
         uniformArraySizeName: 'lightCount',
@@ -146,25 +91,81 @@ export class WebGl2Renderer implements IRenderer {
     );
   }
 
+  private setupAutoscaling() {
+    this.qualityScaler = new Autoscaler(
+      [
+        (v) => (this.lightingFrameBuffer.renderScale = v),
+        (v) => (this.distanceFieldFrameBuffer.renderScale = v),
+      ],
+      settings.qualityScaling.scaleTargets,
+      settings.qualityScaling.startingTargetIndex,
+      settings.qualityScaling.scalingOptions
+    );
+  }
+
+  private timeSinceLastAdjusment = 0;
+  private exponentialDecayedDeltaTime = 0.0;
+  private configureQuality(deltaTime: DOMHighResTimeStamp) {
+    this.timeSinceLastAdjusment += deltaTime;
+    if (
+      this.timeSinceLastAdjusment >=
+      settings.qualityScaling.adjusmentRateInMilliseconds
+    ) {
+      this.timeSinceLastAdjusment = 0;
+      this.exponentialDecayedDeltaTime = exponentialDecay(
+        this.exponentialDecayedDeltaTime,
+        deltaTime,
+        settings.qualityScaling.deltaTimeResponsiveness
+      );
+
+      if (
+        this.exponentialDecayedDeltaTime <=
+        settings.qualityScaling.targetDeltaTimeInMilliseconds -
+          settings.qualityScaling.deltaTimeError
+      ) {
+        this.qualityScaler.increase();
+      } else if (
+        this.exponentialDecayedDeltaTime >
+        settings.qualityScaling.targetDeltaTimeInMilliseconds +
+          settings.qualityScaling.deltaTimeError
+      ) {
+        this.qualityScaler.decrease();
+      }
+    }
+
+    InfoText.modifyRecord(
+      'quality',
+      `${toPercent(this.distanceFieldFrameBuffer.renderScale)}, ${toPercent(
+        this.lightingFrameBuffer.renderScale
+      )}`
+    );
+  }
+
   public drawPrimitive(primitive: IPrimitive) {
     this.primitives.push(primitive);
   }
 
+  public drawLight(light: ILight) {
+    this.lights.push(light);
+  }
+
   public startFrame(deltaTime: DOMHighResTimeStamp): void {
-    this.configureRenderScale(deltaTime);
+    this.configureQuality(deltaTime);
     this.primitives = [];
+    this.lights = [];
 
     this.stopwatch?.start();
-    this.uniforms = {};
     this.distanceFieldFrameBuffer.setSize();
     this.lightingFrameBuffer.setSize();
   }
 
   public finishFrame() {
-    this.calculateOwnUniforms();
+    const uniforms: any = this.calculateOwnUniforms();
+
+    this.lights.forEach((l) => l.serializeToUniforms(uniforms));
 
     this.distanceFieldFrameBuffer.bindAndClear();
-    const q = 1 / this.tileMultiplier;
+    const q = 1 / settings.tileMultiplier;
     const uvSize = vec2.fromValues(q, q);
 
     const possiblyOnScreenPrimitives = this.primitives.filter(
@@ -179,19 +180,19 @@ export class WebGl2Renderer implements IRenderer {
     const origin = vec2.transformMat2d(
       vec2.create(),
       vec2.fromValues(0, 0),
-      this.uniforms.uvToWorld
+      uniforms.uvToWorld
     );
 
     const firstCenter = vec2.transformMat2d(
       vec2.create(),
       vec2.fromValues(q, q),
-      this.uniforms.uvToWorld
+      uniforms.uvToWorld
     );
 
     vec2.subtract(firstCenter, firstCenter, origin);
 
     const worldR = vec2.length(firstCenter);
-    this.uniforms.maxMinDistance = 2 * worldR;
+    uniforms.maxMinDistance = 2 * worldR;
 
     let sumLineCount = 0;
 
@@ -203,7 +204,7 @@ export class WebGl2Renderer implements IRenderer {
         const tileCenterWorldCoordinates = vec2.transformMat2d(
           vec2.create(),
           vec2.add(vec2.create(), uvBottomLeft, vec2.fromValues(q, q)),
-          this.uniforms.uvToWorld
+          uniforms.uvToWorld
         );
 
         const primitivesNearTile = possiblyOnScreenPrimitives.filter(
@@ -212,36 +213,35 @@ export class WebGl2Renderer implements IRenderer {
 
         sumLineCount += primitivesNearTile.length;
 
-        this.uniforms.lines = [];
-        this.uniforms.radii = [];
+        uniforms.lines = [];
+        uniforms.radii = [];
 
-        for (let tunnel of primitivesNearTile) {
-          this.uniforms.lines.push(tunnel.from);
-          this.uniforms.lines.push(tunnel.toFromDelta);
-          this.uniforms.radii.push(tunnel.fromRadius);
-          this.uniforms.radii.push(tunnel.toRadius);
-        }
+        primitivesNearTile.forEach((p) => p.serializeToUniforms(uniforms));
 
-        this.distanceProgram.bindAndSetUniforms(this.uniforms);
+        this.distanceProgram.bindAndSetUniforms(uniforms);
         this.distanceProgram.draw();
       }
     }
 
     InfoText.modifyRecord(
       'lines',
-      (sumLineCount / this.tileMultiplier / this.tileMultiplier).toFixed(2)
+      (
+        sumLineCount /
+        settings.tileMultiplier /
+        settings.tileMultiplier
+      ).toFixed(2)
     );
 
     this.lightingFrameBuffer.bindAndClear(
       this.distanceFieldFrameBuffer.colorTexture
     );
-    this.lightingProgram.bindAndSetUniforms(this.uniforms);
+    this.lightingProgram.bindAndSetUniforms(uniforms);
     this.lightingProgram.draw();
 
     this.stopwatch?.stop();
   }
 
-  private calculateOwnUniforms() {
+  private calculateOwnUniforms(): any {
     const distanceScreenToWorld = this.getScreenToWorldTransform(
       this.distanceFieldFrameBuffer.getSize()
     );
@@ -267,14 +267,14 @@ export class WebGl2Renderer implements IRenderer {
 
     const cursorPosition = this.screenUvToWorldCoordinate(this.cursorPosition);
 
-    this.giveUniforms({
+    return {
       distanceScreenToWorld,
       worldToDistanceUV,
       cursorPosition,
       ndcToUv,
       uvToWorld,
       viewBoxSize: this.viewBox.size,
-    });
+    };
   }
 
   private getScreenToWorldTransform(screenSize: vec2) {
@@ -304,24 +304,16 @@ export class WebGl2Renderer implements IRenderer {
 
   public setCameraPosition(position: vec2) {
     this.viewBox.topLeft = position;
+    const halfDiagonal = vec2.scale(vec2.create(), this.viewBox.size, 0.5);
+    this.viewCircle.center = vec2.add(
+      vec2.create(),
+      this.viewBox.topLeft,
+      halfDiagonal
+    );
   }
 
   public setCursorPosition(position: vec2): void {
     this.cursorPosition = position;
-  }
-
-  public appendToUniformList(listName: string, ...values: any[]): void {
-    if (!this.uniforms.hasOwnProperty(listName)) {
-      this.uniforms[listName] = [];
-    }
-
-    for (let value of values) {
-      this.uniforms[listName].push(value);
-    }
-  }
-
-  public giveUniforms(uniforms: any): void {
-    this.uniforms = { ...this.uniforms, ...uniforms };
   }
 
   public setInViewArea(size: number): vec2 {
@@ -349,13 +341,5 @@ export class WebGl2Renderer implements IRenderer {
     if (this.overlay.innerText != text) {
       this.overlay.innerText = text;
     }
-  }
-
-  public isOnScreen(boundingCircle: Circle): boolean {
-    return this.viewCircle.areIntersecting(boundingCircle);
-  }
-
-  public isPositionOnScreen(position: vec2): boolean {
-    return this.viewCircle.isInside(position);
   }
 }

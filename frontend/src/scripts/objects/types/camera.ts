@@ -4,13 +4,13 @@ import { CursorMoveCommand } from '../../commands/types/cursor-move-command';
 import { MoveToCommand } from '../../commands/types/move-to';
 import { ZoomCommand } from '../../commands/types/zoom';
 import { GameObject } from '../game-object';
-import { CircleLight } from './circle-light';
+import { Lamp } from './lamp';
 
 export class Camera extends GameObject {
   private inViewArea = 1920 * 1080 * 5;
   private cursorPosition = vec2.create();
 
-  constructor(private light: CircleLight) {
+  constructor(private light: Lamp) {
     super();
 
     this.addCommandExecutor(BeforeRenderCommand, this.draw.bind(this));

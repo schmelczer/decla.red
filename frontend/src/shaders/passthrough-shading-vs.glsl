@@ -2,8 +2,7 @@
 
 precision mediump float;
 
-#define LIGHT_COUNT {lightCount}
-
+#define LIGHT_COUNT 1
 uniform mat3 ndcToUv;
 uniform mat3 uvToWorld;
 

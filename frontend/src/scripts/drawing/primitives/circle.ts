@@ -2,7 +2,11 @@ import { vec2 } from 'gl-matrix';
 import { IPrimitive } from './i-primitive';
 
 export class Circle implements IPrimitive {
-  public constructor(public center: vec2, public radius: number) {}
+  public constructor(public center = vec2.create(), public radius = 0) {}
+
+  public serializeToUniforms(uniforms: any): void {
+    throw new Error('Method not implemented.');
+  }
 
   public distance(target: vec2): number {
     return vec2.distance(this.center, target) - this.radius;

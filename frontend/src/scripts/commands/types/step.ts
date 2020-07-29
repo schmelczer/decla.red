@@ -6,4 +6,8 @@ export class StepCommand extends Command {
   ) {
     super();
   }
+
+  public get type(): string {
+    return 'StepCommand';
+  }
 }

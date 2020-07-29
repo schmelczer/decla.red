@@ -1,7 +1,5 @@
-export class Typed {
-  public get type(): string {
-    return this.constructor.name;
-  }
+export abstract class Typed {
+  public abstract get type(): string;
 
   public toJSON() {
     return { type: this.type, ...this };

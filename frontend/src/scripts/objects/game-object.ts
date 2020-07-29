@@ -2,9 +2,8 @@ import { vec2 } from 'gl-matrix';
 import { Command } from '../commands/command';
 import { CommandReceiver } from '../commands/command-receiver';
 import { IdentityManager } from '../identity/identity-manager';
-import { Typed } from '../transport/serializable';
 
-export abstract class GameObject extends Typed implements CommandReceiver {
+export abstract class GameObject implements CommandReceiver {
   public readonly id = IdentityManager.generateId();
 
   protected _position = vec2.create();
@@ -21,12 +20,12 @@ export abstract class GameObject extends Typed implements CommandReceiver {
     [commandType: string]: (e: Command) => void;
   } = {};
 
-  // can only be called inside the constructor 
+  // can only be called inside the constructor
   protected addCommandExecutor<T extends Command>(
     commandType: new () => T,
     handler: (command: T) => void
   ) {
-    this.commandExecutors[commandType.name] = handler;
+    this.commandExecutors[new commandType().type] = handler;
   }
 
   public reactsToCommand(commandType: string): boolean {
@@ -34,7 +33,7 @@ export abstract class GameObject extends Typed implements CommandReceiver {
   }
 
   public sendCommand(command: Command) {
-    const commandType = command.constructor.name;
+    const commandType = command.type;
 
     if (this.commandExecutors.hasOwnProperty(commandType)) {
       this.commandExecutors[commandType](command);

@@ -1,6 +1,6 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { ObjectContainer } from '../object-container';
-import { CircleLight } from '../types/circle-light';
+import { Lamp } from '../types/lamp';
 import { Tunnel } from '../types/tunnel';
 
 export const createDungeon = (objects: ObjectContainer) => {
@@ -19,14 +19,15 @@ export const createDungeon = (objects: ObjectContainer) => {
 
     if (deltaHeight > 0 && Math.random() > 0.8) {
       objects.addObject(
-        new CircleLight(
+        new Lamp(
           currentEnd,
           Math.random() * 20 + 30,
           vec3.scale(
             vec3.create(),
             vec3.normalize(vec3.create(), vec3.fromValues(0.5, 0.1, 0.8)),
             Math.random() * 0.5 + 0.5
-          )
+          ),
+          1
         )
       );
     }

@@ -7,7 +7,7 @@ import { CommandBroadcaster } from './commands/command-broadcaster';
 import { BeforeRenderCommand } from './commands/types/before-render';
 import { RenderCommand } from './commands/types/draw';
 import { StepCommand } from './commands/types/step';
-import { WebGl2Renderer } from './drawing/webgl2-renderer';
+import { WebGl2Renderer } from './drawing/rendering/webgl2-renderer';
 import { timeIt } from './helper/timing';
 import { KeyboardListener } from './input/keyboard-listener';
 import { MouseListener } from './input/mouse-listener';

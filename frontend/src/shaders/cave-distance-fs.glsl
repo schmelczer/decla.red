@@ -7,13 +7,14 @@ precision mediump float;
 #define CAVE_COLOR vec3(0.36, 0.38, 0.76)
 #define AIR_COLOR vec3(0.7)
 #define DISTANCE_SCALE {distanceScale}
+#define EDGE_SMOOTHING {edgeSmoothing}
  
 uniform float maxMinDistance; 
 
 #if LINES_ENABLED
     // start, end - start
     uniform vec2[LINE_COUNT * 2] lines;
-    // startRadius, endRadois
+    // startRadius, endRadius
     uniform float[LINE_COUNT * 2] radii;
 #endif
 
@@ -37,7 +38,7 @@ void main() {
 
         float distance = -minDistance;
         fragmentColor = vec4(
-            mix(CAVE_COLOR, AIR_COLOR, clamp(distance, -10.0, 0.0) / 10.0 + 1.0),
+            mix(CAVE_COLOR, AIR_COLOR, clamp(distance, -EDGE_SMOOTHING, 0.0) / EDGE_SMOOTHING + 1.0),
             distance / DISTANCE_SCALE
         );
     #else

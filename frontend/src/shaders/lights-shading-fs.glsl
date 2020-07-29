@@ -4,11 +4,11 @@ precision mediump float;
 
 #define INFINITY 1000.0
 #define AMBIENT_LIGHT vec3(0.15)
-#define LIGHT_DROP 400.0
-#define MIN_STEP 3.0
-#define EDGE_SMOOTHING 5.0
-#define LIGHT_COUNT {lightCount}
+#define LIGHT_DROP 500.0
+#define MIN_STEP 1.0
+#define LIGHT_COUNT 1
 #define DISTANCE_SCALE {distanceScale}
+#define EDGE_SMOOTHING {edgeSmoothing}
 
 uniform struct Light {
     vec2 center;
@@ -48,10 +48,14 @@ float getFractionOfLightArriving(
         float minDistance = getDistance(target + direction * rayLength);
         movingAverageMeanDistance = movingAverageMeanDistance / 2.0 + minDistance / 2.0;
         q = min(q, movingAverageMeanDistance / rayLength);
-        rayLength = min(lightDistance, rayLength + max(MIN_STEP, minDistance));
+
+        rayLength += max(MIN_STEP, minDistance);
+        if (rayLength > lightDistance) {
+            return clamp(q * (lightDistance + lightRadius) / lightRadius, 0.0, 1.0);
+        }
     }
 
-    return clamp(q * (lightDistance + lightRadius) / lightRadius, 0.0, 1.0);
+    return 0.0;
 }
 
 in vec2 worldCoordinates;
