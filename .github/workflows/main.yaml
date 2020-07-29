@@ -90,5 +90,6 @@ jobs:
 
       - name: Stack up
         run: |
+          DOCKER_HOST=ssh://root@$DOMAIN docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }} $CONTAINER_REGISTRY
           DOCKER_HOST=ssh://root@$DOMAIN docker stack up declared -c docker-compose.yml --with-registry-auth
         working-directory: infrastructure
