@@ -1,0 +1,93 @@
+version: "3.3"
+
+# source: https://raw.githubusercontent.com/swarmpit/swarmpit/master/docker-compose.yml
+
+services:
+  app:
+    image: swarmpit/swarmpit:latest
+    environment:
+      - SWARMPIT_DB=http://db:5984
+      - SWARMPIT_INFLUXDB=http://influxdb:8086
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "8080"
+    networks:
+      - network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 256M
+        reservations:
+          cpus: "0.15"
+          memory: 256M
+      placement:
+        constraints:
+          - node.role == manager
+
+  db:
+    image: couchdb:2.3.0
+    volumes:
+      - db-data:/opt/couchdb/data
+    networks:
+      - network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+      placement:
+        constraints:
+          - node.labels.swarmpit.db-data == true
+
+  influxdb:
+    image: influxdb:1.7
+    volumes:
+      - influx-data:/var/lib/influxdb
+    networks:
+      - network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+      placement:
+        constraints:
+          - node.labels.swarmpit.influx-data == true
+
+  agent:
+    image: swarmpit/agent:latest
+    environment:
+      - DOCKER_API_VERSION=1.35
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - network
+    deploy:
+      mode: global
+      labels:
+        swarmpit.agent: "true"
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 64M
+        reservations:
+          cpus: "0.05"
+          memory: 32M
+
+networks:
+  network:
+    driver: overlay
+
+volumes:
+  db-data:
+    driver: local
+  influx-data:
+    driver: local

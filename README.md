@@ -13,13 +13,16 @@ A good-looking 2D adventure.
 
 ## Todo
 
+- host script
+  - https://github.com/ottomatica/slim
+  - rancher os
 - Frontend nginx disable logging
 - procedural piano
 - obfuscate function names
 - lightweight object storage
-- docker engine dashboard?
 - dockerswarm.rocks
 - local dev env
-- prettier script
-- monitoring
-- traefik
+- CI pipeline:
+  - prettier script
+  - tests?
+- monitoring: https://dockerswarm.rocks/swarmpit/

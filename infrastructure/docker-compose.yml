@@ -5,8 +5,10 @@ services:
     init: true
     image: ${CONTAINER_REGISTRY}/declared-ingress
     depends_on:
-      - certbot
       - frontend
+    networks:
+      - swarmpit_network
+      - network
     deploy:
       replicas: 2
       resources:
@@ -29,34 +31,15 @@ services:
       - "443:443"
     command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
     volumes:
-      - /root/data/certbot/conf:/etc/letsencrypt
-      - /root/data/certbot/www:/var/www/certbot
-
-  certbot:
-    init: true
-    image: certbot/certbot
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: "0.05"
-          memory: 64M
-        reservations:
-          cpus: "0.05"
-          memory: 64M
-      restart_policy:
-        condition: on-failure
-        window: 30s
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    volumes:
-      - /root/data/certbot/conf:/etc/letsencrypt
-      - /root/data/certbot/www:/var/www/certbot
+      - /etc/letsencrypt:/etc/letsencrypt
 
   frontend:
     init: true
     image: ${CONTAINER_REGISTRY}/declared-frontend
     ports:
       - "80"
+    networks:
+      - network
     deploy:
       replicas: 2
       resources:
@@ -74,3 +57,10 @@ services:
       restart_policy:
         condition: on-failure
         window: 30s
+
+networks:
+  network:
+    driver: overlay
+
+  swarmpit_network:
+    external: true
