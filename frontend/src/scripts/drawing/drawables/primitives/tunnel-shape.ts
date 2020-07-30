@@ -25,7 +25,6 @@ export class TunnelShape implements IPrimitive {
     public readonly toRadius: number
   ) {
     this.toFromDelta = vec2.subtract(vec2.create(), to, from);
-    this.toFromDeltaLength = vec2.length(this.toFromDelta);
 
     this.boundingCircle = new Circle(
       vec2.fromValues(from.x / 2 + to.x / 2, from.y / 2 + to.y / 2),
@@ -50,8 +49,7 @@ export class TunnelShape implements IPrimitive {
     const targetFromDelta = vec2.subtract(vec2.create(), target, this.from);
     const h = clamp01(
       vec2.dot(targetFromDelta, this.toFromDelta) /
-        this.toFromDeltaLength /
-        this.toFromDeltaLength
+        vec2.dot(this.toFromDelta, this.toFromDelta)
     );
     return (
       vec2.distance(

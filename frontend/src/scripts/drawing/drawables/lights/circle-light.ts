@@ -5,8 +5,8 @@ import { IDrawableDescriptor } from '../i-drawable-descriptor';
 
 export class CircleLight implements ILight {
   public static descriptor: IDrawableDescriptor = {
-    uniformName: 'lights',
-    countMacroName: 'lightCount',
+    uniformName: 'circleLights',
+    countMacroName: 'circleLightCount',
     shaderCombinationSteps: settings.shaderCombinations.circleLightSteps,
   };
 
@@ -17,15 +17,15 @@ export class CircleLight implements ILight {
     public lightness: number
   ) {}
 
-  distance(target: vec2): number {
+  public distance(target: vec2): number {
     return 0;
   }
 
-  minimumDistance(target: vec2): number {
+  public minimumDistance(target: vec2): number {
     return 0;
   }
 
-  serializeToUniforms(uniforms: any): void {
+  public serializeToUniforms(uniforms: any): void {
     const listName = CircleLight.descriptor.uniformName;
 
     if (!uniforms.hasOwnProperty(listName)) {
@@ -39,7 +39,7 @@ export class CircleLight implements ILight {
     });
   }
 
-  get value(): vec3 {
+  public get value(): vec3 {
     return vec3.scale(
       vec3.create(),
       vec3.normalize(this.color, this.color),

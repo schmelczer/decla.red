@@ -2,7 +2,8 @@
 
 precision mediump float;
 
-#define LIGHT_COUNT {lightCount}
+#define CIRCLE_LIGHT_COUNT {circleLightCount}
+#define POINT_LIGHT_COUNT {pointLightCount}
 
 uniform mat3 modelTransform;
 uniform mat3 ndcToUv;
@@ -13,14 +14,24 @@ in vec4 vertexPosition;
 out vec2 worldCoordinates;
 out vec2 uvCoordinates;
 
-#if LIGHT_COUNT > 0
-    uniform struct Light {
+#if CIRCLE_LIGHT_COUNT > 0
+    uniform struct CircleLight {
         vec2 center;
         float radius;
         vec3 value;
-    }[LIGHT_COUNT] lights;
+    }[CIRCLE_LIGHT_COUNT] circleLights;
 
-    out vec2[LIGHT_COUNT] directions;
+    out vec2[CIRCLE_LIGHT_COUNT] circleLightDirections;
+#endif
+
+#if POINT_LIGHT_COUNT > 0
+    uniform struct PointLight {
+        vec2 center;
+        float radius;
+        vec3 value;
+    }[POINT_LIGHT_COUNT] pointLights;
+
+    out vec2[POINT_LIGHT_COUNT] pointLightDirections;
 #endif
 
 void main() {
@@ -29,9 +40,15 @@ void main() {
     worldCoordinates = (uvCoordinates1 * uvToWorld).xy;
     uvCoordinates = (uvCoordinates1).xy;
 
-    #if LIGHT_COUNT > 0
-        for (int i = 0; i < LIGHT_COUNT; i++) {
-            directions[i] = lights[i].center - worldCoordinates;
+    #if CIRCLE_LIGHT_COUNT > 0
+        for (int i = 0; i < CIRCLE_LIGHT_COUNT; i++) {
+            circleLightDirections[i] = circleLights[i].center - worldCoordinates;
+        }
+    #endif
+
+    #if POINT_LIGHT_COUNT > 0
+        for (int i = 0; i < POINT_LIGHT_COUNT; i++) {
+            pointLightDirections[i] = pointLights[i].center - worldCoordinates;
         }
     #endif
 

@@ -1,6 +1,6 @@
 import { CommandGenerator } from '../commands/command-generator';
-import { KeyDownCommand } from '../commands/types/key-down';
-import { KeyUpCommand } from '../commands/types/key-up';
+import { KeyDownCommand } from './commands/key-down';
+import { KeyUpCommand } from './commands/key-up';
 
 export class KeyboardListener extends CommandGenerator {
   constructor(target: Element) {

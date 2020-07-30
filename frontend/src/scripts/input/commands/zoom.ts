@@ -1,4 +1,4 @@
-import { Command } from '../command';
+import { Command } from '../../commands/command';
 
 export class ZoomCommand extends Command {
   public constructor(public readonly factor?: number) {

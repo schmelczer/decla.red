@@ -1,10 +1,8 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { RenderCommand } from '../../commands/types/draw';
-import { MoveToCommand } from '../../commands/types/move-to';
 import { GameObject } from '../game-object';
 import { CircleLight } from '../../drawing/drawables/lights/circle-light';
-
-const range = 2000;
+import { RenderCommand } from '../../drawing/commands/render';
+import { MoveToCommand } from '../../physics/commands/move-to';
 
 export class Lamp extends GameObject {
   private light: CircleLight;

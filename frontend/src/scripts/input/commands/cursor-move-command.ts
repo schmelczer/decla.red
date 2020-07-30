@@ -1,4 +1,4 @@
-import { Command } from '../command';
+import { Command } from '../../commands/command';
 import { vec2 } from 'gl-matrix';
 
 export class CursorMoveCommand extends Command {

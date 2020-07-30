@@ -1,10 +1,10 @@
 import { vec2 } from 'gl-matrix';
-import { BeforeRenderCommand } from '../../commands/types/before-render';
-import { CursorMoveCommand } from '../../commands/types/cursor-move-command';
-import { MoveToCommand } from '../../commands/types/move-to';
-import { ZoomCommand } from '../../commands/types/zoom';
+import { BeforeRenderCommand } from '../../drawing/commands/before-render';
+import { CursorMoveCommand } from '../../input/commands/cursor-move-command';
 import { GameObject } from '../game-object';
 import { Lamp } from './lamp';
+import { ZoomCommand } from '../../input/commands/zoom';
+import { MoveToCommand } from '../../physics/commands/move-to';
 
 export class Camera extends GameObject {
   private inViewArea = 1920 * 1080 * 5;

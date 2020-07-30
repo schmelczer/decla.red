@@ -1,11 +1,11 @@
 import { CommandGenerator } from '../commands/command-generator';
-import { PrimaryActionCommand } from '../commands/types/primary-action';
-import { SecondaryActionCommand } from '../commands/types/secondary-action';
-import { SwipeCommand } from '../commands/types/swipe';
-import { ZoomCommand } from '../commands/types/zoom';
 import { vec2 } from 'gl-matrix';
 import { clamp01 } from '../helper/clamp';
-import { CursorMoveCommand } from '../commands/types/cursor-move-command';
+import { CursorMoveCommand } from './commands/cursor-move-command';
+import { PrimaryActionCommand } from './commands/primary-action';
+import { SwipeCommand } from './commands/swipe';
+import { SecondaryActionCommand } from './commands/secondary-action';
+import { ZoomCommand } from './commands/zoom';
 
 export class MouseListener extends CommandGenerator {
   private previousPosition = vec2.create();

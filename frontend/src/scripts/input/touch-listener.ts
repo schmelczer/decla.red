@@ -1,9 +1,9 @@
 import { CommandGenerator } from '../commands/command-generator';
-import { PrimaryActionCommand } from '../commands/types/primary-action';
-import { SecondaryActionCommand } from '../commands/types/secondary-action';
-import { SwipeCommand } from '../commands/types/swipe';
 import { vec2 } from 'gl-matrix';
 import { clamp01 } from '../helper/clamp';
+import { PrimaryActionCommand } from './commands/primary-action';
+import { SecondaryActionCommand } from './commands/secondary-action';
+import { SwipeCommand } from './commands/swipe';
 
 export class TouchListener extends CommandGenerator {
   private previousPosition = vec2.create();

@@ -1,4 +1,4 @@
-import { Command } from '../command';
+import { Command } from '../../commands/command';
 
 export class KeyUpCommand extends Command {
   public constructor(public readonly key?: string) {

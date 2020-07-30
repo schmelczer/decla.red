@@ -1,7 +1,6 @@
 import { CommandBroadcaster } from './commands/command-broadcaster';
-import { BeforeRenderCommand } from './commands/types/before-render';
-import { RenderCommand } from './commands/types/draw';
-import { StepCommand } from './commands/types/step';
+import { BeforeRenderCommand } from './drawing/commands/before-render';
+import { StepCommand } from './physics/commands/step';
 import { WebGl2Renderer } from './drawing/rendering/webgl2-renderer';
 import { timeIt } from './helper/timing';
 import { KeyboardListener } from './input/keyboard-listener';
@@ -11,6 +10,7 @@ import { ObjectContainer } from './objects/object-container';
 import { InfoText } from './objects/types/info-text';
 import { createCharacter } from './objects/world/create-character';
 import { createDungeon } from './objects/world/create-dungeon';
+import { RenderCommand } from './drawing/commands/render';
 
 export class Game {
   private previousTime?: DOMHighResTimeStamp = null;

@@ -1,23 +1,32 @@
 import { ILight } from './i-light';
 import { vec2, vec3 } from 'gl-matrix';
+import { IDrawableDescriptor } from '../i-drawable-descriptor';
+import { settings } from '../../settings';
 
 export class PointLight implements ILight {
-  public static uniformName = 'lights';
+  public static descriptor: IDrawableDescriptor = {
+    uniformName: 'pointLights',
+    countMacroName: 'pointLightCount',
+    shaderCombinationSteps: settings.shaderCombinations.pointLightSteps,
+  };
 
   constructor(
     public center: vec2,
+    public radius: number,
     public color: vec3,
     public lightness: number
   ) {}
-  distance(target: vec2): number {
-    throw new Error('Method not implemented.');
-  }
-  minimumDistance(target: vec2): number {
-    throw new Error('Method not implemented.');
+
+  public distance(target: vec2): number {
+    return vec2.distance(this.center, target) - this.radius;
   }
 
-  serializeToUniforms(uniforms: any): void {
-    const listName = PointLight.uniformName;
+  public minimumDistance(target: vec2): number {
+    return vec2.distance(this.center, target) - this.radius;
+  }
+
+  public serializeToUniforms(uniforms: any): void {
+    const listName = PointLight.descriptor.uniformName;
 
     if (!uniforms.hasOwnProperty(listName)) {
       uniforms[listName] = [];
@@ -25,12 +34,12 @@ export class PointLight implements ILight {
 
     uniforms[listName].push({
       center: this.center,
-      radius: 0,
+      radius: this.radius,
       value: this.value,
     });
   }
 
-  get value(): vec3 {
+  public get value(): vec3 {
     return vec3.scale(vec3.create(), this.color, this.lightness);
   }
 }

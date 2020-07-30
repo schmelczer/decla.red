@@ -18,7 +18,6 @@ A good-looking 2D adventure.
 - subtract cameraPosition
 - cross browser testing
 - nginx log monitor
-- pass befejezése
 - lightweight object storage
 - local dev env
 - CI pipeline:

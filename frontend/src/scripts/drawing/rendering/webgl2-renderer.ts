@@ -1,4 +1,4 @@
-import { mat2d, vec2 } from 'gl-matrix';
+import { mat2d, vec2, vec3 } from 'gl-matrix';
 import caveFragmentShader from '../shaders/cave-distance-fs.glsl';
 import lightsFragmentShader from '../shaders/lights-shading-fs.glsl';
 import caveVertexShader from '../shaders/passthrough-distance-vs.glsl';
@@ -20,6 +20,7 @@ import { getWebGl2Context } from '../graphics-library/helper/get-webgl2-context'
 import { RenderingPass } from './rendering-pass';
 import { TunnelShape } from '../drawables/primitives/tunnel-shape';
 import { CircleLight } from '../drawables/lights/circle-light';
+import { PointLight } from '../drawables/lights/point-light';
 
 export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
@@ -53,7 +54,7 @@ export class WebGl2Renderer implements IRenderer {
     this.lightingPass = new RenderingPass(
       this.gl,
       [lightsVertexShader, lightsFragmentShader],
-      [CircleLight.descriptor],
+      [CircleLight.descriptor, PointLight.descriptor],
       this.lightingFrameBuffer
     );
 
@@ -85,6 +86,9 @@ export class WebGl2Renderer implements IRenderer {
 
   public finishFrame() {
     const uniforms = this.calculateOwnUniforms();
+    this.lightingPass.addDrawable(
+      new PointLight(uniforms.cursorPosition, 200, vec3.fromValues(1, 1, 0), 1)
+    );
     this.distancePass.render(uniforms, this.viewCircle);
     this.lightingPass.render(
       uniforms,
