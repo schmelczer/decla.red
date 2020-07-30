@@ -20,8 +20,12 @@ export const settings = {
     },
   },
   tileMultiplier: 5,
-  shaderUniforms: {
+  shaderMacros: {
     distanceScale: 64,
     edgeSmoothing: 10,
+  },
+  shaderCombinations: {
+    lineSteps: [0, 1, 2, 3, 4, 8, 16, 32],
+    circleLightSteps: [0, 1, 2, 3],
   },
 };

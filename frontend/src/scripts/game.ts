@@ -1,8 +1,3 @@
-import caveFragmentShader from '../shaders/cave-distance-fs.glsl';
-import lightsShader from '../shaders/lights-shading-fs.glsl';
-import caveVertexShader from '../shaders/passthrough-distance-vs.glsl';
-import lightsVertexShader from '../shaders/passthrough-shading-vs.glsl';
-// import lightsShader from '../shaders/rainbow-shading-fs.glsl';
 import { CommandBroadcaster } from './commands/command-broadcaster';
 import { BeforeRenderCommand } from './commands/types/before-render';
 import { RenderCommand } from './commands/types/draw';
@@ -41,10 +36,7 @@ export class Game {
       [this.objects]
     );
 
-    this.renderer = new WebGl2Renderer(canvas, overlay, [
-      [caveVertexShader, caveFragmentShader],
-      [lightsVertexShader, lightsShader],
-    ]);
+    this.renderer = new WebGl2Renderer(canvas, overlay);
 
     this.initializeScene();
     requestAnimationFrame(this.gameLoop.bind(this));

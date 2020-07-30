@@ -1,18 +1,23 @@
 import { ILight } from './i-light';
 import { vec2, vec3 } from 'gl-matrix';
 
-export class CircleLight implements ILight {
+export class PointLight implements ILight {
   public static uniformName = 'lights';
 
   constructor(
     public center: vec2,
-    public radius: number,
     public color: vec3,
     public lightness: number
   ) {}
+  distance(target: vec2): number {
+    throw new Error('Method not implemented.');
+  }
+  minimumDistance(target: vec2): number {
+    throw new Error('Method not implemented.');
+  }
 
   serializeToUniforms(uniforms: any): void {
-    const listName = CircleLight.uniformName;
+    const listName = PointLight.uniformName;
 
     if (!uniforms.hasOwnProperty(listName)) {
       uniforms[listName] = [];
@@ -20,16 +25,12 @@ export class CircleLight implements ILight {
 
     uniforms[listName].push({
       center: this.center,
-      radius: this.radius,
+      radius: 0,
       value: this.value,
     });
   }
 
   get value(): vec3 {
-    return vec3.scale(
-      vec3.create(),
-      vec3.normalize(this.color, this.color),
-      this.lightness
-    );
+    return vec3.scale(vec3.create(), this.color, this.lightness);
   }
 }

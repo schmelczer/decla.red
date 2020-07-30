@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { RenderCommand } from '../../commands/types/draw';
-import { TunnelShape } from '../../drawing/primitives/tunnel-shape';
+import { TunnelShape } from '../../drawing/drawables/primitives/tunnel-shape';
 import { GameObject } from '../game-object';
 
 export interface Line {}

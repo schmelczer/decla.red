@@ -5,11 +5,10 @@ export class FragmentShaderOnlyProgram extends Program {
 
   constructor(
     gl: WebGL2RenderingContext,
-    vertexShaderSource: string,
-    fragmentShaderSource: string,
+    shaderSources: [string, string],
     substitutions: { [name: string]: string }
   ) {
-    super(gl, vertexShaderSource, fragmentShaderSource, substitutions);
+    super(gl, shaderSources, substitutions);
     this.prepareScreenQuad('vertexPosition');
   }
 

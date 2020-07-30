@@ -2,7 +2,7 @@ import { vec2, vec3 } from 'gl-matrix';
 import { RenderCommand } from '../../commands/types/draw';
 import { MoveToCommand } from '../../commands/types/move-to';
 import { GameObject } from '../game-object';
-import { CircleLight } from '../../drawing/lights/circle-light';
+import { CircleLight } from '../../drawing/drawables/lights/circle-light';
 
 const range = 2000;
 

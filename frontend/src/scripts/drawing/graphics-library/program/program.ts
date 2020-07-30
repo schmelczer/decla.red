@@ -17,8 +17,7 @@ export abstract class Program implements IProgram {
 
   constructor(
     protected gl: WebGL2RenderingContext,
-    vertexShaderSource: string,
-    fragmentShaderSource: string,
+    [vertexShaderSource, fragmentShaderSource]: [string, string],
     substitutions: { [name: string]: string }
   ) {
     this.createProgram(vertexShaderSource, fragmentShaderSource, substitutions);

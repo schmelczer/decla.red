@@ -1,12 +1,17 @@
 import { vec2 } from 'gl-matrix';
-import { clamp01 } from '../../helper/clamp';
-import { mix } from '../../helper/mix';
+import { clamp01 } from '../../../helper/clamp';
+import { mix } from '../../../helper/mix';
 import { Circle } from './circle';
 import { IPrimitive } from './i-primitive';
+import { IDrawableDescriptor } from '../i-drawable-descriptor';
+import { settings } from '../../settings';
 
 export class TunnelShape implements IPrimitive {
-  public static uniformNameLines = 'lines';
-  public static uniformNameRadii = 'radii';
+  public static descriptor: IDrawableDescriptor = {
+    uniformName: 'lines',
+    countMacroName: 'lineCount',
+    shaderCombinationSteps: settings.shaderCombinations.lineSteps,
+  };
 
   public readonly toFromDelta: vec2;
   private toFromDeltaLength: number;
@@ -29,18 +34,16 @@ export class TunnelShape implements IPrimitive {
   }
 
   serializeToUniforms(uniforms: any): void {
-    if (!uniforms.hasOwnProperty(TunnelShape.uniformNameLines)) {
-      uniforms[TunnelShape.uniformNameLines] = [];
+    if (!uniforms.hasOwnProperty(TunnelShape.descriptor.uniformName)) {
+      uniforms[TunnelShape.descriptor.uniformName] = [];
     }
 
-    if (!uniforms.hasOwnProperty(TunnelShape.uniformNameRadii)) {
-      uniforms[TunnelShape.uniformNameRadii] = [];
-    }
-
-    uniforms[TunnelShape.uniformNameLines].push(this.from);
-    uniforms[TunnelShape.uniformNameLines].push(this.toFromDelta);
-    uniforms[TunnelShape.uniformNameRadii].push(this.fromRadius);
-    uniforms[TunnelShape.uniformNameRadii].push(this.toRadius);
+    uniforms[TunnelShape.descriptor.uniformName].push({
+      from: this.from,
+      toFromDelta: this.toFromDelta,
+      fromRadius: this.fromRadius,
+      toRadius: this.toRadius,
+    });
   }
 
   public distance(target: vec2): number {

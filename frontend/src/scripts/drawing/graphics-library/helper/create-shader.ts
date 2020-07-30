@@ -1,15 +1,16 @@
+import { settings } from '../../settings';
+
 export const createShader = (
   gl: WebGL2RenderingContext,
   type: GLenum,
   source: string,
   substitutions: { [name: string]: string }
 ): WebGLShader => {
+  const allSubstitutions = { ...settings.shaderMacros, ...substitutions };
+
   source = source.replace(/{(.+)}/gm, (_, name: string): string => {
-    const value = substitutions[name];
-    if (Number.isInteger(value)) {
-      return `${value}.0`;
-    }
-    return value;
+    const value = allSubstitutions[name];
+    return Number.isInteger(value) ? `${value}.0` : value;
   });
 
   const shader = gl.createShader(type);

@@ -13,11 +13,12 @@ A good-looking 2D adventure.
 
 ## Todo
 
-- host script
-  - https://github.com/ottomatica/slim
-  - rancher os
 - Frontend nginx disable logging
 - procedural piano
+- subtract cameraPosition
+- cross browser testing
+- nginx log monitor
+- pass befejezése
 - lightweight object storage
 - local dev env
 - CI pipeline:

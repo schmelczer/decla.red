@@ -1,5 +1,5 @@
-import { mix } from '../../helper/mix';
-import { clamp } from '../../helper/clamp';
+import { mix } from './mix';
+import { clamp } from './clamp';
 
 export class Autoscaler {
   // can have fractions

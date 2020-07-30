@@ -1,11 +1,14 @@
 import { vec2 } from 'gl-matrix';
 import { FragmentShaderOnlyProgram } from './fragment-shader-only-program';
 import { IProgram } from './i-program';
+import { last } from '../../../helper/last';
+import { getCombinations } from '../../../helper/get-combinations';
+import { IDrawableDescriptor } from '../../drawables/i-drawable-descriptor';
 
 export class UniformArrayAutoScalingProgram implements IProgram {
   private programs: Array<{
     program: FragmentShaderOnlyProgram;
-    value: number;
+    values: Array<number>;
   }> = [];
   private current: FragmentShaderOnlyProgram;
 
@@ -14,45 +17,33 @@ export class UniformArrayAutoScalingProgram implements IProgram {
 
   constructor(
     private gl: WebGL2RenderingContext,
-    private vertexShaderSource: string,
-    private fragmentShaderSource: string,
-    private substitutions: { [name: string]: any },
-    private options: {
-      getValueFromUniforms: (values: { [name: string]: any }) => number;
-      uniformArraySizeName: string;
-      enablingMacro: string;
-      startingValue: number;
-      steps: number;
-      maximumValue: number;
-    }
+    shaderSources: [string, string],
+    private options: Array<IDrawableDescriptor>
   ) {
-    for (
-      let i = options.startingValue;
-      i < options.maximumValue;
-      i += options.steps
-    ) {
-      this.createProgram(i);
+    const names = options.map((o) => o.countMacroName);
+    for (let combination of getCombinations(
+      options.map((o) => o.shaderCombinationSteps)
+    )) {
+      this.createProgram(names, combination, shaderSources);
     }
   }
 
-  public bindAndSetUniforms(values: { [name: string]: any }): void {
-    let value = this.options.getValueFromUniforms(values);
-    value = Math.min(this.options.maximumValue, value);
-
-    const closest = this.programs.find(
-      (p) => value < p.value && value + this.options.steps >= p.value
+  public bindAndSetUniforms(uniforms: { [name: string]: any }): void {
+    let values = this.options.map((o) =>
+      uniforms[o.uniformName] ? uniforms[o.uniformName].length : 0
     );
-    if (closest) {
-      this.current = closest.program;
-    } else {
-      this.current = this.createProgram(value + this.options.steps);
-    }
+
+    const closest = this.programs.find((p) =>
+      p.values.every((v, i) => v > values[i])
+    );
+
+    this.current = closest ? closest.program : last(this.programs).program;
 
     this.current.setDrawingRectangle(
       this.drawingRectangleTopLeft,
       this.drawingRectangleSize
     );
-    this.current.bindAndSetUniforms(values);
+    this.current.bindAndSetUniforms(uniforms);
   }
 
   public setDrawingRectangle(topLeft: vec2, size: vec2) {
@@ -68,21 +59,23 @@ export class UniformArrayAutoScalingProgram implements IProgram {
     this.programs.forEach((p) => p.program.delete());
   }
 
-  private createProgram(arraySize: number): FragmentShaderOnlyProgram {
+  private createProgram(
+    names: Array<string>,
+    combination: Array<number>,
+    shaderSources: [string, string]
+  ): FragmentShaderOnlyProgram {
+    const substitutions = {};
+    names.forEach((v, i) => (substitutions[v] = combination[i].toString()));
+
     const program = new FragmentShaderOnlyProgram(
       this.gl,
-      this.vertexShaderSource,
-      this.fragmentShaderSource,
-      {
-        [this.options.uniformArraySizeName]: Math.floor(arraySize).toString(),
-        [this.options.enablingMacro]: arraySize > 0 ? '1' : '0',
-        ...this.substitutions,
-      }
+      shaderSources,
+      substitutions
     );
 
     this.programs.push({
       program,
-      value: arraySize,
+      values: combination,
     });
 
     return program;
