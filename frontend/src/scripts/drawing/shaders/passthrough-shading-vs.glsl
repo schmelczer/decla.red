@@ -6,6 +6,7 @@ precision mediump float;
 #define POINT_LIGHT_COUNT {pointLightCount}
 
 uniform mat3 modelTransform;
+uniform mat3 cameraTransform;
 uniform mat3 ndcToUv;
 uniform mat3 uvToWorld;
 

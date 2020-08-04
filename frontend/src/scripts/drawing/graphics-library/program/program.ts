@@ -32,10 +32,10 @@ export abstract class Program implements IProgram {
     this.setUniforms({ modelTransform: this.modelTransform, ...values });
   }
 
-  public setDrawingRectangle(topLeft: vec2, size: vec2) {
+  public setDrawingRectangle(bottomLeft: vec2, size: vec2) {
     mat2d.invert(this.modelTransform, this.ndcToUv);
 
-    mat2d.translate(this.modelTransform, this.modelTransform, topLeft);
+    mat2d.translate(this.modelTransform, this.modelTransform, bottomLeft);
     mat2d.scale(this.modelTransform, this.modelTransform, size);
     mat2d.multiply(this.modelTransform, this.modelTransform, this.ndcToUv);
   }

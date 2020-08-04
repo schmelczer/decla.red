@@ -1,34 +1,29 @@
 import { mat2d, vec2, vec3 } from 'gl-matrix';
+import { CircleLight } from '../drawables/lights/circle-light';
+import { ILight } from '../drawables/lights/i-light';
+import { PointLight } from '../drawables/lights/point-light';
+import { IPrimitive } from '../drawables/primitives/i-primitive';
+import { TunnelShape } from '../drawables/primitives/tunnel-shape';
+// import lightsShader from '../shaders/rainbow-shading-fs.glsl';
+import { DefaultFrameBuffer } from '../graphics-library/frame-buffer/default-frame-buffer';
+import { IntermediateFrameBuffer } from '../graphics-library/frame-buffer/intermediate-frame-buffer';
+import { getWebGl2Context } from '../graphics-library/helper/get-webgl2-context';
+import { WebGlStopwatch } from '../graphics-library/helper/stopwatch';
+import { IRenderer } from '../i-renderer';
 import caveFragmentShader from '../shaders/cave-distance-fs.glsl';
 import lightsFragmentShader from '../shaders/lights-shading-fs.glsl';
 import caveVertexShader from '../shaders/passthrough-distance-vs.glsl';
 import lightsVertexShader from '../shaders/passthrough-shading-vs.glsl';
-// import lightsShader from '../shaders/rainbow-shading-fs.glsl';
-import { DefaultFrameBuffer } from '../graphics-library/frame-buffer/default-frame-buffer';
-import { IntermediateFrameBuffer } from '../graphics-library/frame-buffer/intermediate-frame-buffer';
-import { WebGlStopwatch } from '../graphics-library/helper/stopwatch';
-import { IProgram } from '../graphics-library/program/i-program';
-import { UniformArrayAutoScalingProgram } from '../graphics-library/program/uniform-array-autoscaling-program';
-import { IRenderer } from '../i-renderer';
-import { Circle } from '../drawables/primitives/circle';
-import { IPrimitive } from '../drawables/primitives/i-primitive';
-import { Rectangle } from '../drawables/primitives/rectangle';
-import { ILight } from '../drawables/lights/i-light';
-import { settings } from '../settings';
 import { FpsAutoscaler } from './fps-autoscaler';
-import { getWebGl2Context } from '../graphics-library/helper/get-webgl2-context';
 import { RenderingPass } from './rendering-pass';
-import { TunnelShape } from '../drawables/primitives/tunnel-shape';
-import { CircleLight } from '../drawables/lights/circle-light';
-import { PointLight } from '../drawables/lights/point-light';
 
 export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
   private stopwatch?: WebGlStopwatch;
 
-  private viewBox: Rectangle = new Rectangle();
-  private viewCircle: Circle = new Circle();
-
+  private viewBoxBottomLeft = vec2.create();
+  private cameraPosition = vec2.create();
+  private viewBoxSize = vec2.create();
   private cursorPosition = vec2.create();
 
   private distanceFieldFrameBuffer: IntermediateFrameBuffer;
@@ -37,6 +32,15 @@ export class WebGl2Renderer implements IRenderer {
   private lightingPass: RenderingPass;
 
   private autoscaler: FpsAutoscaler;
+
+  private matrices: {
+    distanceScreenToWorld?: mat2d;
+    worldToDistanceUV?: mat2d;
+    cursorPosition?: mat2d;
+    ndcToUv?: mat2d;
+    uvToWorld?: mat2d;
+    viewBoxSize?: mat2d;
+  } = { ndcToUv: mat2d.fromValues(0.5, 0, 0, 0.5, 0.5, 0.5) };
 
   constructor(private canvas: HTMLCanvasElement, private overlay: HTMLElement) {
     this.gl = getWebGl2Context(canvas);
@@ -85,64 +89,69 @@ export class WebGl2Renderer implements IRenderer {
   }
 
   public finishFrame() {
-    const uniforms = this.calculateOwnUniforms();
-    this.lightingPass.addDrawable(
-      new PointLight(uniforms.cursorPosition, 200, vec3.fromValues(1, 1, 0), 1)
-    );
-    this.distancePass.render(uniforms, this.viewCircle);
-    this.lightingPass.render(
-      uniforms,
-      this.viewCircle,
-      this.distanceFieldFrameBuffer.colorTexture
-    );
-    this.stopwatch?.stop();
-  }
-
-  private calculateOwnUniforms(): any {
-    const distanceScreenToWorld = this.getScreenToWorldTransform(
-      this.distanceFieldFrameBuffer.getSize()
-    );
-
-    const uvToWorld = mat2d.fromTranslation(
-      mat2d.create(),
-      this.viewBox.topLeft
-    );
-    mat2d.scale(uvToWorld, uvToWorld, this.viewBox.size);
-
-    const worldToDistanceUV = mat2d.scale(
-      mat2d.create(),
-      distanceScreenToWorld,
-      this.distanceFieldFrameBuffer.getSize()
-    );
-    mat2d.invert(worldToDistanceUV, worldToDistanceUV);
-
-    const ndcToUv = mat2d.fromScaling(
-      mat2d.create(),
-      vec2.fromValues(0.5, 0.5)
-    );
-    mat2d.translate(ndcToUv, ndcToUv, vec2.fromValues(1, 1));
+    this.calculateMatrices();
 
     const cursorPosition = this.screenUvToWorldCoordinate(this.cursorPosition);
 
-    return {
-      distanceScreenToWorld,
-      worldToDistanceUV,
-      cursorPosition,
-      ndcToUv,
-      uvToWorld,
-      viewBoxSize: this.viewBox.size,
-    };
+    this.lightingPass.addDrawable(
+      new PointLight(null, cursorPosition, 200, vec3.fromValues(1, 1, 0), 1)
+    );
+
+    const viewBoxRadius = vec2.length(
+      vec2.scale(vec2.create(), this.viewBoxSize, 0.5)
+    );
+
+    this.distancePass.render(
+      { ...this.matrices, cursorPosition },
+      this.cameraPosition,
+      viewBoxRadius
+    );
+
+    this.lightingPass.render(
+      { ...this.matrices, cursorPosition },
+      this.cameraPosition,
+      viewBoxRadius,
+      this.distanceFieldFrameBuffer.colorTexture
+    );
+
+    this.stopwatch?.stop();
+  }
+
+  private calculateMatrices() {
+    this.matrices.uvToWorld = mat2d.fromTranslation(
+      mat2d.create(),
+      this.viewBoxBottomLeft
+    );
+    mat2d.scale(
+      this.matrices.uvToWorld,
+      this.matrices.uvToWorld,
+      this.viewBoxSize
+    );
+
+    this.matrices.distanceScreenToWorld = this.getScreenToWorldTransform(
+      this.distanceFieldFrameBuffer.getSize()
+    );
+
+    this.matrices.worldToDistanceUV = mat2d.scale(
+      mat2d.create(),
+      this.matrices.distanceScreenToWorld,
+      this.distanceFieldFrameBuffer.getSize()
+    );
+    mat2d.invert(
+      this.matrices.worldToDistanceUV,
+      this.matrices.worldToDistanceUV
+    );
   }
 
   private getScreenToWorldTransform(screenSize: vec2) {
     const transform = mat2d.fromTranslation(
       mat2d.create(),
-      this.viewBox.topLeft
+      this.viewBoxBottomLeft
     );
     mat2d.scale(
       transform,
       transform,
-      vec2.divide(vec2.create(), this.viewBox.size, screenSize)
+      vec2.divide(vec2.create(), this.viewBoxSize, screenSize)
     );
     mat2d.translate(transform, transform, vec2.fromValues(0.5, 0.5));
 
@@ -160,12 +169,10 @@ export class WebGl2Renderer implements IRenderer {
   }
 
   public setCameraPosition(position: vec2) {
-    this.viewBox.topLeft = position;
-    const halfDiagonal = vec2.scale(vec2.create(), this.viewBox.size, 0.5);
-    this.viewCircle.center = vec2.add(
-      vec2.create(),
-      this.viewBox.topLeft,
-      halfDiagonal
+    this.cameraPosition = position;
+    this.viewBoxBottomLeft = vec2.fromValues(
+      this.cameraPosition.x - this.viewBoxSize.x / 2,
+      this.cameraPosition.y - this.viewBoxSize.y / 2
     );
   }
 
@@ -177,21 +184,10 @@ export class WebGl2Renderer implements IRenderer {
     const canvasAspectRatio =
       this.canvas.clientWidth / this.canvas.clientHeight;
 
-    this.viewBox.size = vec2.fromValues(
+    return (this.viewBoxSize = vec2.fromValues(
       Math.sqrt(size * canvasAspectRatio),
       Math.sqrt(size / canvasAspectRatio)
-    );
-
-    const halfDiagonal = vec2.scale(vec2.create(), this.viewBox.size, 0.5);
-
-    this.viewCircle.center = vec2.add(
-      vec2.create(),
-      this.viewBox.topLeft,
-      halfDiagonal
-    );
-    this.viewCircle.radius = vec2.length(halfDiagonal);
-
-    return this.viewBox.size;
+    ));
   }
 
   public drawInfoText(text: string) {

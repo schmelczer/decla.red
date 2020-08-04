@@ -1,10 +1,12 @@
 import { vec2 } from 'gl-matrix';
-import { clamp01 } from '../../../helper/clamp';
-import { mix } from '../../../helper/mix';
-import { Circle } from './circle';
-import { IPrimitive } from './i-primitive';
 import { IDrawableDescriptor } from '../i-drawable-descriptor';
+import { IPrimitive } from './i-primitive';
 import { settings } from '../../settings';
+import { Circle } from './circle';
+import { mix } from '../../../helper/mix';
+import { clamp01 } from '../../../helper/clamp';
+import { ImmutableBoundingBox } from '../../../physics/containers/immutable-bounding-box';
+import { GameObject } from '../../../objects/game-object';
 
 export class TunnelShape implements IPrimitive {
   public static descriptor: IDrawableDescriptor = {
@@ -14,11 +16,11 @@ export class TunnelShape implements IPrimitive {
   };
 
   public readonly toFromDelta: vec2;
-  private toFromDeltaLength: number;
 
   private boundingCircle: Circle;
 
   constructor(
+    public readonly owner: GameObject,
     public readonly from: vec2,
     public readonly to: vec2,
     public readonly fromRadius: number,
@@ -27,12 +29,13 @@ export class TunnelShape implements IPrimitive {
     this.toFromDelta = vec2.subtract(vec2.create(), to, from);
 
     this.boundingCircle = new Circle(
+      this.owner,
       vec2.fromValues(from.x / 2 + to.x / 2, from.y / 2 + to.y / 2),
       Math.max(fromRadius, toRadius) + vec2.distance(from, to)
     );
   }
 
-  serializeToUniforms(uniforms: any): void {
+  public serializeToUniforms(uniforms: any): void {
     if (!uniforms.hasOwnProperty(TunnelShape.descriptor.uniformName)) {
       uniforms[TunnelShape.descriptor.uniformName] = [];
     }
@@ -43,6 +46,27 @@ export class TunnelShape implements IPrimitive {
       fromRadius: this.fromRadius,
       toRadius: this.toRadius,
     });
+  }
+
+  public get boundingBox(): ImmutableBoundingBox {
+    const xMin = Math.min(
+      this.from.x - this.fromRadius,
+      this.to.x - this.toRadius
+    );
+    const yMin = Math.min(
+      this.from.y - this.fromRadius,
+      this.to.y - this.toRadius
+    );
+    const xMax = Math.max(
+      this.from.x + this.fromRadius,
+      this.to.x + this.toRadius
+    );
+    const yMax = Math.max(
+      this.from.y + this.fromRadius,
+      this.to.y + this.toRadius
+    );
+
+    return new ImmutableBoundingBox(this, xMin, xMax, yMin, yMax);
   }
 
   public distance(target: vec2): number {

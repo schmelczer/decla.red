@@ -3,7 +3,7 @@ import { CommandReceiver } from '../commands/command-receiver';
 import { Id } from '../identity/identity';
 import { GameObject } from './game-object';
 
-export class ObjectContainer implements CommandReceiver {
+export class Objects implements CommandReceiver {
   private objects: Map<Id, GameObject> = new Map();
   private objectsGroupedByAbilities: Map<string, Array<GameObject>> = new Map();
 

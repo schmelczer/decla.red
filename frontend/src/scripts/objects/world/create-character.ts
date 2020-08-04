@@ -1,10 +1,15 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { ObjectContainer } from '../object-container';
+import { Objects } from '../objects';
 import { Camera } from '../types/camera';
 import { Character } from '../types/character';
 import { Lamp } from '../types/lamp';
+import { Physics } from '../../physics/physics';
+import { GameObject } from '../game-object';
 
-export const createCharacter = (objects: ObjectContainer) => {
+export const createCharacter = (
+  objects: Objects,
+  physics: Physics
+): GameObject => {
   const light = new Lamp(
     vec2.create(),
     40,
@@ -12,8 +17,11 @@ export const createCharacter = (objects: ObjectContainer) => {
     2
   );
 
-  const camera = new Camera(light);
+  const camera = new Camera(physics, light);
+  const character = new Character(physics, camera);
   objects.addObject(light);
   objects.addObject(camera);
-  objects.addObject(new Character(camera));
+  objects.addObject(character);
+
+  return character;
 };

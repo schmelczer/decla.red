@@ -5,13 +5,19 @@ import { GameObject } from '../game-object';
 import { Lamp } from './lamp';
 import { ZoomCommand } from '../../input/commands/zoom';
 import { MoveToCommand } from '../../physics/commands/move-to';
+import { BoundingBox } from '../../physics/containers/bounding-box';
+import { Physics } from '../../physics/physics';
 
 export class Camera extends GameObject {
   private inViewArea = 1920 * 1080 * 5;
   private cursorPosition = vec2.create();
+  private boundingBox: BoundingBox;
 
-  constructor(private light: Lamp) {
+  constructor(physics: Physics, private light: Lamp) {
     super();
+
+    this.boundingBox = new BoundingBox(null);
+    physics.addDynamicBoundingBox(this.boundingBox);
 
     this.addCommandExecutor(BeforeRenderCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));
@@ -22,20 +28,27 @@ export class Camera extends GameObject {
     this.addCommandExecutor(ZoomCommand, this.zoom.bind(this));
   }
 
+  public get viewAreaSize(): vec2 {
+    return this.boundingBox.size;
+  }
+
   private draw(c: BeforeRenderCommand) {
-    c.renderer.setCameraPosition(this.position);
+    console.log('camera', this.boundingBox.topLeft);
+
+    c.renderer.setCameraPosition(this.boundingBox.topLeft);
     c.renderer.setCursorPosition(this.cursorPosition);
-    this._boundingBoxSize = c.renderer.setInViewArea(this.inViewArea);
+    this.boundingBox.size = c.renderer.setInViewArea(this.inViewArea);
   }
 
   private moveTo(c: MoveToCommand) {
-    this._position = c.position;
+    console.log('camera', c.position);
+    this.boundingBox.topLeft = c.position;
     this.light.sendCommand(
       new MoveToCommand(
         vec2.add(
           vec2.create(),
           c.position,
-          vec2.scale(vec2.create(), this.boundingBoxSize, 0.5)
+          vec2.scale(vec2.create(), this.boundingBox.size, 0.5)
         )
       )
     );

@@ -2,6 +2,8 @@ import { ILight } from './i-light';
 import { vec2, vec3 } from 'gl-matrix';
 import { settings } from '../../settings';
 import { IDrawableDescriptor } from '../i-drawable-descriptor';
+import { ImmutableBoundingBox } from '../../../physics/containers/immutable-bounding-box';
+import { GameObject } from '../../../objects/game-object';
 
 export class CircleLight implements ILight {
   public static descriptor: IDrawableDescriptor = {
@@ -11,11 +13,14 @@ export class CircleLight implements ILight {
   };
 
   constructor(
+    public readonly owner: GameObject,
     public center: vec2,
     public radius: number,
     public color: vec3,
     public lightness: number
   ) {}
+
+  boundingBox: ImmutableBoundingBox;
 
   public distance(target: vec2): number {
     return 0;

@@ -6,16 +6,22 @@ import { timeIt } from './helper/timing';
 import { KeyboardListener } from './input/keyboard-listener';
 import { MouseListener } from './input/mouse-listener';
 import { TouchListener } from './input/touch-listener';
-import { ObjectContainer } from './objects/object-container';
+import { Objects } from './objects/objects';
 import { InfoText } from './objects/types/info-text';
 import { createCharacter } from './objects/world/create-character';
 import { createDungeon } from './objects/world/create-dungeon';
 import { RenderCommand } from './drawing/commands/render';
+import { Physics } from './physics/physics';
+import { MoveToCommand } from './physics/commands/move-to';
+import { TeleportToCommand } from './physics/commands/teleport-to';
+import { IRenderer } from './drawing/i-renderer';
 
 export class Game {
   private previousTime?: DOMHighResTimeStamp = null;
-  private objects: ObjectContainer = new ObjectContainer();
-  private renderer: WebGl2Renderer;
+  private objects = new Objects();
+  private physics = new Physics();
+
+  private renderer: IRenderer;
   private previousFpsValues: Array<number> = [];
 
   constructor() {
@@ -39,14 +45,18 @@ export class Game {
     this.renderer = new WebGl2Renderer(canvas, overlay);
 
     this.initializeScene();
+    this.physics.start();
+
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 
   private initializeScene() {
     this.objects.addObject(new InfoText());
-    createCharacter(this.objects);
-    createDungeon(this.objects);
-    createDungeon(this.objects);
+    const start = createDungeon(this.objects, this.physics);
+    createDungeon(this.objects, this.physics);
+    const character = createCharacter(this.objects, this.physics);
+    console.log('start', start.from);
+    character.sendCommand(new TeleportToCommand(start.from));
   }
 
   private handleVisibilityChange() {

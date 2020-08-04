@@ -10,7 +10,7 @@ export class Lamp extends GameObject {
   constructor(center: vec2, radius: number, color: vec3, lightness: number) {
     super();
 
-    this.light = new CircleLight(center, radius, color, lightness);
+    this.light = new CircleLight(this, center, radius, color, lightness);
 
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));

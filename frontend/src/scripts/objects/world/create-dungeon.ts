@@ -1,21 +1,34 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { ObjectContainer } from '../object-container';
-import { Lamp } from '../types/lamp';
+import { Objects } from '../objects';
 import { Tunnel } from '../types/tunnel';
+import { Physics } from '../../physics/physics';
+import { GameObject } from '../game-object';
 
-export const createDungeon = (objects: ObjectContainer) => {
+export const createDungeon = (objects: Objects, physics: Physics): Tunnel => {
   let previousRadius = 350;
   let previousEnd = vec2.create();
 
-  for (let i = 0; i < 500000; i += 500) {
+  let first: Tunnel;
+
+  for (let i = 0; i < 1; i += 500) {
     const deltaHeight = (Math.random() - 0.5) * 2000;
     const height = previousEnd.y + deltaHeight;
     const currentEnd = vec2.fromValues(i, height);
     const currentToRadius = Math.random() * 300 + 150;
 
-    objects.addObject(
-      new Tunnel(previousEnd, currentEnd, previousRadius, currentToRadius)
+    const tunnel = new Tunnel(
+      physics,
+      previousEnd,
+      currentEnd,
+      previousRadius,
+      currentToRadius
     );
+
+    if (!first) {
+      first = tunnel;
+    }
+
+    objects.addObject(tunnel);
 
     /*if (deltaHeight > 0 && Math.random() > 0.8) {
       objects.addObject(
@@ -35,4 +48,6 @@ export const createDungeon = (objects: ObjectContainer) => {
     previousEnd = currentEnd;
     previousRadius = currentToRadius;
   }
+
+  return first;
 };

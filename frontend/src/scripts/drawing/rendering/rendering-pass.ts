@@ -1,11 +1,10 @@
-import { FrameBuffer } from '../graphics-library/frame-buffer/frame-buffer';
-import { IDrawable } from '../drawables/i-drawable';
-import { settings } from '../settings';
 import { vec2 } from 'gl-matrix';
-import { Circle } from '../drawables/primitives/circle';
 import { InfoText } from '../../objects/types/info-text';
-import { UniformArrayAutoScalingProgram } from '../graphics-library/program/uniform-array-autoscaling-program';
+import { IDrawable } from '../drawables/i-drawable';
 import { IDrawableDescriptor } from '../drawables/i-drawable-descriptor';
+import { FrameBuffer } from '../graphics-library/frame-buffer/frame-buffer';
+import { UniformArrayAutoScalingProgram } from '../graphics-library/program/uniform-array-autoscaling-program';
+import { settings } from '../settings';
 
 export class RenderingPass {
   private drawables: Array<IDrawable> = [];
@@ -30,7 +29,8 @@ export class RenderingPass {
 
   public render(
     commonUniforms: any,
-    viewCircle: Circle,
+    viewBoxCenter: vec2,
+    viewBoxRadius: number,
     inputTexture?: WebGLTexture
   ) {
     this.frame.bindAndClear(inputTexture);
@@ -38,7 +38,7 @@ export class RenderingPass {
     const tileUvSize = vec2.fromValues(q, q);
 
     const possiblyOnScreenDrawables = this.drawables.filter(
-      (p) => p.minimumDistance(viewCircle.center) < viewCircle.radius
+      (p) => p.minimumDistance(viewBoxCenter) < viewBoxRadius
     );
 
     const origin = vec2.transformMat2d(

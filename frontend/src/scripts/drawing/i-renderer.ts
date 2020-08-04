@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
-import { IPrimitive } from './drawables/primitives/i-primitive';
 import { ILight } from './drawables/lights/i-light';
+import { IPrimitive } from './drawables/primitives/i-primitive';
 
 export interface IRenderer {
   startFrame(deltaTime: DOMHighResTimeStamp): void;
