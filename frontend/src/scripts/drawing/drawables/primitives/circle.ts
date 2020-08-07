@@ -1,14 +1,14 @@
 import { vec2 } from 'gl-matrix';
-import { IPrimitive } from './i-primitive';
-import { ImmutableBoundingBox } from '../../../physics/containers/immutable-bounding-box';
 import { GameObject } from '../../../objects/game-object';
+import { ImmutableBoundingBox } from '../../../physics/containers/immutable-bounding-box';
+import { IPrimitive } from './i-primitive';
 
 export class Circle implements IPrimitive {
   public constructor(
     public readonly owner: GameObject,
     public center = vec2.create(),
     public radius = 0
-  ) {}
+  ) { }
 
   public serializeToUniforms(uniforms: any): void {
     throw new Error('Method not implemented.');
@@ -39,5 +39,9 @@ export class Circle implements IPrimitive {
   public areIntersecting(other: Circle): boolean {
     const distance = vec2.distance(this.center, other.center);
     return distance < this.radius + other.radius;
+  }
+
+  public clone(): Circle {
+    return new Circle(this.owner, this.center, this.radius);
   }
 }

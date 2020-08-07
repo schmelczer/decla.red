@@ -53,12 +53,15 @@ out vec4 fragmentColor;
 void main() {
     vec3 colorAtPosition;
     float startingDistance = getDistance(uvCoordinates, colorAtPosition);
-    vec3 ligthing = AMBIENT_LIGHT;
+    vec3 lighting = AMBIENT_LIGHT;
 
     #if CIRCLE_LIGHT_COUNT > 0
         for (int i = 0; i < CIRCLE_LIGHT_COUNT; i++) {
             float lightCenterDistance = distance(circleLights[i].center, worldCoordinates);
-            vec3 lightColorAtPosition = circleLights[i].value / pow(lightCenterDistance / LIGHT_DROP + 1.0, 2.0);
+
+            vec3 lightColorAtPosition = circleLights[i].value / pow(
+                lightCenterDistance / LIGHT_DROP + 1.0, 2.0
+            );
 
             float q = INFINITY;
             float rayLength = startingDistance;
@@ -67,9 +70,11 @@ void main() {
 
             for (int j = 0; j < 48; j++) {
                 if (rayLength > lightCenterDistance) {
-                    ligthing += lightColorAtPosition * clamp(
+                    lighting += lightColorAtPosition * clamp(
                         q / circleLights[i].radius * (lightCenterDistance + 1.0), 0.0, 1.0
-                    ) * step(circleLights[i].radius, getDistance(uvCoordinates + direction * lightCenterDistance));
+                    ) * step(circleLights[i].radius, getDistance(
+                        uvCoordinates + direction * lightCenterDistance
+                    ));
                     break;
                 }
 
@@ -99,7 +104,7 @@ void main() {
 
             for (int j = 0; j < 48; j++) {
                 if (rayLength > lightDistance) {
-                    ligthing += lightColorAtPosition * step(0.0, q);
+                    lighting += lightColorAtPosition * step(0.0, q);
                     break;
                 }
 
@@ -111,5 +116,5 @@ void main() {
         }
     #endif
 
-    fragmentColor = vec4(colorAtPosition * ligthing * clamp(startingDistance, 0.0, 1.0), 1.0);
+    fragmentColor = vec4(colorAtPosition * lighting * clamp(startingDistance, 0.0, 1.0), 1.0);
 }

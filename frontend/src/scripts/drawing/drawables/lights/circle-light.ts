@@ -1,9 +1,9 @@
-import { ILight } from './i-light';
 import { vec2, vec3 } from 'gl-matrix';
+import { GameObject } from '../../../objects/game-object';
+import { ImmutableBoundingBox } from '../../../physics/containers/immutable-bounding-box';
 import { settings } from '../../settings';
 import { IDrawableDescriptor } from '../i-drawable-descriptor';
-import { ImmutableBoundingBox } from '../../../physics/containers/immutable-bounding-box';
-import { GameObject } from '../../../objects/game-object';
+import { ILight } from './i-light';
 
 export class CircleLight implements ILight {
   public static descriptor: IDrawableDescriptor = {
@@ -18,7 +18,7 @@ export class CircleLight implements ILight {
     public radius: number,
     public color: vec3,
     public lightness: number
-  ) {}
+  ) { }
 
   boundingBox: ImmutableBoundingBox;
 

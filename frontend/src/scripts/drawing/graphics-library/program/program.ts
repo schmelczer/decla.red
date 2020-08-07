@@ -34,7 +34,6 @@ export abstract class Program implements IProgram {
 
   public setDrawingRectangle(bottomLeft: vec2, size: vec2) {
     mat2d.invert(this.modelTransform, this.ndcToUv);
-
     mat2d.translate(this.modelTransform, this.modelTransform, bottomLeft);
     mat2d.scale(this.modelTransform, this.modelTransform, size);
     mat2d.multiply(this.modelTransform, this.modelTransform, this.ndcToUv);

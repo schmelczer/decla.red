@@ -1,12 +1,12 @@
 import { vec2 } from 'gl-matrix';
 import { BeforeRenderCommand } from '../../drawing/commands/before-render';
 import { CursorMoveCommand } from '../../input/commands/cursor-move-command';
-import { GameObject } from '../game-object';
-import { Lamp } from './lamp';
 import { ZoomCommand } from '../../input/commands/zoom';
 import { MoveToCommand } from '../../physics/commands/move-to';
 import { BoundingBox } from '../../physics/containers/bounding-box';
 import { Physics } from '../../physics/physics';
+import { GameObject } from '../game-object';
+import { Lamp } from './lamp';
 
 export class Camera extends GameObject {
   private inViewArea = 1920 * 1080 * 5;
@@ -33,25 +33,14 @@ export class Camera extends GameObject {
   }
 
   private draw(c: BeforeRenderCommand) {
-    console.log('camera', this.boundingBox.topLeft);
-
     c.renderer.setCameraPosition(this.boundingBox.topLeft);
     c.renderer.setCursorPosition(this.cursorPosition);
     this.boundingBox.size = c.renderer.setInViewArea(this.inViewArea);
   }
 
   private moveTo(c: MoveToCommand) {
-    console.log('camera', c.position);
     this.boundingBox.topLeft = c.position;
-    this.light.sendCommand(
-      new MoveToCommand(
-        vec2.add(
-          vec2.create(),
-          c.position,
-          vec2.scale(vec2.create(), this.boundingBox.size, 0.5)
-        )
-      )
-    );
+    this.light.sendCommand(c);
   }
 
   private zoom(c: ZoomCommand) {

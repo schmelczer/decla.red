@@ -1,4 +1,4 @@
-import { mat2d, vec2, vec3 } from 'gl-matrix';
+import { mat2d, vec2 } from 'gl-matrix';
 import { CircleLight } from '../drawables/lights/circle-light';
 import { ILight } from '../drawables/lights/i-light';
 import { PointLight } from '../drawables/lights/point-light';
@@ -39,7 +39,6 @@ export class WebGl2Renderer implements IRenderer {
     cursorPosition?: mat2d;
     ndcToUv?: mat2d;
     uvToWorld?: mat2d;
-    viewBoxSize?: mat2d;
   } = { ndcToUv: mat2d.fromValues(0.5, 0, 0, 0.5, 0.5, 0.5) };
 
   constructor(private canvas: HTMLCanvasElement, private overlay: HTMLElement) {
@@ -69,7 +68,7 @@ export class WebGl2Renderer implements IRenderer {
 
     try {
       this.stopwatch = new WebGlStopwatch(this.gl);
-    } catch {}
+    } catch { }
   }
 
   public drawPrimitive(primitive: IPrimitive) {
@@ -91,30 +90,28 @@ export class WebGl2Renderer implements IRenderer {
   public finishFrame() {
     this.calculateMatrices();
 
-    const cursorPosition = this.screenUvToWorldCoordinate(this.cursorPosition);
-
-    this.lightingPass.addDrawable(
-      new PointLight(null, cursorPosition, 200, vec3.fromValues(1, 1, 0), 1)
-    );
-
     const viewBoxRadius = vec2.length(
       vec2.scale(vec2.create(), this.viewBoxSize, 0.5)
     );
 
     this.distancePass.render(
-      { ...this.matrices, cursorPosition },
+      this.uniforms,
       this.cameraPosition,
       viewBoxRadius
     );
 
     this.lightingPass.render(
-      { ...this.matrices, cursorPosition },
-      this.cameraPosition,
+      this.uniforms, this.cameraPosition,
       viewBoxRadius,
       this.distanceFieldFrameBuffer.colorTexture
     );
 
     this.stopwatch?.stop();
+  }
+
+  private get uniforms(): any {
+    const cursorPosition = this.screenUvToWorldCoordinate(this.cursorPosition);
+    return { ...this.matrices, cursorPosition, viewBoxSize: this.viewBoxSize }
   }
 
   private calculateMatrices() {

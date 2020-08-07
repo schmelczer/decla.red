@@ -1,12 +1,12 @@
 import { vec2 } from 'gl-matrix';
-import { IDrawableDescriptor } from '../i-drawable-descriptor';
-import { IPrimitive } from './i-primitive';
-import { settings } from '../../settings';
-import { Circle } from './circle';
-import { mix } from '../../../helper/mix';
 import { clamp01 } from '../../../helper/clamp';
-import { ImmutableBoundingBox } from '../../../physics/containers/immutable-bounding-box';
+import { mix } from '../../../helper/mix';
 import { GameObject } from '../../../objects/game-object';
+import { ImmutableBoundingBox } from '../../../physics/containers/immutable-bounding-box';
+import { settings } from '../../settings';
+import { IDrawableDescriptor } from '../i-drawable-descriptor';
+import { Circle } from './circle';
+import { IPrimitive } from './i-primitive';
 
 export class TunnelShape implements IPrimitive {
   public static descriptor: IDrawableDescriptor = {
@@ -73,7 +73,7 @@ export class TunnelShape implements IPrimitive {
     const targetFromDelta = vec2.subtract(vec2.create(), target, this.from);
     const h = clamp01(
       vec2.dot(targetFromDelta, this.toFromDelta) /
-        vec2.dot(this.toFromDelta, this.toFromDelta)
+      vec2.dot(this.toFromDelta, this.toFromDelta)
     );
     return (
       vec2.distance(
@@ -85,5 +85,15 @@ export class TunnelShape implements IPrimitive {
 
   public minimumDistance(target: vec2): number {
     return this.boundingCircle.distance(target);
+  }
+
+  public clone(): TunnelShape {
+    return new TunnelShape(
+      this.owner,
+      this.from,
+      this.to,
+      this.fromRadius,
+      this.toRadius
+    );
   }
 }

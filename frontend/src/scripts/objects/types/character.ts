@@ -6,7 +6,6 @@ import { SwipeCommand } from '../../input/commands/swipe';
 import { MoveToCommand } from '../../physics/commands/move-to';
 import { StepCommand } from '../../physics/commands/step';
 import { TeleportToCommand } from '../../physics/commands/teleport-to';
-import { BoundingBox } from '../../physics/containers/bounding-box';
 import { Physics } from '../../physics/physics';
 import { GameObject } from '../game-object';
 import { Camera } from './camera';
@@ -21,7 +20,7 @@ export class Character extends GameObject {
     super();
 
     this.primitive = new Circle(this);
-    this.primitive.radius = 20;
+    this.primitive.radius = 40;
 
     this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
     this.addCommandExecutor(TeleportToCommand, (c) =>
@@ -41,29 +40,20 @@ export class Character extends GameObject {
   }
 
   private checkAndSetPosition(value: vec2) {
-    const size = this.camera.viewAreaSize;
-    const realCenter = vec2.fromValues(
-      value.x + size.x / 2,
-      value.y + size.y / 2
-    );
+    const nextPrimitive = this.primitive.clone();
+    nextPrimitive.center = value;
 
-    const targetBoundingBox = new BoundingBox(
-      null,
-      value.x + size.x / 2,
-      value.x + size.x / 2 + 10,
-      value.y + size.y / 2,
-      value.y + size.y / 2 + 10
-    );
+    console.log(this.physics
+      .findIntersecting(nextPrimitive.boundingBox)
+      .filter(b => b.value)
+      .map((b) => b.value.distance(nextPrimitive.center) + 2 * nextPrimitive.radius)
+    )
 
-    console.log(
-      this.physics
-        .findIntersecting(targetBoundingBox)
-        .map((b) => b.value.distance(realCenter))
-    );
     if (
       this.physics
-        .findIntersecting(targetBoundingBox)
-        .map((b) => b.value.distance(realCenter))
+        .findIntersecting(nextPrimitive.boundingBox)
+        .filter(b => b.value)
+        .map((b) => b.value.distance(nextPrimitive.center) + 2 * nextPrimitive.radius)
         .find((d) => d < 0) !== undefined
     ) {
       this.setPosition(value);
@@ -71,7 +61,7 @@ export class Character extends GameObject {
   }
 
   private setPosition(value: vec2) {
-    console.log('character', value);
+    // console.log('character', value);
 
     this.primitive.center = value;
     this.camera.sendCommand(new MoveToCommand(this.primitive.center));
