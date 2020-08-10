@@ -1,7 +1,5 @@
-FROM registry.digitalocean.com/declared/declared-error-pages as build-error-pages
-
+FROM schmelczera/error-pages as build-error-pages
 RUN python build.py 502
-
 
 FROM nginx:alpine
 

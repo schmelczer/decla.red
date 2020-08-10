@@ -4,33 +4,12 @@ on:
     branches:
       - main
 env:
-  CONTAINER_REGISTRY: registry.digitalocean.com/declared
+  CONTAINER_REGISTRY: schmelczera
   DOMAIN: decla.red
 
 jobs:
-  build-error-pages:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout current branch with lfs
-        uses: actions/checkout@main
-        with:
-          lfs: true
-
-      - name: Setup auth tokens
-        run: |
-          # Docker Hub
-          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }} $CONTAINER_REGISTRY
-
-      - name: Build and push error pages
-        run: |
-          docker build . -t $CONTAINER_REGISTRY/declared-error-pages
-          docker push $CONTAINER_REGISTRY/declared-error-pages
-        working-directory: error-pages
-
   build-ingress:
     runs-on: ubuntu-latest
-    needs:
-      - build-error-pages
     steps:
       - name: Checkout current branch with lfs
         uses: actions/checkout@main
@@ -39,8 +18,7 @@ jobs:
 
       - name: Setup auth tokens
         run: |
-          # Docker Hub
-          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }} $CONTAINER_REGISTRY
+          docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push ingress
         run: |
@@ -50,8 +28,6 @@ jobs:
 
   build-frontend:
     runs-on: ubuntu-latest
-    needs:
-      - build-error-pages
     steps:
       - name: Checkout current branch with lfs
         uses: actions/checkout@main
@@ -60,8 +36,7 @@ jobs:
 
       - name: Setup auth tokens
         run: |
-          # Docker Hub
-          docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }} $CONTAINER_REGISTRY
+          docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push frontend
         run: |

@@ -1,5 +1,4 @@
-FROM registry.digitalocean.com/declared/declared-error-pages as build-error-pages
-
+FROM schmelczera/error-pages as build-error-pages
 RUN python build.py 403 404 50x
 
 
