@@ -46,5 +46,5 @@ jobs:
 
       - name: Stack deploy
         run: |
-          DOCKER_HOST=ssh://root@$DOMAIN docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }}
+          DOCKER_HOST=ssh://root@$DOMAIN docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_HOST=ssh://root@$DOMAIN docker stack deploy declared -c docker-compose.yml --with-registry-auth
