@@ -17,7 +17,7 @@ export class Camera extends GameObject {
     super();
 
     this.boundingBox = new BoundingBox(null);
-    physics.addDynamicBoundingBox(this.boundingBox);
+    //physics.addDynamicBoundingBox(this.boundingBox);
 
     this.addCommandExecutor(BeforeRenderCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));

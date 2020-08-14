@@ -4,22 +4,22 @@ import { ImmutableBoundingBox } from './containers/immutable-bounding-box';
 import { BoundingBoxBase } from './containers/bounding-box-base';
 
 export class Physics {
-  private staticBoundingBoxesWaitList = [];
   private isTreeInitialized = false;
+  private staticBoundingBoxesWaitList = [];
   private staticBoundingBoxes = new BoundingBoxTree();
 
   private dynamicBoundingBoxes = new BoundingBoxList();
 
   public addStaticBoundingBox(boundingBox: ImmutableBoundingBox) {
-    this.staticBoundingBoxesWaitList.push(boundingBox);
+    if (!this.isTreeInitialized) {
+      this.staticBoundingBoxesWaitList.push(boundingBox);
+    } else {
+      this.staticBoundingBoxes.insert(boundingBox);
+    }
   }
 
   public addDynamicBoundingBox(boundingBox: BoundingBoxBase) {
-    if (this.isTreeInitialized) {
-      this.staticBoundingBoxes.insert(boundingBox);
-    } else {
-      this.dynamicBoundingBoxes.insert(boundingBox);
-    }
+    this.dynamicBoundingBoxes.insert(boundingBox);
   }
 
   public findIntersecting(box: BoundingBoxBase): Array<BoundingBoxBase> {

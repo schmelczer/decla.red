@@ -23,6 +23,7 @@ export const settings = {
   shaderMacros: {
     distanceScale: 64,
     distanceOffset: 0.15,
+    //edgeSmoothing: 0,
     edgeSmoothing: 10,
   },
   shaderCombinations: {

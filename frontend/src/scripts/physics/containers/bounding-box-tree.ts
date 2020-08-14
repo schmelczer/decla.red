@@ -12,10 +12,8 @@ class Node {
 export class BoundingBoxTree {
   root?: Node;
 
-  constructor(boxes?: Array<ImmutableBoundingBox>) {
-    if (boxes) {
-      this.build(boxes);
-    }
+  constructor(boxes: Array<ImmutableBoundingBox> = []) {
+    this.build(boxes);
   }
 
   public build(boxes: Array<ImmutableBoundingBox>) {
@@ -83,7 +81,7 @@ export class BoundingBoxTree {
     box: ImmutableBoundingBox
   ): Array<ImmutableBoundingBox> {
     const maybeResults = this.findMaybeIntersecting(box, this.root, 0);
-    const results = maybeResults.filter(box.intersects.bind(box));
+    const results = maybeResults.filter((b) => b.intersects(box));
     return results;
   }
 
@@ -96,25 +94,27 @@ export class BoundingBoxTree {
       return [];
     }
 
-    const comparisons: Array<(
-      a: ImmutableBoundingBox,
-      b: ImmutableBoundingBox
-    ) => boolean> = [
-      (a, b) => a.xMin < b.xMax,
-      (a, b) => a.xMax > b.xMin,
-      (a, b) => a.yMin < b.yMax,
-      (a, b) => a.xMax > b.xMin,
-    ];
-
-    if (comparisons[depth % 4](node.rectangle, box)) {
-      return [
-        node.rectangle,
-        ...this.findMaybeIntersecting(box, node.left, depth + 1),
-        ...this.findMaybeIntersecting(box, node.right, depth + 1),
-      ];
+    if (depth % 4 == 0 && box.xMax < node.rectangle.xMin) {
+      return this.findMaybeIntersecting(box, node.left, depth + 1);
     }
 
-    return this.findMaybeIntersecting(box, node.left, depth + 1);
+    if (depth % 4 == 1 && box.xMin > node.rectangle.xMax) {
+      return this.findMaybeIntersecting(box, node.right, depth + 1);
+    }
+
+    if (depth % 4 == 2 && box.yMax < node.rectangle.yMin) {
+      return this.findMaybeIntersecting(box, node.left, depth + 1);
+    }
+
+    if (depth % 4 == 3 && box.yMin > node.rectangle.yMax) {
+      return this.findMaybeIntersecting(box, node.right, depth + 1);
+    }
+
+    return [
+      node.rectangle,
+      ...this.findMaybeIntersecting(box, node.left, depth + 1),
+      ...this.findMaybeIntersecting(box, node.right, depth + 1),
+    ];
   }
 
   private findParent(
@@ -124,7 +124,7 @@ export class BoundingBoxTree {
     parent: Node
   ): [Node, number] {
     if (node === null) {
-      return [parent, depth];
+      return [parent, depth - 1];
     }
 
     const dimension = depth % 4;
