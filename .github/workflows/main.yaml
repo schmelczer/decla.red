@@ -8,24 +8,6 @@ env:
   DOMAIN: decla.red
 
 jobs:
-  build-ingress:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout current branch with lfs
-        uses: actions/checkout@main
-        with:
-          lfs: true
-
-      - name: Setup auth tokens
-        run: |
-          docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push ingress
-        run: |
-          docker build . -t $CONTAINER_REGISTRY/declared-ingress
-          docker push $CONTAINER_REGISTRY/declared-ingress
-        working-directory: ingress
-
   build-frontend:
     runs-on: ubuntu-latest
     steps:
@@ -48,7 +30,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-frontend
-      - build-ingress
     steps:
       - name: Checkout current branch with lfs
         uses: actions/checkout@main
@@ -63,8 +44,7 @@ jobs:
           chmod 400 ~/.ssh/id_ed25519
           ssh -o StrictHostKeyChecking=no root@$DOMAIN uptime
 
-      - name: Stack up
+      - name: Stack deploy
         run: |
-          DOCKER_HOST=ssh://root@$DOMAIN docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }} $CONTAINER_REGISTRY
-          DOCKER_HOST=ssh://root@$DOMAIN docker stack up declared -c docker-compose.yml --with-registry-auth
-        working-directory: infrastructure
+          DOCKER_HOST=ssh://root@$DOMAIN docker login -u ${{ secrets.DOCKER_TOKEN }} -p ${{ secrets.DOCKER_TOKEN }}
+          DOCKER_HOST=ssh://root@$DOMAIN docker stack deploy declared -c docker-compose.yml --with-registry-auth
