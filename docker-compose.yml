@@ -4,8 +4,6 @@ services:
   declared-frontend:
     init: true
     image: schmelczera/declared-frontend
-    ports:
-      - "80"
     networks:
       - network
     deploy:

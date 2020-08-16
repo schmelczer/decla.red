@@ -18,7 +18,7 @@ export class CircleLight implements ILight {
     public radius: number,
     public color: vec3,
     public lightness: number
-  ) { }
+  ) {}
 
   boundingBox: ImmutableBoundingBox;
 

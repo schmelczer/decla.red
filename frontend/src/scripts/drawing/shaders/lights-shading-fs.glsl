@@ -4,7 +4,6 @@ precision mediump float;
 
 #define INFINITY 1000.0
 #define LIGHT_DROP 500.0
-#define MIN_STEP 1.0
 #define AMBIENT_LIGHT vec3(0.15)
 
 #define CIRCLE_LIGHT_COUNT {circleLightCount}
@@ -59,9 +58,6 @@ void main() {
         for (int i = 0; i < CIRCLE_LIGHT_COUNT; i++) {
             float lightCenterDistance = distance(circleLights[i].center, worldCoordinates);
 
-            /*if (lightCenterDistance < circleLights[i].radius) {
-                lighting = vec3(1.0, 1.0, 0.0);
-            }*/
 
             vec3 lightColorAtPosition = circleLights[i].value / pow(
                 lightCenterDistance / LIGHT_DROP + 1.0, 2.0
@@ -73,19 +69,22 @@ void main() {
             vec2 direction = normalize(circleLightDirections[i]) / viewBoxSize;
 
             for (int j = 0; j < 48; j++) {
-                if (rayLength > lightCenterDistance) {
+                if (rayLength > lightCenterDistance - circleLights[i].radius) {
+                    rayLength = lightCenterDistance - circleLights[i].radius;
+                    float minDistance = getDistance(uvCoordinates + direction * rayLength);
+                    exponentialDecayDistance = (exponentialDecayDistance + minDistance) / 2.0;
+                    q = min(q, exponentialDecayDistance / rayLength);
+
                     lighting += lightColorAtPosition * clamp(
                         q / circleLights[i].radius * (lightCenterDistance + 1.0), 0.0, 1.0
-                    ) * step(circleLights[i].radius, getDistance(
-                        uvCoordinates + direction * lightCenterDistance
-                    ));
+                    );
                     break;
                 }
 
                 float minDistance = getDistance(uvCoordinates + direction * rayLength);
                 exponentialDecayDistance = (exponentialDecayDistance + minDistance) / 2.0;
                 q = min(q, exponentialDecayDistance / rayLength);
-                rayLength += max(MIN_STEP, minDistance);
+                rayLength += minDistance;
             }
         }
     #endif
@@ -115,7 +114,7 @@ void main() {
                 float minDistance = getDistance(uvCoordinates + direction * rayLength);
                 exponentialDecayDistance = (exponentialDecayDistance + minDistance) / 2.0;
                 q = min(q, exponentialDecayDistance);
-                rayLength += max(MIN_STEP, minDistance);
+                rayLength += minDistance;
             }
         }
     #endif

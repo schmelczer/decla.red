@@ -29,10 +29,10 @@ void main() {
         float minDistance = maxMinDistance;
 
         for (int i = 0; i < LINE_COUNT; i++) {
-            vec2 pa = worldCoordinates - lines[i].from;
-            vec2 ba = lines[i].toFromDelta;
-            float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-            float lineDistance = distance(pa, ba * h) - mix(lines[i].fromRadius, lines[i].toRadius, h);
+            vec2 targetFromDelta = worldCoordinates - lines[i].from;
+            vec2 toFromDelta = lines[i].toFromDelta;
+            float h = clamp(dot(targetFromDelta, toFromDelta) / dot(toFromDelta, toFromDelta), 0.0, 1.0);
+            float lineDistance = distance(targetFromDelta, toFromDelta * h) - mix(lines[i].fromRadius, lines[i].toRadius, h);
 
             minDistance = min(minDistance, lineDistance);
         }
@@ -42,6 +42,7 @@ void main() {
 
     fragmentColor = vec4(
         mix(CAVE_COLOR, AIR_COLOR, clamp(realDistance, 0.0, 1.0)),
-        (realDistance + DISTANCE_OFFSET) / DISTANCE_SCALE - 1.0/255.0
+        (realDistance + DISTANCE_OFFSET) / DISTANCE_SCALE
+
     );
 }

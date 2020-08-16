@@ -43,15 +43,15 @@ export class Character extends GameObject {
     const nextPrimitive = this.primitive.clone();
     nextPrimitive.center = value;
 
-    if (
-      this.physics
-        .findIntersecting(nextPrimitive.boundingBox)
-        .filter((b) => b.value)
-        .map(
-          (b) => b.value.distance(nextPrimitive.center) + nextPrimitive.radius
-        )
-        .find((d) => d < 0) !== undefined
-    ) {
+    const intersects = this.physics
+      .findIntersecting(nextPrimitive.boundingBox)
+      .filter((b) => b.value)
+      .map(
+        (b) => b.value.distance(nextPrimitive.center) + nextPrimitive.radius
+      );
+
+    console.log(intersects);
+    if (intersects.find((d) => d < 0) !== undefined) {
       this.setPosition(value);
     }
   }
