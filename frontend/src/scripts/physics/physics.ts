@@ -1,7 +1,7 @@
 import { BoundingBoxTree } from './containers/bounding-box-tree';
 import { BoundingBoxList } from './containers/bounding-box-list';
-import { ImmutableBoundingBox } from './containers/immutable-bounding-box';
-import { BoundingBoxBase } from './containers/bounding-box-base';
+import { ImmutableBoundingBox } from '../shapes/immutable-bounding-box';
+import { BoundingBoxBase } from '../shapes/bounding-box-base';
 
 export class Physics {
   private isTreeInitialized = false;

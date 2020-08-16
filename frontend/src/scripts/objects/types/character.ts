@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { Circle } from '../../drawing/drawables/primitives/circle';
+import { Circle } from '../../shapes/types/circle';
 import { KeyDownCommand } from '../../input/commands/key-down';
 import { KeyUpCommand } from '../../input/commands/key-up';
 import { SwipeCommand } from '../../input/commands/swipe';
@@ -19,7 +19,7 @@ export class Character extends GameObject {
   constructor(private physics: Physics, private camera: Camera) {
     super();
 
-    this.primitive = new Circle(this);
+    this.primitive = new Circle();
     this.primitive.radius = 40;
 
     this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
@@ -45,9 +45,9 @@ export class Character extends GameObject {
 
     const intersects = this.physics
       .findIntersecting(nextPrimitive.boundingBox)
-      .filter((b) => b.value)
+      .filter((b) => b.shape)
       .map(
-        (b) => b.value.distance(nextPrimitive.center) + nextPrimitive.radius
+        (b) => b.shape.distance(nextPrimitive.center) + nextPrimitive.radius
       );
 
     console.log(intersects);

@@ -2,12 +2,11 @@ import { vec2 } from 'gl-matrix';
 import { GameObject } from '../game-object';
 import { RenderCommand } from '../../drawing/commands/render';
 import { Physics } from '../../physics/physics';
-import { TunnelShape } from '../../drawing/drawables/primitives/tunnel-shape';
-
-export interface Line {}
+import { TunnelShape } from '../../shapes/types/tunnel-shape';
+import { DrawableTunnel } from '../../drawing/drawables/drawable-tunnel';
 
 export class Tunnel extends GameObject {
-  private primitive: TunnelShape;
+  private shape: DrawableTunnel;
 
   constructor(
     physics: Physics,
@@ -18,12 +17,12 @@ export class Tunnel extends GameObject {
   ) {
     super();
 
-    this.primitive = new TunnelShape(this, from, to, fromRadius, toRadius);
-    physics.addStaticBoundingBox(this.primitive.boundingBox);
+    this.shape = new DrawableTunnel(from, to, fromRadius, toRadius);
+    physics.addStaticBoundingBox(this.shape.boundingBox);
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
   }
 
   private draw(c: RenderCommand) {
-    c.renderer.drawPrimitive(this.primitive);
+    c.renderer.drawShape(this.shape);
   }
 }

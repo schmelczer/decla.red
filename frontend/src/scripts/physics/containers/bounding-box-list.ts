@@ -1,4 +1,4 @@
-import { BoundingBoxBase } from './bounding-box-base';
+import { BoundingBoxBase } from '../../shapes/bounding-box-base';
 
 export class BoundingBoxList {
   constructor(private boundingBoxes: Array<BoundingBoxBase> = []) {}

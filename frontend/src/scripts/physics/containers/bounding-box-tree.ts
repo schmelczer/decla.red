@@ -1,6 +1,6 @@
-import { ImmutableBoundingBox } from './immutable-bounding-box';
-
 // source: https://github.com/ubilabs/kd-tree-javascript/blob/master/kdTree.js
+
+import { ImmutableBoundingBox } from '../../shapes/immutable-bounding-box';
 
 class Node {
   public left?: Node = null;
@@ -61,20 +61,6 @@ export class BoundingBoxTree {
         insertPosition.right = node;
       }
     }
-  }
-
-  public print() {
-    this.printRecursive(this.root, 0);
-  }
-
-  private printRecursive(node: Node, tabCount: number) {
-    if (node === null) {
-      return;
-    }
-
-    console.log(' '.repeat(tabCount) + '- ' + node.rectangle.value);
-    this.printRecursive(node.left, tabCount + 2);
-    this.printRecursive(node.right, tabCount + 2);
   }
 
   public findIntersecting(

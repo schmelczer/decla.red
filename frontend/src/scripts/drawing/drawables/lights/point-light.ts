@@ -2,7 +2,6 @@ import { ILight } from './i-light';
 import { vec2, vec3 } from 'gl-matrix';
 import { IDrawableDescriptor } from '../i-drawable-descriptor';
 import { settings } from '../../settings';
-import { ImmutableBoundingBox } from '../../../physics/containers/immutable-bounding-box';
 import { GameObject } from '../../../objects/game-object';
 
 export class PointLight implements ILight {
@@ -20,13 +19,7 @@ export class PointLight implements ILight {
     public lightness: number
   ) {}
 
-  boundingBox: ImmutableBoundingBox;
-
   public distance(target: vec2): number {
-    return vec2.distance(this.center, target) - this.radius;
-  }
-
-  public minimumDistance(target: vec2): number {
     return vec2.distance(this.center, target) - this.radius;
   }
 

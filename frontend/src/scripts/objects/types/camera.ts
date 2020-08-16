@@ -3,7 +3,7 @@ import { BeforeRenderCommand } from '../../drawing/commands/before-render';
 import { CursorMoveCommand } from '../../input/commands/cursor-move-command';
 import { ZoomCommand } from '../../input/commands/zoom';
 import { MoveToCommand } from '../../physics/commands/move-to';
-import { BoundingBox } from '../../physics/containers/bounding-box';
+import { BoundingBox } from '../../shapes/bounding-box';
 import { Physics } from '../../physics/physics';
 import { GameObject } from '../game-object';
 import { Lamp } from './lamp';

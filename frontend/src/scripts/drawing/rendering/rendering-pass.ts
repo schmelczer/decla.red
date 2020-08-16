@@ -38,7 +38,7 @@ export class RenderingPass {
     const tileUvSize = vec2.fromValues(q, q);
 
     const possiblyOnScreenDrawables = this.drawables.filter(
-      (p) => p.minimumDistance(viewBoxCenter) < viewBoxRadius
+      (p) => p.distance(viewBoxCenter) < viewBoxRadius
     );
 
     const origin = vec2.transformMat2d(

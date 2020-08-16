@@ -1,13 +1,13 @@
 import { vec2 } from 'gl-matrix';
-import { IPrimitive } from '../../drawing/drawables/primitives/i-primitive';
+import { IShape } from './i-shape';
 
 export abstract class BoundingBoxBase {
   constructor(
-    public readonly value: IPrimitive,
-    protected _xMin: number,
-    protected _xMax: number,
-    protected _yMin: number,
-    protected _yMax: number
+    public readonly shape: IShape,
+    protected _xMin: number = 0,
+    protected _xMax: number = 0,
+    protected _yMin: number = 0,
+    protected _yMax: number = 0
   ) {}
 
   public get 0(): number {

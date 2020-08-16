@@ -1,12 +1,12 @@
 import { vec2 } from 'gl-matrix';
 import { ILight } from './drawables/lights/i-light';
-import { IPrimitive } from './drawables/primitives/i-primitive';
+import { IDrawable } from './drawables/i-drawable';
 
 export interface IRenderer {
   startFrame(deltaTime: DOMHighResTimeStamp): void;
   finishFrame(): void;
 
-  drawPrimitive(primitive: IPrimitive): void;
+  drawShape(drawable: IDrawable): void;
   drawLight(light: ILight): void;
   drawInfoText(text: string): void;
 

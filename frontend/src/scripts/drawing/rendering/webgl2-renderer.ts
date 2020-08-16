@@ -2,8 +2,6 @@ import { mat2d, vec2 } from 'gl-matrix';
 import { CircleLight } from '../drawables/lights/circle-light';
 import { ILight } from '../drawables/lights/i-light';
 import { PointLight } from '../drawables/lights/point-light';
-import { IPrimitive } from '../drawables/primitives/i-primitive';
-import { TunnelShape } from '../drawables/primitives/tunnel-shape';
 // import lightsShader from '../shaders/rainbow-shading-fs.glsl';
 import { DefaultFrameBuffer } from '../graphics-library/frame-buffer/default-frame-buffer';
 import { IntermediateFrameBuffer } from '../graphics-library/frame-buffer/intermediate-frame-buffer';
@@ -16,6 +14,8 @@ import caveVertexShader from '../shaders/passthrough-distance-vs.glsl';
 import lightsVertexShader from '../shaders/passthrough-shading-vs.glsl';
 import { FpsAutoscaler } from './fps-autoscaler';
 import { RenderingPass } from './rendering-pass';
+import { IDrawable } from '../drawables/i-drawable';
+import { DrawableTunnel } from '../drawables/drawable-tunnel';
 
 export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
@@ -50,7 +50,7 @@ export class WebGl2Renderer implements IRenderer {
     this.distancePass = new RenderingPass(
       this.gl,
       [caveVertexShader, caveFragmentShader],
-      [TunnelShape.descriptor],
+      [DrawableTunnel.descriptor],
       this.distanceFieldFrameBuffer
     );
 
@@ -68,11 +68,11 @@ export class WebGl2Renderer implements IRenderer {
 
     try {
       this.stopwatch = new WebGlStopwatch(this.gl);
-    } catch { }
+    } catch {}
   }
 
-  public drawPrimitive(primitive: IPrimitive) {
-    this.distancePass.addDrawable(primitive);
+  public drawShape(shape: IDrawable) {
+    this.distancePass.addDrawable(shape);
   }
 
   public drawLight(light: ILight) {
@@ -94,14 +94,11 @@ export class WebGl2Renderer implements IRenderer {
       vec2.scale(vec2.create(), this.viewBoxSize, 0.5)
     );
 
-    this.distancePass.render(
-      this.uniforms,
-      this.cameraPosition,
-      viewBoxRadius
-    );
+    this.distancePass.render(this.uniforms, this.cameraPosition, viewBoxRadius);
 
     this.lightingPass.render(
-      this.uniforms, this.cameraPosition,
+      this.uniforms,
+      this.cameraPosition,
       viewBoxRadius,
       this.distanceFieldFrameBuffer.colorTexture
     );
@@ -111,7 +108,7 @@ export class WebGl2Renderer implements IRenderer {
 
   private get uniforms(): any {
     const cursorPosition = this.screenUvToWorldCoordinate(this.cursorPosition);
-    return { ...this.matrices, cursorPosition, viewBoxSize: this.viewBoxSize }
+    return { ...this.matrices, cursorPosition, viewBoxSize: this.viewBoxSize };
   }
 
   private calculateMatrices() {
