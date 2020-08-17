@@ -58,7 +58,10 @@ void main() {
         for (int i = 0; i < CIRCLE_LIGHT_COUNT; i++) {
             float lightCenterDistance = distance(circleLights[i].center, worldCoordinates);
 
-
+            /*if (lightCenterDistance < circleLights[i].radius) {
+                 fragmentColor = vec4(1.0, 1.0, 0.0, 1.0);
+                return;
+            }*/
             vec3 lightColorAtPosition = circleLights[i].value / pow(
                 lightCenterDistance / LIGHT_DROP + 1.0, 2.0
             );

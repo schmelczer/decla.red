@@ -12,9 +12,9 @@ import { createCharacter } from './objects/world/create-character';
 import { createDungeon } from './objects/world/create-dungeon';
 import { RenderCommand } from './drawing/commands/render';
 import { Physics } from './physics/physics';
-import { MoveToCommand } from './physics/commands/move-to';
 import { TeleportToCommand } from './physics/commands/teleport-to';
 import { IRenderer } from './drawing/i-renderer';
+import { Random } from './helper/random';
 
 export class Game {
   private previousTime?: DOMHighResTimeStamp = null;
@@ -27,6 +27,8 @@ export class Game {
   constructor() {
     const canvas: HTMLCanvasElement = document.querySelector('canvas#main');
     const overlay: HTMLElement = document.querySelector('#overlay');
+
+    Random.seed = 42;
 
     document.addEventListener(
       'visibilitychange',

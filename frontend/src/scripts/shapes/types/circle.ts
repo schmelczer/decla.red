@@ -36,6 +36,6 @@ export class Circle implements IShape {
   }
 
   public clone(): Circle {
-    return new Circle(this.center, this.radius);
+    return new Circle(vec2.clone(this.center), this.radius);
   }
 }

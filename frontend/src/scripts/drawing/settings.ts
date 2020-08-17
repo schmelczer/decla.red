@@ -22,11 +22,11 @@ export const settings = {
   tileMultiplier: 5,
   shaderMacros: {
     distanceScale: 64,
-    distanceOffset: 0.15,
+    distanceOffset: 0.0,
     edgeSmoothing: 10,
   },
   shaderCombinations: {
-    lineSteps: [0, 1, 2, 3, 4, 8, 16, 32],
+    lineSteps: [0, 1, 2, 3, 4, 8, 16, 128],
     circleLightSteps: [0, 1, 2, 3],
     pointLightSteps: [0, 1, 2, 3],
   },
