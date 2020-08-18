@@ -1,4 +1,8 @@
 import { mat2d, vec2 } from 'gl-matrix';
+import { BoundingBoxBase } from '../../shapes/bounding-box-base';
+import { DrawableBlob } from '../drawables/drawable-blob';
+import { DrawableTunnel } from '../drawables/drawable-tunnel';
+import { IDrawable } from '../drawables/i-drawable';
 import { CircleLight } from '../drawables/lights/circle-light';
 import { ILight } from '../drawables/lights/i-light';
 import { PointLight } from '../drawables/lights/point-light';
@@ -14,23 +18,24 @@ import caveVertexShader from '../shaders/passthrough-distance-vs.glsl';
 import lightsVertexShader from '../shaders/passthrough-shading-vs.glsl';
 import { FpsAutoscaler } from './fps-autoscaler';
 import { RenderingPass } from './rendering-pass';
-import { IDrawable } from '../drawables/i-drawable';
-import { DrawableTunnel } from '../drawables/drawable-tunnel';
-import { enableExtension } from '../graphics-library/helper/enable-extension';
-import { DrawableBlob } from '../drawables/drawable-blob';
-import { BoundingBoxBase } from '../../shapes/bounding-box-base';
 
 export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
+
   private stopwatch?: WebGlStopwatch;
 
   private viewBoxBottomLeft = vec2.create();
+
   private viewBoxSize = vec2.create();
+
   private cursorPosition = vec2.create();
 
   private distanceFieldFrameBuffer: IntermediateFrameBuffer;
+
   private lightingFrameBuffer: DefaultFrameBuffer;
+
   private distancePass: RenderingPass;
+
   private lightingPass: RenderingPass;
 
   private autoscaler: FpsAutoscaler;
@@ -70,7 +75,9 @@ export class WebGl2Renderer implements IRenderer {
 
     try {
       this.stopwatch = new WebGlStopwatch(this.gl);
-    } catch {}
+    } catch {
+      // no problem
+    }
   }
 
   public drawShape(shape: IDrawable) {
@@ -81,7 +88,7 @@ export class WebGl2Renderer implements IRenderer {
     this.lightingPass.addDrawable(light);
   }
 
-  public startFrame(deltaTime: DOMHighResTimeStamp): void {
+  public startFrame(deltaTime: DOMHighResTimeStamp) {
     this.autoscaler.autoscale(deltaTime);
 
     this.stopwatch?.start();
@@ -94,10 +101,7 @@ export class WebGl2Renderer implements IRenderer {
 
     this.distancePass.render(this.uniforms);
 
-    this.lightingPass.render(
-      this.uniforms,
-      this.distanceFieldFrameBuffer.colorTexture
-    );
+    this.lightingPass.render(this.uniforms, this.distanceFieldFrameBuffer.colorTexture);
 
     this.stopwatch?.stop();
   }
@@ -112,11 +116,7 @@ export class WebGl2Renderer implements IRenderer {
       mat2d.create(),
       this.viewBoxBottomLeft
     );
-    mat2d.scale(
-      this.matrices.uvToWorld,
-      this.matrices.uvToWorld,
-      this.viewBoxSize
-    );
+    mat2d.scale(this.matrices.uvToWorld, this.matrices.uvToWorld, this.viewBoxSize);
 
     this.matrices.distanceScreenToWorld = this.getScreenToWorldTransform(
       this.distanceFieldFrameBuffer.getSize()
@@ -127,17 +127,11 @@ export class WebGl2Renderer implements IRenderer {
       this.matrices.distanceScreenToWorld,
       this.distanceFieldFrameBuffer.getSize()
     );
-    mat2d.invert(
-      this.matrices.worldToDistanceUV,
-      this.matrices.worldToDistanceUV
-    );
+    mat2d.invert(this.matrices.worldToDistanceUV, this.matrices.worldToDistanceUV);
   }
 
   private getScreenToWorldTransform(screenSize: vec2) {
-    const transform = mat2d.fromTranslation(
-      mat2d.create(),
-      this.viewBoxBottomLeft
-    );
+    const transform = mat2d.fromTranslation(mat2d.create(), this.viewBoxBottomLeft);
     mat2d.scale(
       transform,
       transform,

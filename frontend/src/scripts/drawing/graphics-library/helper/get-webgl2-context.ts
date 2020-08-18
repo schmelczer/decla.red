@@ -1,6 +1,4 @@
-export const getWebGl2Context = (
-  canvas: HTMLCanvasElement
-): WebGL2RenderingContext => {
+export const getWebGl2Context = (canvas: HTMLCanvasElement): WebGL2RenderingContext => {
   const gl = canvas.getContext('webgl2');
 
   if (!gl) {

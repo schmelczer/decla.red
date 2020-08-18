@@ -1,5 +1,5 @@
-import { CommandGenerator } from '../commands/command-generator';
 import { vec2 } from 'gl-matrix';
+import { CommandGenerator } from '../commands/command-generator';
 import { clamp01 } from '../helper/clamp';
 import { CursorMoveCommand } from './commands/cursor-move-command';
 import { PrimaryActionCommand } from './commands/primary-action';
@@ -9,6 +9,7 @@ import { ZoomCommand } from './commands/zoom';
 
 export class MouseListener extends CommandGenerator {
   private previousPosition = vec2.create();
+
   private isMouseDown = false;
 
   constructor(private target: Element) {
@@ -30,9 +31,7 @@ export class MouseListener extends CommandGenerator {
 
       if (this.isMouseDown) {
         this.sendCommand(
-          new SwipeCommand(
-            vec2.subtract(vec2.create(), this.previousPosition, position)
-          )
+          new SwipeCommand(vec2.subtract(vec2.create(), this.previousPosition, position))
         );
         this.previousPosition = position;
       }

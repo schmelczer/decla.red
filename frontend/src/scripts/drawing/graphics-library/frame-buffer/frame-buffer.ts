@@ -2,9 +2,11 @@ import { vec2 } from 'gl-matrix';
 
 export abstract class FrameBuffer {
   public renderScale = 1;
+
   public enableHighDpiRendering = false;
 
   protected size: vec2;
+
   protected frameBuffer: WebGLFramebuffer;
 
   constructor(protected gl: WebGL2RenderingContext) {}

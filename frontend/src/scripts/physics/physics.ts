@@ -5,7 +5,9 @@ import { BoundingBoxBase } from '../shapes/bounding-box-base';
 
 export class Physics {
   private isTreeInitialized = false;
+
   private staticBoundingBoxesWaitList = [];
+
   private staticBoundingBoxes = new BoundingBoxTree();
 
   private dynamicBoundingBoxes = new BoundingBoxList();

@@ -7,35 +7,28 @@ import { GameObject } from '../../objects/game-object';
 
 export class Blob implements IShape {
   private static readonly boundingCircleRadius = 19;
+
   private static readonly headOffset = vec2.fromValues(0, 15);
+
   private static readonly torsoOffset = vec2.fromValues(0, 0);
+
   private static readonly leftFootOffset = vec2.fromValues(-5, -10);
+
   private static readonly rightFootOffset = vec2.fromValues(5, -10);
 
   public readonly isInverted = false;
 
-  protected boundingCircle = new Circle(
-    vec2.create(),
-    Blob.boundingCircleRadius
-  );
-  protected head = new Circle(vec2.create(), settings.shaderMacros.headRadius);
-  protected torso = new Circle(
-    vec2.create(),
-    settings.shaderMacros.torsoRadius
-  );
-  protected leftFoot = new Circle(
-    vec2.create(),
-    settings.shaderMacros.footRadius
-  );
-  protected rightFoot = new Circle(
-    vec2.create(),
-    settings.shaderMacros.footRadius
-  );
+  protected boundingCircle = new Circle(vec2.create(), Blob.boundingCircleRadius);
 
-  public constructor(
-    center: vec2,
-    public readonly gameObject: GameObject = null
-  ) {
+  protected head = new Circle(vec2.create(), settings.shaderMacros.headRadius);
+
+  protected torso = new Circle(vec2.create(), settings.shaderMacros.torsoRadius);
+
+  protected leftFoot = new Circle(vec2.create(), settings.shaderMacros.footRadius);
+
+  protected rightFoot = new Circle(vec2.create(), settings.shaderMacros.footRadius);
+
+  public constructor(center: vec2, public readonly gameObject: GameObject = null) {
     this.position = center;
   }
 

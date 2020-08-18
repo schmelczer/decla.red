@@ -1,7 +1,7 @@
 import { vec2 } from 'gl-matrix';
-import { ILight } from './drawables/lights/i-light';
-import { IDrawable } from './drawables/i-drawable';
 import { BoundingBoxBase } from '../shapes/bounding-box-base';
+import { IDrawable } from './drawables/i-drawable';
+import { ILight } from './drawables/lights/i-light';
 
 export interface IRenderer {
   startFrame(deltaTime: DOMHighResTimeStamp): void;

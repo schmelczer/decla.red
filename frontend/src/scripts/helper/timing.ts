@@ -18,9 +18,11 @@ export function timeIt(interval = 60) {
       if (i++ % interval == 0) {
         previousTimes = previousTimes.sort();
 
-        const text = `Max: ${last(previousTimes).toFixed(2)} ms\n\tMedian: ${previousTimes[
-          Math.floor(previousTimes.length / 2)
-        ].toFixed(2)} ms`;
+        const text = `Max: ${last(previousTimes).toFixed(
+          2
+        )} ms\n\tMedian: ${previousTimes[Math.floor(previousTimes.length / 2)].toFixed(
+          2
+        )} ms`;
 
         InfoText.modifyRecord(propertyKey, text);
 

@@ -3,10 +3,13 @@ import { createShader } from '../helper/create-shader';
 import { loadUniform } from '../helper/load-uniform';
 import { IProgram } from './i-program';
 
-export abstract class Program implements IProgram {
+export default abstract class Program implements IProgram {
   protected program: WebGLProgram;
+
   private shaders: Array<WebGLShader> = [];
+
   private modelTransform = mat2d.identity(mat2d.create());
+
   private readonly ndcToUv: mat2d;
 
   private uniforms: Array<{
@@ -116,10 +119,7 @@ export abstract class Program implements IProgram {
 
     this.gl.linkProgram(this.program);
 
-    const success = this.gl.getProgramParameter(
-      this.program,
-      this.gl.LINK_STATUS
-    );
+    const success = this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS);
 
     if (!success) {
       throw new Error(this.gl.getProgramInfoLog(this.program));

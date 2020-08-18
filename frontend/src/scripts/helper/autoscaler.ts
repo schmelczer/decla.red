@@ -36,9 +36,7 @@ export class Autoscaler {
 
     const previousTarget = this.targets[floor];
     const nextTarget =
-      floor + 1 == this.targets.length
-        ? previousTarget
-        : this.targets[floor + 1];
+      floor + 1 == this.targets.length ? previousTarget : this.targets[floor + 1];
 
     this.setters.forEach((setter, i) =>
       setter(mix(previousTarget[i], nextTarget[i], fract))

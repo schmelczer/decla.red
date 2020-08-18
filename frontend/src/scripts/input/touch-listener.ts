@@ -1,5 +1,5 @@
-import { CommandGenerator } from '../commands/command-generator';
 import { vec2 } from 'gl-matrix';
+import { CommandGenerator } from '../commands/command-generator';
 import { clamp01 } from '../helper/clamp';
 import { PrimaryActionCommand } from './commands/primary-action';
 import { SecondaryActionCommand } from './commands/secondary-action';
@@ -31,9 +31,7 @@ export class TouchListener extends CommandGenerator {
       const position = this.positionFromEvent(event);
 
       this.sendCommand(
-        new SwipeCommand(
-          vec2.subtract(vec2.create(), position, this.previousPosition)
-        )
+        new SwipeCommand(vec2.subtract(vec2.create(), position, this.previousPosition))
       );
 
       this.previousPosition = position;

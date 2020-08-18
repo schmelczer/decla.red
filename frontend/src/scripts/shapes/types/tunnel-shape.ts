@@ -6,7 +6,7 @@ import { IShape } from '../i-shape';
 import { rotate90Deg } from '../../helper/rotate-90-deg';
 import { GameObject } from '../../objects/game-object';
 
-export class TunnelShape implements IShape {
+export default class TunnelShape implements IShape {
   public readonly isInverted = true;
 
   public readonly toFromDelta: vec2;
@@ -22,22 +22,10 @@ export class TunnelShape implements IShape {
   }
 
   public get boundingBox(): BoundingBox {
-    const xMin = Math.min(
-      this.from.x - this.fromRadius,
-      this.to.x - this.toRadius
-    );
-    const yMin = Math.min(
-      this.from.y - this.fromRadius,
-      this.to.y - this.toRadius
-    );
-    const xMax = Math.max(
-      this.from.x + this.fromRadius,
-      this.to.x + this.toRadius
-    );
-    const yMax = Math.max(
-      this.from.y + this.fromRadius,
-      this.to.y + this.toRadius
-    );
+    const xMin = Math.min(this.from.x - this.fromRadius, this.to.x - this.toRadius);
+    const yMin = Math.min(this.from.y - this.fromRadius, this.to.y - this.toRadius);
+    const xMax = Math.max(this.from.x + this.fromRadius, this.to.x + this.toRadius);
+    const yMax = Math.max(this.from.y + this.fromRadius, this.to.y + this.toRadius);
 
     return new BoundingBox(this, xMin, xMax, yMin, yMax);
   }
@@ -58,8 +46,7 @@ export class TunnelShape implements IShape {
       vec2.subtract(diff, target, this.from);
     } else {
       const side = Math.sign(
-        this.toFromDelta.x * targetFromDelta.y -
-          this.toFromDelta.y * targetFromDelta.x
+        this.toFromDelta.x * targetFromDelta.y - this.toFromDelta.y * targetFromDelta.x
       );
 
       const normal = rotate90Deg(this.toFromDelta);
@@ -77,9 +64,7 @@ export class TunnelShape implements IShape {
         vec2.scale(vec2.create(), normal, side * this.toRadius)
       );
 
-      diff = rotate90Deg(
-        vec2.subtract(vec2.create(), translatedTo, translatedFrom)
-      );
+      diff = rotate90Deg(vec2.subtract(vec2.create(), translatedTo, translatedFrom));
 
       vec2.scale(diff, diff, side);
     }
@@ -96,10 +81,8 @@ export class TunnelShape implements IShape {
     );
 
     return (
-      vec2.distance(
-        targetFromDelta,
-        vec2.scale(vec2.create(), this.toFromDelta, h)
-      ) - mix(this.fromRadius, this.toRadius, h)
+      vec2.distance(targetFromDelta, vec2.scale(vec2.create(), this.toFromDelta, h)) -
+      mix(this.fromRadius, this.toRadius, h)
     );
   }
 

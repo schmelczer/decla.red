@@ -1,5 +1,5 @@
-import { BoundingBox } from './bounding-box';
 import { vec2 } from 'gl-matrix';
+import { BoundingBox } from './bounding-box';
 import { GameObject } from '../objects/game-object';
 
 export interface IShape {

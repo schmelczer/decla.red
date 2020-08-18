@@ -12,37 +12,37 @@ declare global {
 
 export const applyArrayPlugins = () => {
   Object.defineProperty(Array.prototype, 'x', {
-    get: function () {
+    get() {
       return this[0];
     },
-    set: function (value) {
+    set(value) {
       this[0] = value;
     },
   });
 
   Object.defineProperty(Array.prototype, 'y', {
-    get: function () {
+    get() {
       return this[1];
     },
-    set: function (value) {
+    set(value) {
       this[1] = value;
     },
   });
 
   Object.defineProperty(Float32Array.prototype, 'x', {
-    get: function () {
+    get() {
       return this[0];
     },
-    set: function (value) {
+    set(value) {
       this[0] = value;
     },
   });
 
   Object.defineProperty(Float32Array.prototype, 'y', {
-    get: function () {
+    get() {
       return this[1];
     },
-    set: function (value) {
+    set(value) {
       this[1] = value;
     },
   });

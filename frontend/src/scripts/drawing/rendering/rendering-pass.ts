@@ -1,4 +1,4 @@
-import { vec2, mat2d } from 'gl-matrix';
+import { mat2d, vec2 } from 'gl-matrix';
 import { InfoText } from '../../objects/types/info-text';
 import { IDrawable } from '../drawables/i-drawable';
 import { IDrawableDescriptor } from '../drawables/i-drawable-descriptor';
@@ -8,6 +8,7 @@ import { settings } from '../settings';
 
 export class RenderingPass {
   private drawables: Array<IDrawable> = [];
+
   private program: UniformArrayAutoScalingProgram;
 
   constructor(
@@ -83,17 +84,13 @@ export class RenderingPass {
     }
 
     InfoText.modifyRecord(
-      'nearby ' + this.drawableDescriptors[0].countMacroName,
+      `nearby ${this.drawableDescriptors[0].countMacroName}`,
       this.drawables.length.toFixed(2)
     );
 
     InfoText.modifyRecord(
-      'drawn ' + this.drawableDescriptors[0].countMacroName,
-      (
-        sumLineCount /
-        settings.tileMultiplier /
-        settings.tileMultiplier
-      ).toFixed(2)
+      `drawn ${this.drawableDescriptors[0].countMacroName}`,
+      (sumLineCount / settings.tileMultiplier / settings.tileMultiplier).toFixed(2)
     );
 
     this.drawables = [];

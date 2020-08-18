@@ -1,5 +1,5 @@
-import { GameObject } from '../game-object';
 import { RenderCommand } from '../../drawing/commands/render';
+import { GameObject } from '../game-object';
 
 export class InfoText extends GameObject {
   constructor() {

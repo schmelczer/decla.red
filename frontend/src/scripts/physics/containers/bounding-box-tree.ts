@@ -4,6 +4,7 @@ import { ImmutableBoundingBox } from '../../shapes/immutable-bounding-box';
 
 class Node {
   public left?: Node = null;
+
   public right?: Node = null;
 
   constructor(public rectangle: ImmutableBoundingBox, public parent: Node) {}
@@ -63,9 +64,7 @@ export class BoundingBoxTree {
     }
   }
 
-  public findIntersecting(
-    box: ImmutableBoundingBox
-  ): Array<ImmutableBoundingBox> {
+  public findIntersecting(box: ImmutableBoundingBox): Array<ImmutableBoundingBox> {
     const maybeResults = this.findMaybeIntersecting(box, this.root, 0);
     const results = maybeResults.filter((b) => b.intersects(box));
     return results;

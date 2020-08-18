@@ -5,12 +5,13 @@ import { GameObject } from './game-object';
 
 export class Objects implements CommandReceiver {
   private objects: Map<Id, GameObject> = new Map();
+
   private objectsGroupedByAbilities: Map<string, Array<GameObject>> = new Map();
 
   public addObject(o: GameObject) {
     this.objects.set(o.id, o);
 
-    for (let command of this.objectsGroupedByAbilities.keys()) {
+    for (const command of this.objectsGroupedByAbilities.keys()) {
       if (o.reactsToCommand(command)) {
         this.objectsGroupedByAbilities.get(command).push(o);
       }
@@ -30,9 +31,7 @@ export class Objects implements CommandReceiver {
       this.createGroupForCommand(e.type);
     }
 
-    this.objectsGroupedByAbilities
-      .get(e.type)
-      .forEach((o, _) => o.sendCommand(e));
+    this.objectsGroupedByAbilities.get(e.type).forEach((o, _) => o.sendCommand(e));
   }
 
   private createGroupForCommand(commandType: string) {

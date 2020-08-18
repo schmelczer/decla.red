@@ -4,13 +4,12 @@ import { CursorMoveCommand } from '../../input/commands/cursor-move-command';
 import { ZoomCommand } from '../../input/commands/zoom';
 import { MoveToCommand } from '../../physics/commands/move-to';
 import { BoundingBox } from '../../shapes/bounding-box';
-import { Physics } from '../../physics/physics';
 import { GameObject } from '../game-object';
-import { Lamp } from './lamp';
 
 export class Camera extends GameObject {
   private inViewAreaSize = 1920 * 1080 * 5;
   private cursorPosition = vec2.create();
+
   private _viewArea: BoundingBox;
 
   constructor() {

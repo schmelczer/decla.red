@@ -7,6 +7,7 @@ import { toPercent } from '../../helper/to-percent';
 
 export class FpsAutoscaler extends Autoscaler {
   private timeSinceLastAdjusment = 0;
+
   private exponentialDecayedDeltaTime = 0.0;
 
   constructor(private frameBuffers: Array<FrameBuffer>) {
@@ -21,8 +22,7 @@ export class FpsAutoscaler extends Autoscaler {
   public autoscale(lastDeltaTime: DOMHighResTimeStamp) {
     this.timeSinceLastAdjusment += lastDeltaTime;
     if (
-      this.timeSinceLastAdjusment >=
-      settings.qualityScaling.adjusmentRateInMilliseconds
+      this.timeSinceLastAdjusment >= settings.qualityScaling.adjusmentRateInMilliseconds
     ) {
       this.timeSinceLastAdjusment = 0;
       this.exponentialDecayedDeltaTime = exponentialDecay(

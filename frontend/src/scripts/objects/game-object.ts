@@ -1,8 +1,6 @@
 import { Command } from '../commands/command';
 import { CommandReceiver } from '../commands/command-receiver';
 import { IdentityManager } from '../identity/identity-manager';
-import { Objects } from './objects';
-import { Physics } from '../physics/physics';
 
 export abstract class GameObject implements CommandReceiver {
   public readonly id = IdentityManager.generateId();
@@ -12,13 +10,13 @@ export abstract class GameObject implements CommandReceiver {
   } = {};
 
   public reactsToCommand(commandType: string): boolean {
-    return this.commandExecutors.hasOwnProperty(commandType);
+    return Object.prototype.hasOwnProperty.call(this.commandExecutors, commandType);
   }
 
   public sendCommand(command: Command) {
     const commandType = command.type;
 
-    if (this.commandExecutors.hasOwnProperty(commandType)) {
+    if (Object.prototype.hasOwnProperty.call(this.commandExecutors, commandType)) {
       this.commandExecutors[commandType](command);
     }
   }

@@ -1,38 +1,41 @@
 import { CommandBroadcaster } from './commands/command-broadcaster';
 import { BeforeRenderCommand } from './drawing/commands/before-render';
-import { StepCommand } from './physics/commands/step';
+import { RenderCommand } from './drawing/commands/render';
+import { IRenderer } from './drawing/i-renderer';
 import { WebGl2Renderer } from './drawing/rendering/webgl2-renderer';
+import { Random } from './helper/random';
 import { timeIt } from './helper/timing';
+import { IGame } from './i-game';
 import { KeyboardListener } from './input/keyboard-listener';
 import { MouseListener } from './input/mouse-listener';
 import { TouchListener } from './input/touch-listener';
+import { GameObject } from './objects/game-object';
 import { Objects } from './objects/objects';
-import { InfoText } from './objects/types/info-text';
-import { createDungeon } from './objects/world/create-dungeon';
-import { RenderCommand } from './drawing/commands/render';
-import { Physics } from './physics/physics';
-import { TeleportToCommand } from './physics/commands/teleport-to';
-import { IRenderer } from './drawing/i-renderer';
-import { Random } from './helper/random';
 import { Camera } from './objects/types/camera';
 import { Character } from './objects/types/character';
-import { IGame } from './i-game';
-import { GameObject } from './objects/game-object';
-import { vec2 } from 'gl-matrix';
-import { BoundingBoxBase } from './shapes/bounding-box-base';
+import { InfoText } from './objects/types/info-text';
+import { createDungeon } from './objects/world/create-dungeon';
 import { MoveToCommand } from './physics/commands/move-to';
-import { BoundingBox } from './shapes/bounding-box';
+import { StepCommand } from './physics/commands/step';
+import { TeleportToCommand } from './physics/commands/teleport-to';
+import { Physics } from './physics/physics';
+import { BoundingBoxBase } from './shapes/bounding-box-base';
 
 export class Game implements IGame {
   public readonly objects = new Objects();
+
   public readonly physics = new Physics();
+
   public readonly camera = new Camera();
 
   private previousTime?: DOMHighResTimeStamp = null;
+
   private previousFpsValues: Array<number> = [];
 
   private infoText = new InfoText();
+
   private character: Character;
+
   private renderer: IRenderer;
 
   constructor() {
@@ -41,10 +44,7 @@ export class Game implements IGame {
 
     Random.seed = 42;
 
-    document.addEventListener(
-      'visibilitychange',
-      this.handleVisibilityChange.bind(this)
-    );
+    document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
 
     new CommandBroadcaster(
       [
@@ -82,7 +82,7 @@ export class Game implements IGame {
     createDungeon(this.objects, this.physics);
 
     this.character = new Character(this);
-    //this.physics.addDynamicBoundingBox(this.character.boundingBox);
+    // this.physics.addDynamicBoundingBox(this.character.boundingBox);
     this.addObject(this.character);
     this.addObject(this.camera);
     this.character.sendCommand(new TeleportToCommand(start.from));
@@ -115,7 +115,7 @@ export class Game implements IGame {
       .findIntersecting(this.camera.viewArea)
       .map((b) => b.shape?.gameObject);
 
-    for (let object of shouldBeDrawn) {
+    for (const object of shouldBeDrawn) {
       object?.sendCommand(new BeforeRenderCommand(this.renderer));
       object?.sendCommand(new RenderCommand(this.renderer));
     }

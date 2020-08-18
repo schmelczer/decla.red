@@ -10,11 +10,7 @@ export const loadUniform = (
 ): any => {
   const converters: Map<
     GLenum,
-    (
-      gl: WebGL2RenderingContext,
-      value: any,
-      location: WebGLUniformLocation
-    ) => void
+    (gl: WebGL2RenderingContext, value: any, location: WebGLUniformLocation) => void
   > = new Map();
   {
     converters.set(WebGL2RenderingContext.FLOAT, (gl, v, l) => {
@@ -29,27 +25,24 @@ export const loadUniform = (
       }
     });
 
-    converters.set(
-      WebGL2RenderingContext.FLOAT_VEC2,
-      (gl, v: vec2 | Array<vec2>, l) => {
-        if (v.length == 0) {
-          return;
-        }
-
-        if (v[0] instanceof Array) {
-          const result = new Float32Array(v.length * 2);
-
-          for (let i = 0; i < v.length; i++) {
-            result[2 * i] = (v[i] as Array<number>).x;
-            result[2 * i + 1] = (v[i] as Array<number>).y;
-          }
-
-          gl.uniform2fv(l, result);
-        } else {
-          gl.uniform2fv(l, v as vec2);
-        }
+    converters.set(WebGL2RenderingContext.FLOAT_VEC2, (gl, v: vec2 | Array<vec2>, l) => {
+      if (v.length == 0) {
+        return;
       }
-    );
+
+      if (v[0] instanceof Array) {
+        const result = new Float32Array(v.length * 2);
+
+        for (let i = 0; i < v.length; i++) {
+          result[2 * i] = (v[i] as Array<number>).x;
+          result[2 * i + 1] = (v[i] as Array<number>).y;
+        }
+
+        gl.uniform2fv(l, result);
+      } else {
+        gl.uniform2fv(l, v as vec2);
+      }
+    });
 
     converters.set(
       WebGL2RenderingContext.FLOAT_VEC3,
@@ -78,9 +71,7 @@ export const loadUniform = (
       gl.uniformMatrix3fv(l, true, mat3.fromMat2d(loaderMat3, v));
     });
 
-    converters.set(WebGL2RenderingContext.BOOL, (gl, v, l) =>
-      gl.uniform1i(l, v)
-    );
+    converters.set(WebGL2RenderingContext.BOOL, (gl, v, l) => gl.uniform1i(l, v));
 
     if (!converters.has(type)) {
       throw new Error(`Unimplemented webgl type: ${type}`);

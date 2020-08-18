@@ -1,4 +1,4 @@
-import { Program } from './program';
+import Program from './program';
 
 export class FragmentShaderOnlyProgram extends Program {
   private vao: WebGLVertexArrayObject;
@@ -39,13 +39,6 @@ export class FragmentShaderOnlyProgram extends Program {
 
     this.gl.bindVertexArray(this.vao);
     this.gl.enableVertexAttribArray(positionAttributeLocation);
-    this.gl.vertexAttribPointer(
-      positionAttributeLocation,
-      2,
-      this.gl.FLOAT,
-      false,
-      0,
-      0
-    );
+    this.gl.vertexAttribPointer(positionAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
   }
 }

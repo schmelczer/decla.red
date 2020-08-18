@@ -1,31 +1,25 @@
 import { vec2, vec3 } from 'gl-matrix';
+import { RenderCommand } from '../../drawing/commands/render';
+import { DrawableBlob } from '../../drawing/drawables/drawable-blob';
+import { IGame } from '../../i-game';
 import { KeyDownCommand } from '../../input/commands/key-down';
 import { KeyUpCommand } from '../../input/commands/key-up';
 import { SwipeCommand } from '../../input/commands/swipe';
 import { MoveToCommand } from '../../physics/commands/move-to';
 import { StepCommand } from '../../physics/commands/step';
 import { TeleportToCommand } from '../../physics/commands/teleport-to';
-import { Physics } from '../../physics/physics';
-import { GameObject } from '../game-object';
-import { Camera } from './camera';
 import { IShape } from '../../shapes/i-shape';
 import { Blob } from '../../shapes/types/blob';
-import { RenderCommand } from '../../drawing/commands/render';
-import { DrawableBlob } from '../../drawing/drawables/drawable-blob';
+import { GameObject } from '../game-object';
 import { Lamp } from './lamp';
-import { Game } from '../../game';
-import { IGame } from '../../i-game';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();
-  private light = new Lamp(
-    vec2.create(),
-    40,
-    vec3.fromValues(0.67, 0.0, 0.33),
-    2
-  );
+
+  private light = new Lamp(vec2.create(), 40, vec3.fromValues(0.67, 0.0, 0.33), 2);
 
   private shape = new DrawableBlob(vec2.create());
+
   private static speed = 1.5;
 
   constructor(private game: IGame) {
@@ -35,15 +29,11 @@ export class Character extends GameObject {
 
     this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
-    this.addCommandExecutor(TeleportToCommand, (c) =>
-      this.setPosition(c.position)
-    );
+    this.addCommandExecutor(TeleportToCommand, (c) => this.setPosition(c.position));
     this.addCommandExecutor(KeyDownCommand, (c) => this.keysDown.add(c.key));
     this.addCommandExecutor(KeyUpCommand, (c) => this.keysDown.delete(c.key));
     this.addCommandExecutor(SwipeCommand, (c) => {
-      this.tryMoving(
-        vec2.multiply(vec2.create(), c.delta, this.game.viewArea.size)
-      );
+      this.tryMoving(vec2.multiply(vec2.create(), c.delta, this.game.viewArea.size));
     });
   }
 
@@ -90,9 +80,8 @@ export class Character extends GameObject {
       const intersecting = nextNearShapes
         .filter(
           (n) =>
-            currentNearShapes.find(
-              (c) => c.shape === n.shape && c.distance <= 0
-            ) !== undefined
+            currentNearShapes.find((c) => c.shape === n.shape && c.distance <= 0) !==
+            undefined
         )
         .sort((e) => Math.abs(e.distance));
 
@@ -101,23 +90,16 @@ export class Character extends GameObject {
       }
       const normal = intersecting[0].shape.normal(this.shape.center);
 
-      const maxDistance = intersecting.reduce((p, c) =>
-        p.distance > c.distance ? p : c
-      ).distance;
+      const maxDistance = intersecting.reduce((p, c) => (p.distance > c.distance ? p : c))
+        .distance;
 
-      vec2.add(
-        delta,
-        delta,
-        vec2.scale(vec2.create(), normal, -maxDistance - 2)
-      );
+      vec2.add(delta, delta, vec2.scale(vec2.create(), normal, -maxDistance - 2));
 
       this.tryMoving(delta, false);
     }
   }
 
-  private getNearShapesTo(
-    shape: Blob
-  ): Array<{ shape: IShape; distance: number }> {
+  private getNearShapesTo(shape: Blob): Array<{ shape: IShape; distance: number }> {
     return this.game
       .findIntersecting(shape.boundingBox)
       .filter((b) => b.shape)

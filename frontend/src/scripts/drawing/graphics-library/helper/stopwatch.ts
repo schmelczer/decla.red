@@ -5,16 +5,15 @@ import { enableExtension } from './enable-extension';
 
 export class WebGlStopwatch {
   private timerExtension: any;
+
   private timerQuery: WebGLQuery;
+
   private isReady = true;
 
   private resultsInNanoSeconds: number;
 
   constructor(private gl: WebGL2RenderingContext) {
-    this.timerExtension = enableExtension(
-      gl,
-      'EXT_disjoint_timer_query_webgl2'
-    );
+    this.timerExtension = enableExtension(gl, 'EXT_disjoint_timer_query_webgl2');
   }
 
   public start() {
@@ -42,10 +41,7 @@ export class WebGlStopwatch {
         this.gl.QUERY_RESULT
       );
 
-      InfoText.modifyRecord(
-        'Draw time',
-        `${this.resultsInMilliSeconds.toFixed(2)} ms`
-      );
+      InfoText.modifyRecord('Draw time', `${this.resultsInMilliSeconds.toFixed(2)} ms`);
 
       this.isReady = true;
     }

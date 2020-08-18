@@ -1,9 +1,8 @@
 import { vec2 } from 'gl-matrix';
-import { GameObject } from '../game-object';
 import { RenderCommand } from '../../drawing/commands/render';
-import { Physics } from '../../physics/physics';
-import { TunnelShape } from '../../shapes/types/tunnel-shape';
 import { DrawableTunnel } from '../../drawing/drawables/drawable-tunnel';
+import { Physics } from '../../physics/physics';
+import { GameObject } from '../game-object';
 
 export class Tunnel extends GameObject {
   private shape: DrawableTunnel;

@@ -30,7 +30,7 @@ export const createDungeon = (objects: Objects, physics: Physics): Tunnel => {
 
     objects.addObject(tunnel);
 
-    /*if (deltaHeight > 0 && Random.getRandom() > 0.8) {
+    /* if (deltaHeight > 0 && Random.getRandom() > 0.8) {
       objects.addObject(
         new Lamp(
           currentEnd,
@@ -43,7 +43,7 @@ export const createDungeon = (objects: Objects, physics: Physics): Tunnel => {
           1
         )
       );
-    }*/
+    } */
 
     previousEnd = currentEnd;
     previousRadius = currentToRadius;

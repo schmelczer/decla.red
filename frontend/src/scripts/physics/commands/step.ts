@@ -1,9 +1,7 @@
 import { Command } from '../../commands/command';
 
 export class StepCommand extends Command {
-  public constructor(
-    public readonly deltaTimeInMiliseconds?: DOMHighResTimeStamp
-  ) {
+  public constructor(public readonly deltaTimeInMiliseconds?: DOMHighResTimeStamp) {
     super();
   }
 

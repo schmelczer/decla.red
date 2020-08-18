@@ -6,8 +6,6 @@ export class CommandBroadcaster {
     commandGenerators: Array<CommandGenerator>,
     commandReceivers: Array<CommandReceiver>
   ) {
-    commandReceivers.forEach((r) =>
-      commandGenerators.forEach((g) => g.subscribe(r))
-    );
+    commandReceivers.forEach((r) => commandGenerators.forEach((g) => g.subscribe(r)));
   }
 }
