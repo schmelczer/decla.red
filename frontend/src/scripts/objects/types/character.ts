@@ -1,5 +1,4 @@
 import { vec2 } from 'gl-matrix';
-import { Circle } from '../../shapes/types/circle';
 import { KeyDownCommand } from '../../input/commands/key-down';
 import { KeyUpCommand } from '../../input/commands/key-up';
 import { SwipeCommand } from '../../input/commands/swipe';
@@ -10,22 +9,28 @@ import { Physics } from '../../physics/physics';
 import { GameObject } from '../game-object';
 import { Camera } from './camera';
 import { IShape } from '../../shapes/i-shape';
-import { rotate90Deg } from '../../helper/rotate-90-deg';
-import { max } from 'gl-matrix/src/gl-matrix/vec2';
+import { Blob } from '../../shapes/types/blob';
+import { RenderCommand } from '../../drawing/commands/render';
+import { DrawableBlob } from '../../drawing/drawables/drawable-blob';
+import { Lamp } from './lamp';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();
 
-  private shape: Circle;
+  private shape: DrawableBlob;
   private static speed = 1.5;
 
-  constructor(private physics: Physics, private camera: Camera) {
+  constructor(
+    private physics: Physics,
+    private camera: Camera,
+    private light: Lamp
+  ) {
     super();
 
-    this.shape = new Circle();
-    this.shape.radius = 80;
+    this.shape = new DrawableBlob(vec2.create());
 
     this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
+    this.addCommandExecutor(RenderCommand, this.draw.bind(this));
     this.addCommandExecutor(TeleportToCommand, (c) =>
       this.setPosition(c.position)
     );
@@ -36,6 +41,10 @@ export class Character extends GameObject {
         vec2.multiply(vec2.create(), c.delta, this.camera.viewAreaSize)
       );
     });
+  }
+
+  private draw(c: RenderCommand) {
+    c.renderer.drawShape(this.shape);
   }
 
   private tryMoving(delta: vec2, isFirstIteration = true) {
@@ -95,7 +104,7 @@ export class Character extends GameObject {
   }
 
   private getNearShapesTo(
-    shape: Circle
+    shape: Blob
   ): Array<{ shape: IShape; distance: number }> {
     return this.physics
       .findIntersecting(shape.boundingBox)
@@ -108,8 +117,10 @@ export class Character extends GameObject {
   }
 
   private setPosition(value: vec2) {
-    this.shape.center = value;
-    this.camera.sendCommand(new MoveToCommand(this.shape.center));
+    this.shape.position = value;
+    this.camera.sendCommand(new MoveToCommand(value));
+    vec2.add(value, value, vec2.fromValues(80, 0));
+    this.light.sendCommand(new MoveToCommand(value));
   }
 
   public stepHandler(c: StepCommand) {

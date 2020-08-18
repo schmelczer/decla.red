@@ -17,8 +17,8 @@ export const createCharacter = (
     2
   );
 
-  const camera = new Camera(physics, light);
-  const character = new Character(physics, camera);
+  const camera = new Camera();
+  const character = new Character(physics, camera, light);
   objects.addObject(light);
   objects.addObject(camera);
   objects.addObject(character);

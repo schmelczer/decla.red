@@ -34,7 +34,7 @@ export class UniformArrayAutoScalingProgram implements IProgram {
     );
 
     const closest = this.programs.find((p) =>
-      p.values.every((v, i) => v > values[i])
+      p.values.every((v, i) => v >= values[i])
     );
 
     this.current = closest ? closest.program : last(this.programs).program;

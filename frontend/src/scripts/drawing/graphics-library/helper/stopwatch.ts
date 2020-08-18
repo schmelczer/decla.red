@@ -1,4 +1,5 @@
 import { InfoText } from '../../../objects/types/info-text';
+import { enableExtension } from './enable-extension';
 
 // https://www.khronos.org/registry/webgl/extensions/EXT_disjoint_timer_query_webgl2/
 
@@ -10,15 +11,8 @@ export class WebGlStopwatch {
   private resultsInNanoSeconds: number;
 
   constructor(private gl: WebGL2RenderingContext) {
-    if (
-      this.gl
-        .getSupportedExtensions()
-        .indexOf('EXT_disjoint_timer_query_webgl2') == -1
-    ) {
-      throw new Error('Unsupported extension');
-    }
-
-    this.timerExtension = this.gl.getExtension(
+    this.timerExtension = enableExtension(
+      gl,
       'EXT_disjoint_timer_query_webgl2'
     );
   }

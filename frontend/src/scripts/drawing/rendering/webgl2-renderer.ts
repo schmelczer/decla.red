@@ -16,6 +16,8 @@ import { FpsAutoscaler } from './fps-autoscaler';
 import { RenderingPass } from './rendering-pass';
 import { IDrawable } from '../drawables/i-drawable';
 import { DrawableTunnel } from '../drawables/drawable-tunnel';
+import { enableExtension } from '../graphics-library/helper/enable-extension';
+import { DrawableBlob } from '../drawables/drawable-blob';
 
 export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
@@ -50,7 +52,7 @@ export class WebGl2Renderer implements IRenderer {
     this.distancePass = new RenderingPass(
       this.gl,
       [caveVertexShader, caveFragmentShader],
-      [DrawableTunnel.descriptor],
+      [DrawableTunnel.descriptor, DrawableBlob.descriptor],
       this.distanceFieldFrameBuffer
     );
 

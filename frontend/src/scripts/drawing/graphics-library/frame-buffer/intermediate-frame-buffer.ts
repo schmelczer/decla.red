@@ -1,10 +1,21 @@
 import { FrameBuffer } from './frame-buffer';
+import { enableExtension } from '../helper/enable-extension';
 
 export class IntermediateFrameBuffer extends FrameBuffer {
   private frameTexture: WebGLTexture;
 
+  private floatLinearEnabled = true;
+
   constructor(gl: WebGL2RenderingContext) {
     super(gl);
+
+    enableExtension(gl, 'EXT_color_buffer_float');
+
+    try {
+      enableExtension(gl, 'OES_texture_float_linear');
+    } catch {
+      this.floatLinearEnabled = false;
+    }
 
     this.frameTexture = this.gl.createTexture();
     this.configureTexture();
@@ -27,12 +38,12 @@ export class IntermediateFrameBuffer extends FrameBuffer {
     this.gl.texImage2D(
       this.gl.TEXTURE_2D,
       0,
-      this.gl.RGBA,
+      this.gl.RG16F,
       this.size.x,
       this.size.y,
       0,
-      this.gl.RGBA,
-      this.gl.UNSIGNED_BYTE,
+      this.gl.RG,
+      this.gl.FLOAT,
       null
     );
   }
@@ -42,12 +53,12 @@ export class IntermediateFrameBuffer extends FrameBuffer {
     this.gl.texParameteri(
       this.gl.TEXTURE_2D,
       this.gl.TEXTURE_MAG_FILTER,
-      this.gl.LINEAR
+      this.floatLinearEnabled ? this.gl.LINEAR : this.gl.NEAREST
     );
     this.gl.texParameteri(
       this.gl.TEXTURE_2D,
       this.gl.TEXTURE_MIN_FILTER,
-      this.gl.LINEAR
+      this.floatLinearEnabled ? this.gl.LINEAR : this.gl.NEAREST
     );
     this.gl.texParameteri(
       this.gl.TEXTURE_2D,

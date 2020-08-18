@@ -13,11 +13,10 @@ export class Camera extends GameObject {
   private cursorPosition = vec2.create();
   private boundingBox: BoundingBox;
 
-  constructor(physics: Physics, private light: Lamp) {
+  constructor() {
     super();
 
     this.boundingBox = new BoundingBox(null);
-    //physics.addDynamicBoundingBox(this.boundingBox);
 
     this.addCommandExecutor(BeforeRenderCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));
@@ -40,7 +39,6 @@ export class Camera extends GameObject {
 
   private moveTo(c: MoveToCommand) {
     this.boundingBox.topLeft = c.position;
-    this.light.sendCommand(c);
   }
 
   private zoom(c: ZoomCommand) {

@@ -8,10 +8,11 @@ export const settings = {
       [0.2, 0.1],
       [0.6, 0.1],
       [1, 0.3],
-      [1.25, 0.75],
+      /*[1.25, 0.75],
       [1.5, 1],
       [1.75, 1.25],
       [1.75, 1.75],
+      [2, 2],*/
     ],
     startingTargetIndex: 2,
     scalingOptions: {
@@ -21,13 +22,15 @@ export const settings = {
   },
   tileMultiplier: 5,
   shaderMacros: {
-    distanceScale: 64,
-    distanceOffset: 0.0,
     edgeSmoothing: 10,
+    headRadius: 5,
+    torsoRadius: 10,
+    footRadius: 4,
   },
   shaderCombinations: {
-    lineSteps: [0, 1, 2, 3, 4, 8, 16, 128],
-    circleLightSteps: [0, 1, 2, 3],
+    lineSteps: [0, 1, 2, 4, 8, 16, 128],
+    blobSteps: [0, 1, 2, 8],
+    circleLightSteps: [0, 1],
     pointLightSteps: [0, 1, 2, 3],
   },
 };

@@ -8,21 +8,26 @@ precision mediump float;
 
 #define CIRCLE_LIGHT_COUNT {circleLightCount}
 #define POINT_LIGHT_COUNT {pointLightCount}
-#define DISTANCE_SCALE {distanceScale}
-#define DISTANCE_OFFSET {distanceOffset}
 #define EDGE_SMOOTHING {edgeSmoothing}
 
 uniform sampler2D distanceTexture;
 uniform vec2 viewBoxSize;
 
+vec3[4] colors = vec3[4](
+    vec3(0.5),
+    vec3(1.0, 0.0, 0.0),
+    vec3(0.0, 1.0, 0.0),
+    vec3(0.0, 0.0, 1.0)
+);
+
 float getDistance(in vec2 target, out vec3 color) {
     vec4 values = texture(distanceTexture, target);
-    color = values.rgb;
-    return (values.w - DISTANCE_OFFSET) * DISTANCE_SCALE;
+    color = colors[int(values[1])];
+    return values[0];
 }
 
 float getDistance(in vec2 target) {
-    return (texture(distanceTexture, target).w - DISTANCE_OFFSET) * DISTANCE_SCALE;
+    return texture(distanceTexture, target)[0];
 }
 
 #if CIRCLE_LIGHT_COUNT > 0
@@ -58,10 +63,6 @@ void main() {
         for (int i = 0; i < CIRCLE_LIGHT_COUNT; i++) {
             float lightCenterDistance = distance(circleLights[i].center, worldCoordinates);
 
-            /*if (lightCenterDistance < circleLights[i].radius) {
-                 fragmentColor = vec4(1.0, 1.0, 0.0, 1.0);
-                return;
-            }*/
             vec3 lightColorAtPosition = circleLights[i].value / pow(
                 lightCenterDistance / LIGHT_DROP + 1.0, 2.0
             );
@@ -76,7 +77,7 @@ void main() {
                     rayLength = lightCenterDistance - circleLights[i].radius;
                     float minDistance = getDistance(uvCoordinates + direction * rayLength);
                     exponentialDecayDistance = (exponentialDecayDistance + minDistance) / 2.0;
-                    q = min(q, exponentialDecayDistance / rayLength);
+                    q = min(q, minDistance / rayLength);
 
                     lighting += lightColorAtPosition * clamp(
                         q / circleLights[i].radius * (lightCenterDistance + 1.0), 0.0, 1.0
@@ -122,5 +123,5 @@ void main() {
         }
     #endif
 
-    fragmentColor = vec4(colorAtPosition * lighting * clamp(startingDistance, 0.0, 1.0), 1.0);
+    fragmentColor = vec4(colorAtPosition * lighting * step(0.0, startingDistance), 1.0);
 }
