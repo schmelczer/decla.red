@@ -4,6 +4,7 @@ import { clamp01 } from '../../helper/clamp';
 import { mix } from '../../helper/mix';
 import { IShape } from '../i-shape';
 import { rotate90Deg } from '../../helper/rotate-90-deg';
+import { GameObject } from '../../objects/game-object';
 
 export class TunnelShape implements IShape {
   public readonly isInverted = true;
@@ -14,7 +15,8 @@ export class TunnelShape implements IShape {
     public readonly from: vec2,
     public readonly to: vec2,
     public readonly fromRadius: number,
-    public readonly toRadius: number
+    public readonly toRadius: number,
+    public readonly gameObject: GameObject = null
   ) {
     this.toFromDelta = vec2.subtract(vec2.create(), to, from);
   }
@@ -106,7 +108,8 @@ export class TunnelShape implements IShape {
       vec2.clone(this.from),
       vec2.clone(this.to),
       this.fromRadius,
-      this.toRadius
+      this.toRadius,
+      this.gameObject
     );
   }
 }

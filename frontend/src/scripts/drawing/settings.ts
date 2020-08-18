@@ -7,7 +7,7 @@ export const settings = {
     scaleTargets: [
       [0.2, 0.1],
       [0.6, 0.1],
-      [1, 0.3],
+      [1, 1],
       /*[1.25, 0.75],
       [1.5, 1],
       [1.75, 1.25],
@@ -20,12 +20,12 @@ export const settings = {
       multiplicativeDecrease: 1.15,
     },
   },
-  tileMultiplier: 5,
+  tileMultiplier: 8,
   shaderMacros: {
     edgeSmoothing: 10,
     headRadius: 5,
-    torsoRadius: 10,
-    footRadius: 4,
+    torsoRadius: 8,
+    footRadius: 2,
   },
   shaderCombinations: {
     lineSteps: [0, 1, 2, 4, 8, 16, 128],

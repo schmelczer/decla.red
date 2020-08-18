@@ -69,8 +69,6 @@ uniform float maxMinDistance;
     }
 #endif
 
-
-
 in vec2 worldCoordinates;
 out vec2 fragmentColor;
 

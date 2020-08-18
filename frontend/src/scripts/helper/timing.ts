@@ -1,11 +1,8 @@
 import { InfoText } from '../objects/types/info-text';
+import { last } from './last';
 
 export function timeIt(interval = 60) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     let i = 0;
     let previousTimes: Array<DOMHighResTimeStamp> = [];
 
@@ -19,10 +16,9 @@ export function timeIt(interval = 60) {
       previousTimes.push(end - start);
 
       if (i++ % interval == 0) {
-        previousTimes.sort();
-        const text = `Max: ${previousTimes[previousTimes.length - 1].toFixed(
-          2
-        )} ms\n\tMedian: ${previousTimes[
+        previousTimes = previousTimes.sort();
+
+        const text = `Max: ${last(previousTimes).toFixed(2)} ms\n\tMedian: ${previousTimes[
           Math.floor(previousTimes.length / 2)
         ].toFixed(2)} ms`;
 

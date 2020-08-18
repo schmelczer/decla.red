@@ -9,40 +9,46 @@ import { GameObject } from '../game-object';
 import { Lamp } from './lamp';
 
 export class Camera extends GameObject {
-  private inViewArea = 1920 * 1080 * 5;
+  private inViewAreaSize = 1920 * 1080 * 5;
   private cursorPosition = vec2.create();
-  private boundingBox: BoundingBox;
+  private _viewArea: BoundingBox;
 
   constructor() {
     super();
 
-    this.boundingBox = new BoundingBox(null);
+    this._viewArea = new BoundingBox(null);
 
     this.addCommandExecutor(BeforeRenderCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));
-    this.addCommandExecutor(
-      CursorMoveCommand,
-      this.setCursorPosition.bind(this)
-    );
+    this.addCommandExecutor(CursorMoveCommand, this.setCursorPosition.bind(this));
     this.addCommandExecutor(ZoomCommand, this.zoom.bind(this));
   }
 
-  public get viewAreaSize(): vec2 {
-    return this.boundingBox.size;
+  public get viewArea(): BoundingBox {
+    return this._viewArea;
   }
 
   private draw(c: BeforeRenderCommand) {
-    c.renderer.setCameraPosition(this.boundingBox.topLeft);
+    const canvasAspectRatio = c.renderer.canvasSize.x / c.renderer.canvasSize.y;
+
+    this.viewArea.size = vec2.fromValues(
+      Math.sqrt(this.inViewAreaSize * canvasAspectRatio),
+      Math.sqrt(this.inViewAreaSize / canvasAspectRatio)
+    );
+
+    c.renderer.setViewArea(this._viewArea);
     c.renderer.setCursorPosition(this.cursorPosition);
-    this.boundingBox.size = c.renderer.setInViewArea(this.inViewArea);
   }
 
   private moveTo(c: MoveToCommand) {
-    this.boundingBox.topLeft = c.position;
+    this._viewArea.topLeft = vec2.fromValues(
+      c.position.x - this._viewArea.size.x / 2,
+      c.position.y + this._viewArea.size.y / 2
+    );
   }
 
   private zoom(c: ZoomCommand) {
-    this.inViewArea *= c.factor;
+    this.inViewAreaSize *= c.factor;
   }
 
   private setCursorPosition(c: CursorMoveCommand) {

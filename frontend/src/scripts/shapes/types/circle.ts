@@ -1,11 +1,16 @@
 import { vec2 } from 'gl-matrix';
 import { IShape } from '../i-shape';
 import { BoundingBox } from '../bounding-box';
+import { GameObject } from '../../objects/game-object';
 
 export class Circle implements IShape {
   public readonly isInverted = false;
 
-  public constructor(public center = vec2.create(), public radius = 0) {}
+  public constructor(
+    public center = vec2.create(),
+    public radius = 0,
+    public readonly gameObject: GameObject = null
+  ) {}
 
   public distance(target: vec2): number {
     return vec2.distance(this.center, target) - this.radius;
@@ -36,6 +41,6 @@ export class Circle implements IShape {
   }
 
   public clone(): Circle {
-    return new Circle(vec2.clone(this.center), this.radius);
+    return new Circle(vec2.clone(this.center), this.radius, this.gameObject);
   }
 }

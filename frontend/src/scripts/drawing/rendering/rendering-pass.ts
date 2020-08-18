@@ -1,4 +1,4 @@
-import { vec2 } from 'gl-matrix';
+import { vec2, mat2d } from 'gl-matrix';
 import { InfoText } from '../../objects/types/info-text';
 import { IDrawable } from '../drawables/i-drawable';
 import { IDrawableDescriptor } from '../drawables/i-drawable-descriptor';
@@ -27,19 +27,10 @@ export class RenderingPass {
     this.drawables.push(drawable);
   }
 
-  public render(
-    commonUniforms: any,
-    viewBoxCenter: vec2,
-    viewBoxRadius: number,
-    inputTexture?: WebGLTexture
-  ) {
+  public render(commonUniforms: any, inputTexture?: WebGLTexture) {
     this.frame.bindAndClear(inputTexture);
     const q = 1 / settings.tileMultiplier;
     const tileUvSize = vec2.fromValues(q, q);
-
-    const possiblyOnScreenDrawables = this.drawables.filter(
-      (p) => p.distance(viewBoxCenter) < viewBoxRadius
-    );
 
     const origin = vec2.transformMat2d(
       vec2.create(),
@@ -59,6 +50,9 @@ export class RenderingPass {
 
     let sumLineCount = 0;
 
+    const scale = 1;
+    const transform = mat2d.create();
+
     for (let x = 0; x < 1; x += q) {
       for (let y = 0; y < 1; y += q) {
         const uniforms = { ...commonUniforms };
@@ -73,24 +67,24 @@ export class RenderingPass {
           uniforms.uvToWorld
         );
 
-        const primitivesNearTile = possiblyOnScreenDrawables.filter(
+        const primitivesNearTile = this.drawables.filter(
           (p) => p.distance(tileCenterWorldCoordinates) < 2 * worldR
         );
 
         sumLineCount += primitivesNearTile.length;
 
-        primitivesNearTile.forEach((p) => p.serializeToUniforms(uniforms));
+        primitivesNearTile.forEach((p) =>
+          p.serializeToUniforms(uniforms, scale, transform)
+        );
 
         this.program.bindAndSetUniforms(uniforms);
         this.program.draw();
       }
     }
 
-    this.drawables = [];
-
     InfoText.modifyRecord(
       'nearby ' + this.drawableDescriptors[0].countMacroName,
-      possiblyOnScreenDrawables.length.toFixed(2)
+      this.drawables.length.toFixed(2)
     );
 
     InfoText.modifyRecord(
@@ -101,5 +95,7 @@ export class RenderingPass {
         settings.tileMultiplier
       ).toFixed(2)
     );
+
+    this.drawables = [];
   }
 }

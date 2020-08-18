@@ -17,7 +17,7 @@ export class Tunnel extends GameObject {
   ) {
     super();
 
-    this.shape = new DrawableTunnel(from, to, fromRadius, toRadius);
+    this.shape = new DrawableTunnel(from, to, fromRadius, toRadius, this);
     physics.addStaticBoundingBox(this.shape.boundingBox);
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
   }

@@ -3,6 +3,7 @@ import { IShape } from '../i-shape';
 import { BoundingBox } from '../bounding-box';
 import { Circle } from './circle';
 import { settings } from '../../drawing/settings';
+import { GameObject } from '../../objects/game-object';
 
 export class Blob implements IShape {
   private static readonly boundingCircleRadius = 19;
@@ -31,7 +32,10 @@ export class Blob implements IShape {
     settings.shaderMacros.footRadius
   );
 
-  public constructor(center: vec2) {
+  public constructor(
+    center: vec2,
+    public readonly gameObject: GameObject = null
+  ) {
     this.position = center;
   }
 
@@ -68,6 +72,6 @@ export class Blob implements IShape {
   }
 
   public clone(): Blob {
-    return new Blob(this.boundingCircle.center);
+    return new Blob(this.boundingCircle.center, this.gameObject);
   }
 }

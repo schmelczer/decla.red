@@ -1,5 +1,5 @@
 import { ILight } from './i-light';
-import { vec2, vec3 } from 'gl-matrix';
+import { vec2, vec3, mat2d } from 'gl-matrix';
 import { IDrawableDescriptor } from '../i-drawable-descriptor';
 import { settings } from '../../settings';
 import { GameObject } from '../../../objects/game-object';
@@ -12,7 +12,6 @@ export class PointLight implements ILight {
   };
 
   public constructor(
-    public readonly owner: GameObject,
     public center: vec2,
     public radius: number,
     public color: vec3,
@@ -23,7 +22,11 @@ export class PointLight implements ILight {
     return vec2.distance(this.center, target) - this.radius;
   }
 
-  public serializeToUniforms(uniforms: any): void {
+  public serializeToUniforms(
+    uniforms: any,
+    scale: number,
+    transform: mat2d
+  ): void {
     const listName = PointLight.descriptor.uniformName;
 
     if (!uniforms.hasOwnProperty(listName)) {
@@ -31,8 +34,8 @@ export class PointLight implements ILight {
     }
 
     uniforms[listName].push({
-      center: this.center,
-      radius: this.radius,
+      center: vec2.transformMat2d(vec2.create(), this.center, transform),
+      radius: this.radius * scale,
       value: this.value,
     });
   }

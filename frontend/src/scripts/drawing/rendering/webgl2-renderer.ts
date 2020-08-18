@@ -18,13 +18,13 @@ import { IDrawable } from '../drawables/i-drawable';
 import { DrawableTunnel } from '../drawables/drawable-tunnel';
 import { enableExtension } from '../graphics-library/helper/enable-extension';
 import { DrawableBlob } from '../drawables/drawable-blob';
+import { BoundingBoxBase } from '../../shapes/bounding-box-base';
 
 export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
   private stopwatch?: WebGlStopwatch;
 
   private viewBoxBottomLeft = vec2.create();
-  private cameraPosition = vec2.create();
   private viewBoxSize = vec2.create();
   private cursorPosition = vec2.create();
 
@@ -92,16 +92,10 @@ export class WebGl2Renderer implements IRenderer {
   public finishFrame() {
     this.calculateMatrices();
 
-    const viewBoxRadius = vec2.length(
-      vec2.scale(vec2.create(), this.viewBoxSize, 0.5)
-    );
-
-    this.distancePass.render(this.uniforms, this.cameraPosition, viewBoxRadius);
+    this.distancePass.render(this.uniforms);
 
     this.lightingPass.render(
       this.uniforms,
-      this.cameraPosition,
-      viewBoxRadius,
       this.distanceFieldFrameBuffer.colorTexture
     );
 
@@ -164,26 +158,21 @@ export class WebGl2Renderer implements IRenderer {
     );
   }
 
-  public setCameraPosition(position: vec2) {
-    this.cameraPosition = position;
-    this.viewBoxBottomLeft = vec2.fromValues(
-      this.cameraPosition.x - this.viewBoxSize.x / 2,
-      this.cameraPosition.y - this.viewBoxSize.y / 2
+  public get canvasSize(): vec2 {
+    return vec2.fromValues(this.canvas.clientWidth, this.canvas.clientHeight);
+  }
+
+  public setViewArea(viewArea: BoundingBoxBase) {
+    this.viewBoxSize = viewArea.size;
+    this.viewBoxBottomLeft = vec2.add(
+      vec2.create(),
+      viewArea.topLeft,
+      vec2.fromValues(0, -viewArea.size.y)
     );
   }
 
   public setCursorPosition(position: vec2): void {
     this.cursorPosition = position;
-  }
-
-  public setInViewArea(size: number): vec2 {
-    const canvasAspectRatio =
-      this.canvas.clientWidth / this.canvas.clientHeight;
-
-    return (this.viewBoxSize = vec2.fromValues(
-      Math.sqrt(size * canvasAspectRatio),
-      Math.sqrt(size / canvasAspectRatio)
-    ));
   }
 
   public drawInfoText(text: string) {

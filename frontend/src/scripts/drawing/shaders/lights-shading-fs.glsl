@@ -61,40 +61,41 @@ void main() {
 
     #if CIRCLE_LIGHT_COUNT > 0
         for (int i = 0; i < CIRCLE_LIGHT_COUNT; i++) {
-            float lightCenterDistance = distance(circleLights[i].center, worldCoordinates);
+            float lightCenterDistance = distance(
+                circleLights[i].center, 
+                worldCoordinates
+            );
+            float lightDistance = lightCenterDistance - circleLights[i].radius;
+
+            /*if (lightDistance < 0.0) {
+                lighting = vec3(1.0, 1.0, 0.0);
+            }*/
 
             vec3 lightColorAtPosition = circleLights[i].value / pow(
-                lightCenterDistance / LIGHT_DROP + 1.0, 2.0
+                lightDistance / LIGHT_DROP + 1.0, 2.0
             );
 
             float q = INFINITY;
             float rayLength = startingDistance;
-            float exponentialDecayDistance = rayLength;
             vec2 direction = normalize(circleLightDirections[i]) / viewBoxSize;
 
             for (int j = 0; j < 48; j++) {
-                if (rayLength > lightCenterDistance - circleLights[i].radius) {
-                    rayLength = lightCenterDistance - circleLights[i].radius;
-                    float minDistance = getDistance(uvCoordinates + direction * rayLength);
-                    exponentialDecayDistance = (exponentialDecayDistance + minDistance) / 2.0;
-                    q = min(q, minDistance / rayLength);
-
+                if (rayLength >= lightDistance) {
                     lighting += lightColorAtPosition * clamp(
-                        q / circleLights[i].radius * (lightCenterDistance + 1.0), 0.0, 1.0
+                        q / circleLights[i].radius * lightCenterDistance, 0.0, 1.0
                     );
                     break;
                 }
 
                 float minDistance = getDistance(uvCoordinates + direction * rayLength);
-                exponentialDecayDistance = (exponentialDecayDistance + minDistance) / 2.0;
-                q = min(q, exponentialDecayDistance / rayLength);
+                q = min(q, minDistance / rayLength);
                 rayLength += minDistance;
             }
         }
     #endif
 
     #if POINT_LIGHT_COUNT > 0
-        for (int i = 0; i < POINT_LIGHT_COUNT; i++) {
+        /*for (int i = 0; i < POINT_LIGHT_COUNT; i++) {
             float lightDistance = distance(pointLights[i].center, worldCoordinates);
 
             vec3 lightColorAtPosition = mix(
@@ -120,8 +121,11 @@ void main() {
                 q = min(q, exponentialDecayDistance);
                 rayLength += minDistance;
             }
-        }
+        }*/
     #endif
 
-    fragmentColor = vec4(colorAtPosition * lighting * step(0.0, startingDistance), 1.0);
+    fragmentColor = vec4(
+        colorAtPosition * lighting * step(0.0, startingDistance),
+        1.0
+    );
 }

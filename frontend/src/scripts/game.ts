@@ -8,21 +8,32 @@ import { MouseListener } from './input/mouse-listener';
 import { TouchListener } from './input/touch-listener';
 import { Objects } from './objects/objects';
 import { InfoText } from './objects/types/info-text';
-import { createCharacter } from './objects/world/create-character';
 import { createDungeon } from './objects/world/create-dungeon';
 import { RenderCommand } from './drawing/commands/render';
 import { Physics } from './physics/physics';
 import { TeleportToCommand } from './physics/commands/teleport-to';
 import { IRenderer } from './drawing/i-renderer';
 import { Random } from './helper/random';
+import { Camera } from './objects/types/camera';
+import { Character } from './objects/types/character';
+import { IGame } from './i-game';
+import { GameObject } from './objects/game-object';
+import { vec2 } from 'gl-matrix';
+import { BoundingBoxBase } from './shapes/bounding-box-base';
+import { MoveToCommand } from './physics/commands/move-to';
+import { BoundingBox } from './shapes/bounding-box';
 
-export class Game {
+export class Game implements IGame {
+  public readonly objects = new Objects();
+  public readonly physics = new Physics();
+  public readonly camera = new Camera();
+
   private previousTime?: DOMHighResTimeStamp = null;
-  private objects = new Objects();
-  private physics = new Physics();
-
-  private renderer: IRenderer;
   private previousFpsValues: Array<number> = [];
+
+  private infoText = new InfoText();
+  private character: Character;
+  private renderer: IRenderer;
 
   constructor() {
     const canvas: HTMLCanvasElement = document.querySelector('canvas#main');
@@ -52,13 +63,29 @@ export class Game {
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 
+  public addObject(o: GameObject) {
+    this.objects.addObject(o);
+  }
+
+  public get viewArea(): BoundingBoxBase {
+    return this.camera.viewArea;
+  }
+
+  public findIntersecting(box: BoundingBoxBase): Array<BoundingBoxBase> {
+    return this.physics.findIntersecting(box);
+  }
+
   private initializeScene() {
-    this.objects.addObject(new InfoText());
+    this.objects.addObject(this.infoText);
+
     const start = createDungeon(this.objects, this.physics);
     createDungeon(this.objects, this.physics);
-    const character = createCharacter(this.objects, this.physics);
-    console.log('start', start.from);
-    character.sendCommand(new TeleportToCommand(start.from));
+
+    this.character = new Character(this);
+    //this.physics.addDynamicBoundingBox(this.character.boundingBox);
+    this.addObject(this.character);
+    this.addObject(this.camera);
+    this.character.sendCommand(new TeleportToCommand(start.from));
   }
 
   private handleVisibilityChange() {
@@ -78,10 +105,23 @@ export class Game {
     this.calculateFps(deltaTime);
 
     this.objects.sendCommand(new StepCommand(deltaTime));
+    this.camera.sendCommand(new MoveToCommand(this.character.position));
 
     this.renderer.startFrame(deltaTime);
-    this.objects.sendCommand(new BeforeRenderCommand(this.renderer));
-    this.objects.sendCommand(new RenderCommand(this.renderer));
+
+    this.camera.sendCommand(new BeforeRenderCommand(this.renderer));
+
+    const shouldBeDrawn = this.physics
+      .findIntersecting(this.camera.viewArea)
+      .map((b) => b.shape?.gameObject);
+
+    for (let object of shouldBeDrawn) {
+      object?.sendCommand(new BeforeRenderCommand(this.renderer));
+      object?.sendCommand(new RenderCommand(this.renderer));
+    }
+
+    this.character.sendCommand(new RenderCommand(this.renderer));
+    this.infoText.sendCommand(new RenderCommand(this.renderer));
     this.renderer.finishFrame();
 
     window.requestAnimationFrame(this.gameLoop.bind(this));

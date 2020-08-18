@@ -1,6 +1,7 @@
 import { vec2 } from 'gl-matrix';
 import { ILight } from './drawables/lights/i-light';
 import { IDrawable } from './drawables/i-drawable';
+import { BoundingBoxBase } from '../shapes/bounding-box-base';
 
 export interface IRenderer {
   startFrame(deltaTime: DOMHighResTimeStamp): void;
@@ -10,7 +11,7 @@ export interface IRenderer {
   drawLight(light: ILight): void;
   drawInfoText(text: string): void;
 
-  setCameraPosition(position: vec2): void;
+  readonly canvasSize: vec2;
+  setViewArea(viewArea: BoundingBoxBase): void;
   setCursorPosition(position: vec2): void;
-  setInViewArea(size: number): vec2;
 }
