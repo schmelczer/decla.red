@@ -8,6 +8,7 @@ export class PointLight implements ILight {
     uniformName: 'pointLights',
     countMacroName: 'pointLightCount',
     shaderCombinationSteps: settings.shaderCombinations.pointLightSteps,
+    empty: new PointLight(vec2.fromValues(0, 0), 0, vec3.fromValues(0, 0, 0), 0),
   };
 
   public constructor(

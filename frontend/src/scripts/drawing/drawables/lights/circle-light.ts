@@ -8,6 +8,7 @@ export class CircleLight implements ILight {
     uniformName: 'circleLights',
     countMacroName: 'circleLightCount',
     shaderCombinationSteps: settings.shaderCombinations.circleLightSteps,
+    empty: new CircleLight(vec2.fromValues(0, 0), 0, vec3.fromValues(0, 0, 0), 0),
   };
 
   constructor(
@@ -17,7 +18,7 @@ export class CircleLight implements ILight {
     public lightness: number
   ) {}
 
-  public distance(target: vec2): number {
+  public distance(_: vec2): number {
     return 0;
   }
 

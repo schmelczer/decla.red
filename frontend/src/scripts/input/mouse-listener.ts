@@ -3,8 +3,8 @@ import { CommandGenerator } from '../commands/command-generator';
 import { clamp01 } from '../helper/clamp';
 import { CursorMoveCommand } from './commands/cursor-move-command';
 import { PrimaryActionCommand } from './commands/primary-action';
-import { SwipeCommand } from './commands/swipe';
 import { SecondaryActionCommand } from './commands/secondary-action';
+import { SwipeCommand } from './commands/swipe';
 import { ZoomCommand } from './commands/zoom';
 
 export class MouseListener extends CommandGenerator {
@@ -39,11 +39,11 @@ export class MouseListener extends CommandGenerator {
       this.sendCommand(new CursorMoveCommand(position));
     });
 
-    target.addEventListener('mouseup', (event: MouseEvent) => {
+    target.addEventListener('mouseup', (_: MouseEvent) => {
       this.isMouseDown = false;
     });
 
-    target.addEventListener('mouseleave', (event: MouseEvent) => {
+    target.addEventListener('mouseleave', (_: MouseEvent) => {
       this.isMouseDown = false;
     });
 

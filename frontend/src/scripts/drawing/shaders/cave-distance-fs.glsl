@@ -69,18 +69,18 @@ uniform float maxMinDistance;
     }
 #endif
 
-in vec2 worldCoordinates;
+in vec2 position;
 out vec2 fragmentColor;
 
 void main() {
     float minDistance = -maxMinDistance;
 
     #if LINE_COUNT > 0
-        lineMinDistance(worldCoordinates, minDistance);
+        lineMinDistance(position, minDistance);
     #endif
 
     #if BLOB_COUNT > 0
-        blobMinDistance(worldCoordinates, minDistance);
+        //blobMinDistance(position, minDistance);
     #endif
 
     fragmentColor = vec2(minDistance, 0.0);

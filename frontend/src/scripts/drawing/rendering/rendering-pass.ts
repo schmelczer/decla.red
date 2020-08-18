@@ -28,7 +28,12 @@ export class RenderingPass {
     this.drawables.push(drawable);
   }
 
-  public render(commonUniforms: any, inputTexture?: WebGLTexture) {
+  public render(
+    commonUniforms: any,
+    scale: number,
+    transform: mat2d,
+    inputTexture?: WebGLTexture
+  ) {
     this.frame.bindAndClear(inputTexture);
     const q = 1 / settings.tileMultiplier;
     const tileUvSize = vec2.fromValues(q, q);
@@ -51,13 +56,10 @@ export class RenderingPass {
 
     let sumLineCount = 0;
 
-    const scale = 1;
-    const transform = mat2d.create();
-
     for (let x = 0; x < 1; x += q) {
       for (let y = 0; y < 1; y += q) {
         const uniforms = { ...commonUniforms };
-        uniforms.maxMinDistance = 2 * worldR;
+        uniforms.maxMinDistance = 2 * worldR * scale;
 
         const uvBottomLeft = vec2.fromValues(x, y);
         this.program.setDrawingRectangle(uvBottomLeft, tileUvSize);
@@ -69,7 +71,7 @@ export class RenderingPass {
         );
 
         const primitivesNearTile = this.drawables.filter(
-          (p) => p.distance(tileCenterWorldCoordinates) < 2 * worldR
+          (d) => d.distance(tileCenterWorldCoordinates) < 2 * worldR
         );
 
         sumLineCount += primitivesNearTile.length;

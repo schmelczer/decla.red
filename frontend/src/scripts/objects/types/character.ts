@@ -15,11 +15,8 @@ import { Lamp } from './lamp';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();
-
   private light = new Lamp(vec2.create(), 40, vec3.fromValues(0.67, 0.0, 0.33), 2);
-
   private shape = new DrawableBlob(vec2.create());
-
   private static speed = 1.5;
 
   constructor(private game: IGame) {

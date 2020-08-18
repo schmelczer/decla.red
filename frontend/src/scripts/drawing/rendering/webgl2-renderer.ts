@@ -6,7 +6,6 @@ import { IDrawable } from '../drawables/i-drawable';
 import { CircleLight } from '../drawables/lights/circle-light';
 import { ILight } from '../drawables/lights/i-light';
 import { PointLight } from '../drawables/lights/point-light';
-// import lightsShader from '../shaders/rainbow-shading-fs.glsl';
 import { DefaultFrameBuffer } from '../graphics-library/frame-buffer/default-frame-buffer';
 import { IntermediateFrameBuffer } from '../graphics-library/frame-buffer/intermediate-frame-buffer';
 import { getWebGl2Context } from '../graphics-library/helper/get-webgl2-context';
@@ -21,32 +20,28 @@ import { RenderingPass } from './rendering-pass';
 
 export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
-
   private stopwatch?: WebGlStopwatch;
 
+  private upscaleTransform = mat2d.create();
+  private linearDownscale = 1;
+
   private viewBoxBottomLeft = vec2.create();
-
   private viewBoxSize = vec2.create();
-
+  private viewAreaScale: vec2;
   private cursorPosition = vec2.create();
 
   private distanceFieldFrameBuffer: IntermediateFrameBuffer;
-
   private lightingFrameBuffer: DefaultFrameBuffer;
-
   private distancePass: RenderingPass;
-
   private lightingPass: RenderingPass;
-
   private autoscaler: FpsAutoscaler;
 
   private matrices: {
     distanceScreenToWorld?: mat2d;
     worldToDistanceUV?: mat2d;
     cursorPosition?: mat2d;
-    ndcToUv?: mat2d;
     uvToWorld?: mat2d;
-  } = { ndcToUv: mat2d.fromValues(0.5, 0, 0, 0.5, 0.5, 0.5) };
+  } = {};
 
   constructor(private canvas: HTMLCanvasElement, private overlay: HTMLElement) {
     this.gl = getWebGl2Context(canvas);
@@ -92,6 +87,7 @@ export class WebGl2Renderer implements IRenderer {
     this.autoscaler.autoscale(deltaTime);
 
     this.stopwatch?.start();
+
     this.distanceFieldFrameBuffer.setSize();
     this.lightingFrameBuffer.setSize();
   }
@@ -99,16 +95,24 @@ export class WebGl2Renderer implements IRenderer {
   public finishFrame() {
     this.calculateMatrices();
 
-    this.distancePass.render(this.uniforms);
-
-    this.lightingPass.render(this.uniforms, this.distanceFieldFrameBuffer.colorTexture);
+    this.distancePass.render(this.uniforms, this.linearDownscale, this.upscaleTransform);
+    this.lightingPass.render(
+      this.uniforms,
+      this.linearDownscale,
+      this.upscaleTransform,
+      this.distanceFieldFrameBuffer.colorTexture
+    );
 
     this.stopwatch?.stop();
   }
 
   private get uniforms(): any {
     const cursorPosition = this.screenUvToWorldCoordinate(this.cursorPosition);
-    return { ...this.matrices, cursorPosition, viewBoxSize: this.viewBoxSize };
+    return {
+      ...this.matrices,
+      cursorPosition,
+      viewAreaScale: this.viewAreaScale,
+    };
   }
 
   private calculateMatrices() {
@@ -157,12 +161,31 @@ export class WebGl2Renderer implements IRenderer {
   }
 
   public setViewArea(viewArea: BoundingBoxBase) {
+    const targetRange = 2 ** 7;
+
     this.viewBoxSize = viewArea.size;
     this.viewBoxBottomLeft = vec2.add(
       vec2.create(),
       viewArea.topLeft,
       vec2.fromValues(0, -viewArea.size.y)
     );
+
+    this.linearDownscale = targetRange / Math.max(this.viewBoxSize.x, this.viewBoxSize.y);
+
+    this.viewAreaScale = vec2.fromValues(
+      (this.viewBoxSize.x * this.linearDownscale) / 2,
+      (this.viewBoxSize.y * this.linearDownscale) / 2
+    );
+
+    mat2d.fromScaling(
+      this.upscaleTransform,
+      vec2.fromValues(this.linearDownscale, this.linearDownscale)
+    );
+
+    const translate = vec2.scale(vec2.create(), this.viewBoxBottomLeft, -1);
+    vec2.subtract(translate, translate, vec2.scale(vec2.create(), this.viewBoxSize, 0.5));
+
+    mat2d.translate(this.upscaleTransform, this.upscaleTransform, translate);
   }
 
   public setCursorPosition(position: vec2): void {

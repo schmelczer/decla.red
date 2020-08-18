@@ -22,10 +22,9 @@ export const settings = {
   },
   tileMultiplier: 8,
   shaderMacros: {
-    edgeSmoothing: 10,
-    headRadius: 5,
-    torsoRadius: 8,
-    footRadius: 2,
+    headRadius: 0.05,
+    torsoRadius: 0.08,
+    footRadius: 0.02,
   },
   shaderCombinations: {
     lineSteps: [0, 1, 2, 4, 8, 16, 128],

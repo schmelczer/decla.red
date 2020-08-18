@@ -6,14 +6,12 @@ precision mediump float;
 #define POINT_LIGHT_COUNT {pointLightCount}
 
 uniform mat3 modelTransform;
-uniform mat3 cameraTransform;
-uniform mat3 ndcToUv;
-uniform mat3 uvToWorld;
-
 in vec4 vertexPosition;
 
-out vec2 worldCoordinates;
+out vec2 position;
 out vec2 uvCoordinates;
+
+uniform vec2 viewAreaScale;
 
 #if CIRCLE_LIGHT_COUNT > 0
     uniform struct CircleLight {
@@ -37,21 +35,24 @@ out vec2 uvCoordinates;
 
 void main() {
     vec3 vertexPosition2D = vec3(vertexPosition.xy, 1.0) * modelTransform;
-    vec3 uvCoordinates1 = vertexPosition2D * ndcToUv;
-    worldCoordinates = (uvCoordinates1 * uvToWorld).xy;
-    uvCoordinates = (uvCoordinates1).xy;
+    gl_Position = vec4(vertexPosition2D.xy, 0.0, 1.0);
+    position = vertexPosition2D.xy * viewAreaScale;
+
+    uvCoordinates = (vertexPosition2D * mat3(
+        0.5, 0.0, 0.5,
+        0.0, 0.5, 0.5,
+        0.0, 0.0, 1.0
+    )).xy;
 
     #if CIRCLE_LIGHT_COUNT > 0
         for (int i = 0; i < CIRCLE_LIGHT_COUNT; i++) {
-            circleLightDirections[i] = circleLights[i].center - worldCoordinates;
+            circleLightDirections[i] = circleLights[i].center - position;
         }
     #endif
 
     #if POINT_LIGHT_COUNT > 0
         for (int i = 0; i < POINT_LIGHT_COUNT; i++) {
-            pointLightDirections[i] = pointLights[i].center - worldCoordinates;
+            pointLightDirections[i] = pointLights[i].center - position;
         }
     #endif
-
-    gl_Position = vec4(vertexPosition2D.xy, 0.0, 1.0);
 }

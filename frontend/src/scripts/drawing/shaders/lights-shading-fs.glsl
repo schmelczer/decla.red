@@ -3,15 +3,13 @@
 precision mediump float;
 
 #define INFINITY 1000.0
-#define LIGHT_DROP 500.0
+#define LIGHT_DROP 50.0
 #define AMBIENT_LIGHT vec3(0.15)
 
 #define CIRCLE_LIGHT_COUNT {circleLightCount}
 #define POINT_LIGHT_COUNT {pointLightCount}
-#define EDGE_SMOOTHING {edgeSmoothing}
 
 uniform sampler2D distanceTexture;
-uniform vec2 viewBoxSize;
 
 vec3[4] colors = vec3[4](
     vec3(0.5),
@@ -50,8 +48,10 @@ float getDistance(in vec2 target) {
     in vec2[POINT_LIGHT_COUNT] pointLightDirections;
 #endif
 
-in vec2 worldCoordinates;
+in vec2 position;
 in vec2 uvCoordinates;
+uniform vec2 viewAreaScale;
+
 out vec4 fragmentColor;
 
 void main() {
@@ -63,13 +63,13 @@ void main() {
         for (int i = 0; i < CIRCLE_LIGHT_COUNT; i++) {
             float lightCenterDistance = distance(
                 circleLights[i].center, 
-                worldCoordinates
+                position
             );
             float lightDistance = lightCenterDistance - circleLights[i].radius;
 
-            /*if (lightDistance < 0.0) {
+            if (lightDistance < 0.0) {
                 lighting = vec3(1.0, 1.0, 0.0);
-            }*/
+            }
 
             vec3 lightColorAtPosition = circleLights[i].value / pow(
                 lightDistance / LIGHT_DROP + 1.0, 2.0
@@ -77,8 +77,7 @@ void main() {
 
             float q = INFINITY;
             float rayLength = startingDistance;
-            vec2 direction = normalize(circleLightDirections[i]) / viewBoxSize;
-
+            vec2 direction = normalize(circleLightDirections[i]) / viewAreaScale / 2.0;
             for (int j = 0; j < 48; j++) {
                 if (rayLength >= lightDistance) {
                     lighting += lightColorAtPosition * clamp(
@@ -124,6 +123,7 @@ void main() {
         }*/
     #endif
 
+    fragmentColor = vec4(vec3(startingDistance / 100.0), 1.0);
     fragmentColor = vec4(
         colorAtPosition * lighting * step(0.0, startingDistance),
         1.0

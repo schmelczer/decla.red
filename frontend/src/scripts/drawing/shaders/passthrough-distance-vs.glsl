@@ -3,14 +3,13 @@
 precision mediump float;
 
 uniform mat3 modelTransform;
-uniform mat3 uvToWorld;
-uniform mat3 ndcToUv;
+uniform vec2 viewAreaScale;
 
 in vec4 vertexPosition;
-out vec2 worldCoordinates;
+out vec2 position;
 
 void main() {
     vec3 vertexPosition2D = vec3(vertexPosition.xy, 1.0) * modelTransform;
-    worldCoordinates = (vertexPosition2D * ndcToUv * uvToWorld).xy;
     gl_Position = vec4(vertexPosition2D.xy, 0.0, 1.0);
+    position = vertexPosition2D.xy * viewAreaScale;
 }

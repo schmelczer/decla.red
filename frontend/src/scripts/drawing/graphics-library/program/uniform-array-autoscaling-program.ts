@@ -1,4 +1,4 @@
-import { vec2 } from 'gl-matrix';
+import { mat2d, vec2 } from 'gl-matrix';
 import { getCombinations } from '../../../helper/get-combinations';
 import { last } from '../../../helper/last';
 import { IDrawableDescriptor } from '../../drawables/i-drawable-descriptor';
@@ -12,32 +12,39 @@ export class UniformArrayAutoScalingProgram implements IProgram {
   }> = [];
 
   private current: FragmentShaderOnlyProgram;
-
   private drawingRectangleTopLeft = vec2.fromValues(0, 0);
-
   private drawingRectangleSize = vec2.fromValues(1, 1);
 
   constructor(
     private gl: WebGL2RenderingContext,
     shaderSources: [string, string],
-    private options: Array<IDrawableDescriptor>
+    private descriptors: Array<IDrawableDescriptor>
   ) {
-    const names = options.map((o) => o.countMacroName);
+    const names = descriptors.map((o) => o.countMacroName);
     for (const combination of getCombinations(
-      options.map((o) => o.shaderCombinationSteps)
+      descriptors.map((o) => o.shaderCombinationSteps)
     )) {
       this.createProgram(names, combination, shaderSources);
     }
   }
 
   public bindAndSetUniforms(uniforms: { [name: string]: any }): void {
-    const values = this.options.map((o) =>
-      uniforms[o.uniformName] ? uniforms[o.uniformName].length : 0
+    const values = this.descriptors.map((d) =>
+      uniforms[d.uniformName] ? uniforms[d.uniformName].length : 0
     );
 
     const closest = this.programs.find((p) => p.values.every((v, i) => v >= values[i]));
 
     this.current = closest ? closest.program : last(this.programs).program;
+
+    if (closest) {
+      this.descriptors.map((d, i) => {
+        const difference = closest.values[i] - values[i];
+        for (let i = 0; i < difference; i++) {
+          d.empty.serializeToUniforms(uniforms, 0, mat2d.create());
+        }
+      });
+    }
 
     this.current.setDrawingRectangle(
       this.drawingRectangleTopLeft,

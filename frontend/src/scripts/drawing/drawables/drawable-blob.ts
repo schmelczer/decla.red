@@ -9,6 +9,7 @@ export class DrawableBlob extends Blob implements IDrawable {
     uniformName: 'blobs',
     countMacroName: 'blobCount',
     shaderCombinationSteps: settings.shaderCombinations.blobSteps,
+    empty: new DrawableBlob(vec2.fromValues(0, 0)),
   };
 
   public serializeToUniforms(uniforms: any, scale: number, transform: mat2d): void {
