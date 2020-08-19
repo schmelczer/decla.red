@@ -7,13 +7,14 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 const Sass = require('sass');
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV == 'production';
 const isDevelopment = !isProduction;
 
 module.exports = {
   watchOptions: {
     ignored: /node_modules/,
   },
+  devtool: 'inline-source-map',
   devServer: {
     host: '0.0.0.0',
     disableHostCheck: true,
@@ -24,6 +25,7 @@ module.exports = {
       new TerserJSPlugin({
         sourceMap: isDevelopment,
         cache: true,
+        test: /\.ts$/i,
         terserOptions: {
           ecma: 5,
           warnings: true,
