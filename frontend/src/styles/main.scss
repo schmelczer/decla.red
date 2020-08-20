@@ -1,6 +1,6 @@
 html,
 body,
-canvas {
+canvas#main {
   height: 100%;
   width: 100%;
 }
@@ -19,8 +19,7 @@ body {
     right: 0;
     $outline-width: 0.5px;
     text-shadow: -$outline-width -$outline-width 0 #000,
-      $outline-width -$outline-width 0 #000,
-      -$outline-width $outline-width 0 #000,
+      $outline-width -$outline-width 0 #000, -$outline-width $outline-width 0 #000,
       $outline-width $outline-width 0 #000;
     color: white;
     white-space: pre;

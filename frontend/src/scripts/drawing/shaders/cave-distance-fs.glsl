@@ -5,21 +5,23 @@ precision mediump float;
 #define LINE_COUNT {lineCount}
 #define BLOB_COUNT {blobCount}
  
-uniform float maxMinDistance; 
+uniform float maxMinDistance;
+
+in vec2 position;
+
 
 #if LINE_COUNT > 0
-    uniform struct Line {
+    uniform struct {
         vec2 from;
         vec2 toFromDelta;
         float fromRadius;
         float toRadius;
     }[LINE_COUNT] lines;
 
-    void lineMinDistance(vec2 worldCoordinates, inout float minDistance) {
-        minDistance = maxMinDistance;
-
+    void lineMinDistance(inout float minDistance, inout float color) {
+        float myMinDistance = 10.0;
         for (int i = 0; i < LINE_COUNT; i++) {
-            vec2 targetFromDelta = worldCoordinates - lines[i].from;
+            vec2 targetFromDelta = position - lines[i].from;
             vec2 toFromDelta = lines[i].toFromDelta;
             
             float h = clamp(
@@ -27,61 +29,64 @@ uniform float maxMinDistance;
                 0.0, 1.0
             );
 
-            float lineDistance = (
-                    distance(targetFromDelta, toFromDelta * h) 
-                - mix(lines[i].fromRadius, lines[i].toRadius, h)
+            float lineDistance = -mix(
+                lines[i].fromRadius, lines[i].toRadius, h
+            ) + distance(
+                targetFromDelta, toFromDelta * h
             );
 
-            minDistance = min(minDistance, lineDistance);
+            color = mix(1.0, color, step(0.0, lineDistance));
+            myMinDistance = min(myMinDistance, lineDistance);
         }
 
-        minDistance *= -1.0;
+        minDistance = -myMinDistance;
     }
 #endif
 
 #if BLOB_COUNT > 0
-    #define headRadius {headRadius}
-    #define torsoRadius {torsoRadius}
-    #define footRadius {footRadius}
-
-    uniform struct Blob {
+    uniform struct {
         vec2 headCenter;
         vec2 torsoCenter;
         vec2 leftFootCenter;
         vec2 rightFootCenter;
+        float headRadius;
+        float torsoRadius;
+        float footRadius;
+        float k;
     }[BLOB_COUNT] blobs;
 
-    float circleMinDistance(vec2 worldCoordinates, vec2 circleCenter, float radius) {
-        return distance(worldCoordinates, circleCenter) - radius;
+    float circleMinDistance(vec2 circleCenter, float radius) {
+        return distance(position, circleCenter) - radius;
     }
 
-    void blobMinDistance(vec2 worldCoordinates, inout float minDistance) {
-        float k = 1.0;
-
+    void blobMinDistance(inout float minDistance, inout float color) {
         for (int i = 0; i < BLOB_COUNT; i++) {
-            float res = exp2(-k * circleMinDistance(worldCoordinates, blobs[i].headCenter, headRadius));
-            res += exp2(-k * circleMinDistance(worldCoordinates, blobs[i].torsoCenter, torsoRadius));
-            res += exp2(-k * circleMinDistance(worldCoordinates, blobs[i].leftFootCenter, footRadius));
-            res += exp2(-k * circleMinDistance(worldCoordinates, blobs[i].rightFootCenter, footRadius));
+            float res = exp2(-blobs[i].k * circleMinDistance(blobs[i].headCenter, blobs[i].headRadius));
+            res += exp2(-blobs[i].k * circleMinDistance(blobs[i].torsoCenter, blobs[i].torsoRadius));
+            res += exp2(-blobs[i].k * circleMinDistance(blobs[i].leftFootCenter, blobs[i].footRadius));
+            res += exp2(-blobs[i].k * circleMinDistance(blobs[i].rightFootCenter, blobs[i].footRadius));
+            res = -log2(res) / blobs[i].k;
 
-            minDistance = min(minDistance, -log2(res) / k);
+            color = mix(2.0, color, step(0.0, res));
+            
+            minDistance = min(minDistance, res);
         }
     }
 #endif
 
-in vec2 position;
 out vec2 fragmentColor;
 
 void main() {
-    float minDistance = -maxMinDistance;
+    float minDistance = -10.0;
+    float color = 0.0;
 
     #if LINE_COUNT > 0
-        lineMinDistance(position, minDistance);
+        lineMinDistance(minDistance, color);
     #endif
 
     #if BLOB_COUNT > 0
-        //blobMinDistance(position, minDistance);
+        blobMinDistance(minDistance, color);
     #endif
 
-    fragmentColor = vec2(minDistance, 0.0);
+    fragmentColor = vec2(minDistance, color);
 }

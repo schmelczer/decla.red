@@ -8,12 +8,13 @@ export class CircleLight implements ILight {
     uniformName: 'circleLights',
     countMacroName: 'circleLightCount',
     shaderCombinationSteps: settings.shaderCombinations.circleLightSteps,
-    empty: new CircleLight(vec2.fromValues(0, 0), 0, vec3.fromValues(0, 0, 0), 0),
+    empty: new CircleLight(vec2.fromValues(0, 0), 0, 0, vec3.fromValues(0, 0, 0), 0),
   };
 
   constructor(
     public center: vec2,
     public radius: number,
+    public traceRadius: number,
     public color: vec3,
     public lightness: number
   ) {}
@@ -32,6 +33,7 @@ export class CircleLight implements ILight {
     uniforms[uniformName].push({
       center: vec2.transformMat2d(vec2.create(), this.center, transform),
       radius: this.radius * scale,
+      traceRadius: this.traceRadius * scale,
       value: this.value,
     });
   }

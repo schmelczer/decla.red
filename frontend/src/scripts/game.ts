@@ -3,7 +3,6 @@ import { BeforeRenderCommand } from './drawing/commands/before-render';
 import { RenderCommand } from './drawing/commands/render';
 import { IRenderer } from './drawing/i-renderer';
 import { WebGl2Renderer } from './drawing/rendering/webgl2-renderer';
-import { Random } from './helper/random';
 import { timeIt } from './helper/timing';
 import { IGame } from './i-game';
 import { KeyboardListener } from './input/keyboard-listener';
@@ -23,26 +22,17 @@ import { BoundingBoxBase } from './shapes/bounding-box-base';
 
 export class Game implements IGame {
   public readonly objects = new Objects();
-
   public readonly physics = new Physics();
-
   public readonly camera = new Camera();
-
   private previousTime?: DOMHighResTimeStamp = null;
-
   private previousFpsValues: Array<number> = [];
-
   private infoText = new InfoText();
-
   private character: Character;
-
   private renderer: IRenderer;
 
   constructor() {
     const canvas: HTMLCanvasElement = document.querySelector('canvas#main');
     const overlay: HTMLElement = document.querySelector('#overlay');
-
-    Random.seed = 42;
 
     document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
 
@@ -85,7 +75,9 @@ export class Game implements IGame {
     // this.physics.addDynamicBoundingBox(this.character.boundingBox);
     this.addObject(this.character);
     this.addObject(this.camera);
-    this.character.sendCommand(new TeleportToCommand(start.from));
+    let pos: any = localStorage.getItem('character-position');
+    pos = pos ? JSON.parse(pos) : start.from;
+    this.character.sendCommand(new TeleportToCommand(pos));
   }
 
   private handleVisibilityChange() {
@@ -124,6 +116,7 @@ export class Game implements IGame {
     this.infoText.sendCommand(new RenderCommand(this.renderer));
     this.renderer.finishFrame();
 
+    localStorage.setItem('character-position', JSON.stringify(this.character.position));
     window.requestAnimationFrame(this.gameLoop.bind(this));
   }
 

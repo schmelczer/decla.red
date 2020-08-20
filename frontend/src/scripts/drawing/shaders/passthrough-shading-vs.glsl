@@ -14,9 +14,10 @@ out vec2 uvCoordinates;
 uniform vec2 viewAreaScale;
 
 #if CIRCLE_LIGHT_COUNT > 0
-    uniform struct CircleLight {
+    uniform struct {
         vec2 center;
         float radius;
+        float traceRadius;
         vec3 value;
     }[CIRCLE_LIGHT_COUNT] circleLights;
 
@@ -24,7 +25,7 @@ uniform vec2 viewAreaScale;
 #endif
 
 #if POINT_LIGHT_COUNT > 0
-    uniform struct PointLight {
+    uniform struct {
         vec2 center;
         float radius;
         vec3 value;

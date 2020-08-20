@@ -17,7 +17,6 @@ export class DrawableBlob extends Blob implements IDrawable {
     if (!Object.prototype.hasOwnProperty.call(uniforms, uniformName)) {
       uniforms[uniformName] = [];
     }
-
     uniforms[uniformName].push({
       headCenter: vec2.transformMat2d(vec2.create(), this.head.center, transform),
       torsoCenter: vec2.transformMat2d(vec2.create(), this.torso.center, transform),
@@ -27,6 +26,10 @@ export class DrawableBlob extends Blob implements IDrawable {
         this.rightFoot.center,
         transform
       ),
+      headRadius: this.headRadius * scale,
+      torsoRadius: this.torsoRadius * scale,
+      footRadius: this.footRadius * scale,
+      k: this.k * scale,
     });
   }
 }

@@ -1,28 +1,33 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { RenderCommand } from '../../drawing/commands/render';
 import { DrawableBlob } from '../../drawing/drawables/drawable-blob';
+import { CircleLight } from '../../drawing/drawables/lights/circle-light';
 import { IGame } from '../../i-game';
 import { KeyDownCommand } from '../../input/commands/key-down';
 import { KeyUpCommand } from '../../input/commands/key-up';
 import { SwipeCommand } from '../../input/commands/swipe';
-import { MoveToCommand } from '../../physics/commands/move-to';
 import { StepCommand } from '../../physics/commands/step';
 import { TeleportToCommand } from '../../physics/commands/teleport-to';
 import { IShape } from '../../shapes/i-shape';
 import { Blob } from '../../shapes/types/blob';
 import { GameObject } from '../game-object';
-import { Lamp } from './lamp';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();
-  private light = new Lamp(vec2.create(), 40, vec3.fromValues(0.67, 0.0, 0.33), 2);
+  private light: CircleLight;
   private shape = new DrawableBlob(vec2.create());
-  private static speed = 1.5;
+  private static speed = 4.5;
 
   constructor(private game: IGame) {
     super();
 
-    game.addObject(this.light);
+    this.light = new CircleLight(
+      vec2.create(),
+      40,
+      this.shape.boundingCircleRadius * 2,
+      vec3.fromValues(0.67, 0.0, 0.33),
+      2
+    );
 
     this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
@@ -40,7 +45,7 @@ export class Character extends GameObject {
 
   private draw(c: RenderCommand) {
     c.renderer.drawShape(this.shape);
-    this.light.sendCommand(c);
+    c.renderer.drawLight(this.light);
   }
 
   private tryMoving(delta: vec2, isFirstIteration = true) {
@@ -102,15 +107,15 @@ export class Character extends GameObject {
       .filter((b) => b.shape)
       .map((b) => ({
         shape: b.shape,
-        distance: b.shape.distance(shape.center) + shape.radius,
+        // TODO: fix this
+        distance: b.shape.distance(shape.center) + shape.radius - 20,
       }))
       .sort((e) => e.distance);
   }
 
   private setPosition(value: vec2) {
     this.shape.position = value;
-    vec2.add(value, value, vec2.fromValues(80, 0));
-    this.light.sendCommand(new MoveToCommand(value));
+    this.light.center = value;
   }
 
   public stepHandler(c: StepCommand) {

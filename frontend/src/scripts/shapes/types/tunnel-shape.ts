@@ -1,10 +1,10 @@
 import { vec2 } from 'gl-matrix';
-import { BoundingBox } from '../bounding-box';
 import { clamp01 } from '../../helper/clamp';
 import { mix } from '../../helper/mix';
-import { IShape } from '../i-shape';
 import { rotate90Deg } from '../../helper/rotate-90-deg';
 import { GameObject } from '../../objects/game-object';
+import { BoundingBox } from '../bounding-box';
+import { IShape } from '../i-shape';
 
 export default class TunnelShape implements IShape {
   public readonly isInverted = true;

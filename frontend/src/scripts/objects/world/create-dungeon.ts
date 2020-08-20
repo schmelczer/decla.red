@@ -1,8 +1,8 @@
 import { vec2 } from 'gl-matrix';
+import { Random } from '../../helper/random';
 import { Physics } from '../../physics/physics';
 import { Objects } from '../objects';
 import { Tunnel } from '../types/tunnel';
-import { Random } from '../../helper/random';
 
 export const createDungeon = (objects: Objects, physics: Physics): Tunnel => {
   let previousRadius = 350;
@@ -10,7 +10,7 @@ export const createDungeon = (objects: Objects, physics: Physics): Tunnel => {
 
   let first: Tunnel;
 
-  for (let i = 0; i < 50000; i += 500) {
+  for (let i = 0; i < 500000; i += 500) {
     const deltaHeight = (Random.getRandom() - 0.5) * 2000;
     const height = previousEnd.y + deltaHeight;
     const currentEnd = vec2.fromValues(i, height);

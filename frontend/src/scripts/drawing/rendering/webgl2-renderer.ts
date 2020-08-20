@@ -23,7 +23,7 @@ export class WebGl2Renderer implements IRenderer {
   private stopwatch?: WebGlStopwatch;
 
   private upscaleTransform = mat2d.create();
-  private linearDownscale = 1;
+  private linearUpscale = 1;
 
   private viewBoxBottomLeft = vec2.create();
   private viewBoxSize = vec2.create();
@@ -95,10 +95,10 @@ export class WebGl2Renderer implements IRenderer {
   public finishFrame() {
     this.calculateMatrices();
 
-    this.distancePass.render(this.uniforms, this.linearDownscale, this.upscaleTransform);
+    this.distancePass.render(this.uniforms, this.linearUpscale, this.upscaleTransform);
     this.lightingPass.render(
       this.uniforms,
-      this.linearDownscale,
+      this.linearUpscale,
       this.upscaleTransform,
       this.distanceFieldFrameBuffer.colorTexture
     );
@@ -161,7 +161,7 @@ export class WebGl2Renderer implements IRenderer {
   }
 
   public setViewArea(viewArea: BoundingBoxBase) {
-    const targetRange = 2 ** 7;
+    const targetRange = 2;
 
     this.viewBoxSize = viewArea.size;
     this.viewBoxBottomLeft = vec2.add(
@@ -170,16 +170,16 @@ export class WebGl2Renderer implements IRenderer {
       vec2.fromValues(0, -viewArea.size.y)
     );
 
-    this.linearDownscale = targetRange / Math.max(this.viewBoxSize.x, this.viewBoxSize.y);
+    this.linearUpscale = targetRange / Math.max(this.viewBoxSize.x, this.viewBoxSize.y);
 
     this.viewAreaScale = vec2.fromValues(
-      (this.viewBoxSize.x * this.linearDownscale) / 2,
-      (this.viewBoxSize.y * this.linearDownscale) / 2
+      (this.viewBoxSize.x * this.linearUpscale) / 2,
+      (this.viewBoxSize.y * this.linearUpscale) / 2
     );
 
     mat2d.fromScaling(
       this.upscaleTransform,
-      vec2.fromValues(this.linearDownscale, this.linearDownscale)
+      vec2.fromValues(this.linearUpscale, this.linearUpscale)
     );
 
     const translate = vec2.scale(vec2.create(), this.viewBoxBottomLeft, -1);
