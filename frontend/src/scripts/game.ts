@@ -29,6 +29,7 @@ export class Game implements IGame {
   private infoText = new InfoText();
   private character: Character;
   private renderer: IRenderer;
+  private initializeRendererPromise: Promise<void>;
 
   constructor() {
     const canvas: HTMLCanvasElement = document.querySelector('canvas#main');
@@ -46,10 +47,13 @@ export class Game implements IGame {
     );
 
     this.renderer = new WebGl2Renderer(canvas, overlay);
-
+    this.initializeRendererPromise = this.renderer.initialize();
     this.initializeScene();
     this.physics.start();
+  }
 
+  public async start(): Promise<void> {
+    await this.initializeRendererPromise;
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 

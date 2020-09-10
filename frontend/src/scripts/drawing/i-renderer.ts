@@ -4,6 +4,8 @@ import { IDrawable } from './drawables/i-drawable';
 import { ILight } from './drawables/lights/i-light';
 
 export interface IRenderer {
+  initialize(): Promise<void>;
+
   startFrame(deltaTime: DOMHighResTimeStamp): void;
   finishFrame(): void;
 

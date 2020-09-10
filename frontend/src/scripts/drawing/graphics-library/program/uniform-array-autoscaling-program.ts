@@ -28,6 +28,10 @@ export class UniformArrayAutoScalingProgram implements IProgram {
     }
   }
 
+  public async initialize(): Promise<void> {
+    await Promise.all(this.programs.map((p) => p.program.initialize()));
+  }
+
   public bindAndSetUniforms(uniforms: { [name: string]: any }): void {
     const values = this.descriptors.map((d) =>
       uniforms[d.uniformName] ? uniforms[d.uniformName].length : 0

@@ -36,6 +36,8 @@ export class WebGl2Renderer implements IRenderer {
   private lightingPass: RenderingPass;
   private autoscaler: FpsAutoscaler;
 
+  private initializePromise: Promise<[void, void]> = null;
+
   private matrices: {
     distanceScreenToWorld?: mat2d;
     worldToDistanceUV?: mat2d;
@@ -63,6 +65,11 @@ export class WebGl2Renderer implements IRenderer {
       this.lightingFrameBuffer
     );
 
+    this.initializePromise = Promise.all([
+      this.distancePass.initialize(),
+      this.lightingPass.initialize(),
+    ]);
+
     this.autoscaler = new FpsAutoscaler([
       this.lightingFrameBuffer,
       this.distanceFieldFrameBuffer,
@@ -73,6 +80,10 @@ export class WebGl2Renderer implements IRenderer {
     } catch {
       // no problem
     }
+  }
+
+  public async initialize(): Promise<void> {
+    await this.initializePromise;
   }
 
   public drawShape(shape: IDrawable) {

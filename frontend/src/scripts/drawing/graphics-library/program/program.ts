@@ -1,17 +1,14 @@
 import { mat2d, vec2 } from 'gl-matrix';
-import { createShader } from '../helper/create-shader';
+import { settings } from '../../settings';
+import { createProgram } from '../compiling/create-program';
 import { loadUniform } from '../helper/load-uniform';
 import { IProgram } from './i-program';
 
 export default abstract class Program implements IProgram {
   protected program: WebGLProgram;
-
-  private shaders: Array<WebGLShader> = [];
-
+  private programPromise: Promise<WebGLProgram>;
   private modelTransform = mat2d.identity(mat2d.create());
-
   private readonly ndcToUv: mat2d;
-
   private uniforms: Array<{
     name: Array<string>;
     location: WebGLUniformLocation;
@@ -23,11 +20,22 @@ export default abstract class Program implements IProgram {
     [vertexShaderSource, fragmentShaderSource]: [string, string],
     substitutions: { [name: string]: string }
   ) {
-    this.createProgram(vertexShaderSource, fragmentShaderSource, substitutions);
-    this.queryUniforms();
+    substitutions = { ...settings.shaderMacros, ...substitutions };
+
+    this.programPromise = createProgram(
+      this.gl,
+      vertexShaderSource,
+      fragmentShaderSource,
+      substitutions
+    );
 
     this.ndcToUv = mat2d.fromScaling(mat2d.create(), vec2.fromValues(0.5, 0.5));
     mat2d.translate(this.ndcToUv, this.ndcToUv, vec2.fromValues(1, 1));
+  }
+
+  public async initialize(): Promise<void> {
+    this.program = await this.programPromise;
+    this.queryUniforms();
   }
 
   public bindAndSetUniforms(values: { [name: string]: any }) {
@@ -56,7 +64,7 @@ export default abstract class Program implements IProgram {
   }
 
   public delete() {
-    this.shaders.forEach((s) => this.gl.deleteShader(s));
+    this.gl.getAttachedShaders(this.program).forEach((s) => this.gl.deleteShader(s));
     this.gl.deleteProgram(this.program);
   }
 
@@ -90,39 +98,5 @@ export default abstract class Program implements IProgram {
       }
       return u1;
     });
-  }
-
-  private createProgram(
-    passthroughVertexShaderSource: string,
-    fragmentShaderSource: string,
-    substitutions: { [name: string]: string }
-  ) {
-    this.program = this.gl.createProgram();
-
-    const vertexShader = createShader(
-      this.gl,
-      this.gl.VERTEX_SHADER,
-      passthroughVertexShaderSource,
-      substitutions
-    );
-    this.gl.attachShader(this.program, vertexShader);
-    this.shaders.push(vertexShader);
-
-    const fragmentShader = createShader(
-      this.gl,
-      this.gl.FRAGMENT_SHADER,
-      fragmentShaderSource,
-      substitutions
-    );
-    this.gl.attachShader(this.program, fragmentShader);
-    this.shaders.push(fragmentShader);
-
-    this.gl.linkProgram(this.program);
-
-    const success = this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS);
-
-    if (!success) {
-      throw new Error(this.gl.getProgramInfoLog(this.program));
-    }
   }
 }

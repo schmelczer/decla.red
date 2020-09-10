@@ -24,6 +24,10 @@ export class RenderingPass {
     );
   }
 
+  public async initialize(): Promise<void> {
+    await this.program.initialize();
+  }
+
   public addDrawable(drawable: IDrawable) {
     this.drawables.push(drawable);
   }

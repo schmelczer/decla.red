@@ -25,14 +25,16 @@ const testSDF = () => {
   return -res;
 
   */
-    let min = 1000;
+    /*let min = 1000;
     for (const t of objects) {
       min = Math.min(min, t.distance(position));
     }
     if (min < 0) {
       // min = Math.min(min, vec2.distance(position, vec2.fromValues(40, 80 - 31.62)) - 31.62);
     }
-    return -min;
+    return -min;*/
+
+    return -vec2.distance(position, vec2.fromValues(40, 40)) + 30;
   };
 
   const width = 80;
@@ -55,11 +57,12 @@ const testSDF = () => {
       const position = vec2.fromValues(x, y);
       const redIndex = y * (width * 4) + x * 4;
       const dist = getPixelValue(position);
-      if (Math.abs(dist) < 1) {
-        const blueIndex = y * (width * 4) + x * 4 + 2;
+      if (Math.abs(dist) < 1.5) {
         zeroes.push(position);
-        imageData.data[blueIndex] = 255;
       }
+      const blueIndex = y * (width * 4) + x * 4 + 2;
+      //imageData.data[blueIndex] = dist * 10;
+
       imageData.data[redIndex + 3] = 255;
     }
   }
@@ -75,25 +78,37 @@ const testSDF = () => {
       const position = vec2.fromValues(x, y);
       const dist = getPixelValue(position);
 
-      const nearestDist =
-        zeroes.find((z) => Math.abs(vec2.distance(z, position) - dist) < 0.5)?.length > 0;
-      if (nearestDist) {
+      const realDistance = zeroes.map((z) => vec2.distance(z, position)).sort()[0];
+
+      if (Math.abs(realDistance - dist) < 3) {
         const greenIndex = y * (width * 4) + x * 4 + 1;
         imageData.data[greenIndex] = 255;
       } else if (dist >= 0) {
         const redIndex = y * (width * 4) + x * 4;
-        errors.push(dist);
+        errors.push(realDistance - dist);
         imageData.data[redIndex] = 255;
       }
+
+      /*if (zeroes.find((z) => vec2.distance(z, position) < dist) !== undefined) {
+        const blueIndex = y * (width * 4) + x * 4 + 2;
+        imageData.data[blueIndex] = 255;
+      }*/
     }
   }
+
+  zeroes.forEach((z) => {
+    const blueIndex = z.y * (width * 4) + z.x * 4 + 2;
+    imageData.data[blueIndex] = 255;
+    imageData.data[blueIndex - 1] = 255;
+    imageData.data[blueIndex - 2] = 255;
+  });
 
   console.log(errors);
 
   ctx.putImageData(imageData, 0, 0);
 };
 
-// testSDF();
+//testSDF();
 // extract as new image (data-uri)
 
 /*
@@ -113,10 +128,14 @@ tree.print();
 console.log(tree.findIntersecting(new BoundingBox(960, 1050, 50, 190, 'G')));
 */
 
-try {
-  Random.seed = 42;
-  new Game();
-} catch (e) {
-  console.error(e);
-  alert(e);
-}
+const main = async () => {
+  try {
+    Random.seed = 42;
+    await new Game().start();
+  } catch (e) {
+    console.error(e);
+    alert(e);
+  }
+};
+
+main();
