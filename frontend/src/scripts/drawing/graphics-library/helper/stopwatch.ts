@@ -5,11 +5,8 @@ import { enableExtension } from './enable-extension';
 
 export class WebGlStopwatch {
   private timerExtension: any;
-
   private timerQuery: WebGLQuery;
-
   private isReady = true;
-
   private resultsInNanoSeconds: number;
 
   constructor(private gl: WebGL2RenderingContext) {

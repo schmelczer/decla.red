@@ -1,4 +1,14 @@
+import { InfoText } from '../../../objects/types/info-text';
+
 const extensions: Map<string, any> = new Map();
+
+const printExtensions = () => {
+  const values = {};
+  for (const [k, v] of extensions.entries()) {
+    values[k] = v !== null;
+  }
+  InfoText.modifyRecord('extensions', values);
+};
 
 export const tryEnableExtension = (
   gl: WebGL2RenderingContext,
@@ -14,6 +24,8 @@ export const tryEnableExtension = (
   }
 
   extensions.set(name, extension);
+
+  printExtensions();
 
   return extension;
 };

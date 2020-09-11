@@ -1,5 +1,4 @@
 import { mat2d, vec2 } from 'gl-matrix';
-import { InfoText } from '../../objects/types/info-text';
 import { IDrawable } from '../drawables/i-drawable';
 import { IDrawableDescriptor } from '../drawables/i-drawable-descriptor';
 import { FrameBuffer } from '../graphics-library/frame-buffer/frame-buffer';
@@ -8,13 +7,12 @@ import { settings } from '../settings';
 
 export class RenderingPass {
   private drawables: Array<IDrawable> = [];
-
   private program: UniformArrayAutoScalingProgram;
 
   constructor(
     gl: WebGL2RenderingContext,
     shaderSources: [string, string],
-    private drawableDescriptors: Array<IDrawableDescriptor>,
+    drawableDescriptors: Array<IDrawableDescriptor>,
     private frame: FrameBuffer
   ) {
     this.program = new UniformArrayAutoScalingProgram(
@@ -39,46 +37,40 @@ export class RenderingPass {
     inputTexture?: WebGLTexture
   ) {
     this.frame.bindAndClear(inputTexture);
-    const q = 1 / settings.tileMultiplier;
-    const tileUvSize = vec2.fromValues(q, q);
 
-    const origin = vec2.transformMat2d(
-      vec2.create(),
-      vec2.fromValues(0, 0),
-      commonUniforms.uvToWorld
-    );
+    const stepsInUV = 1 / settings.tileMultiplier;
 
-    const firstCenter = vec2.transformMat2d(
-      vec2.create(),
-      vec2.fromValues(q, q),
-      commonUniforms.uvToWorld
-    );
+    const worldR =
+      0.5 *
+      vec2.length(vec2.scale(vec2.create(), commonUniforms.worldAreaInView, stepsInUV));
 
-    vec2.subtract(firstCenter, firstCenter, origin);
+    const stepsInNDC = 2 * stepsInUV;
 
-    const worldR = vec2.length(firstCenter);
-
-    let sumLineCount = 0;
-
-    for (let x = 0; x < 1; x += q) {
-      for (let y = 0; y < 1; y += q) {
+    for (let x = -1; x < 1; x += stepsInNDC) {
+      for (let y = -1; y < 1; y += stepsInNDC) {
         const uniforms = { ...commonUniforms };
         uniforms.maxMinDistance = 2 * worldR * scale;
 
-        const uvBottomLeft = vec2.fromValues(x, y);
-        this.program.setDrawingRectangle(uvBottomLeft, tileUvSize);
+        const ndcBottomLeft = vec2.fromValues(x, y);
+
+        this.program.setDrawingRectangleUV(
+          [(ndcBottomLeft.x + 1) / 2, (ndcBottomLeft.y + 1) / 2],
+          vec2.fromValues(stepsInUV, stepsInUV)
+        );
 
         const tileCenterWorldCoordinates = vec2.transformMat2d(
           vec2.create(),
-          vec2.add(vec2.create(), uvBottomLeft, vec2.fromValues(q, q)),
+          vec2.add(
+            vec2.create(),
+            [(ndcBottomLeft.x + 1) / 2, (ndcBottomLeft.y + 1) / 2],
+            vec2.fromValues(stepsInUV / 2, stepsInUV / 2)
+          ),
           uniforms.uvToWorld
         );
 
         const primitivesNearTile = this.drawables.filter(
           (d) => d.distance(tileCenterWorldCoordinates) < 2 * worldR
         );
-
-        sumLineCount += primitivesNearTile.length;
 
         primitivesNearTile.forEach((p) =>
           p.serializeToUniforms(uniforms, scale, transform)
@@ -88,16 +80,6 @@ export class RenderingPass {
         this.program.draw();
       }
     }
-
-    InfoText.modifyRecord(
-      `nearby ${this.drawableDescriptors[0].countMacroName}`,
-      this.drawables.length.toFixed(2)
-    );
-
-    InfoText.modifyRecord(
-      `drawn ${this.drawableDescriptors[0].countMacroName}`,
-      (sumLineCount / settings.tileMultiplier / settings.tileMultiplier).toFixed(2)
-    );
 
     this.drawables = [];
   }

@@ -1,14 +1,14 @@
 #version 300 es
 
-precision mediump float;
+precision lowp float;
 
 #define LINE_COUNT {lineCount}
 #define BLOB_COUNT {blobCount}
  
 uniform float maxMinDistance;
+uniform float pixelSize;
 
 in vec2 position;
-
 
 #if LINE_COUNT > 0
     uniform struct {
@@ -19,7 +19,7 @@ in vec2 position;
     }[LINE_COUNT] lines;
 
     void lineMinDistance(inout float minDistance, inout float color) {
-        float myMinDistance = 10.0;
+        float myMinDistance = maxMinDistance;
         for (int i = 0; i < LINE_COUNT; i++) {
             vec2 targetFromDelta = position - lines[i].from;
             vec2 toFromDelta = lines[i].toFromDelta;
@@ -35,9 +35,10 @@ in vec2 position;
                 targetFromDelta, toFromDelta * h
             );
 
-            color = mix(1.0, color, step(0.0, lineDistance));
             myMinDistance = min(myMinDistance, lineDistance);
         }
+
+        color = mix(0.0, color, step(pixelSize, -myMinDistance));
 
         minDistance = -myMinDistance;
     }
@@ -67,7 +68,7 @@ in vec2 position;
             res += exp2(-blobs[i].k * circleMinDistance(blobs[i].rightFootCenter, blobs[i].footRadius));
             res = -log2(res) / blobs[i].k;
 
-            color = mix(2.0, color, step(0.0, res));
+            color = mix(1.0, color, step(pixelSize, res));
             
             minDistance = min(minDistance, res);
         }
@@ -77,7 +78,7 @@ in vec2 position;
 out vec2 fragmentColor;
 
 void main() {
-    float minDistance = -10.0;
+    float minDistance = -maxMinDistance;
     float color = 0.0;
 
     #if LINE_COUNT > 0
@@ -86,6 +87,8 @@ void main() {
 
     #if BLOB_COUNT > 0
         blobMinDistance(minDistance, color);
+        //fragmentColor = vec2(-1.0, 2.0);
+        //return;
     #endif
 
     fragmentColor = vec2(minDistance, color);

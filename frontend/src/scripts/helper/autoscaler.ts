@@ -1,13 +1,14 @@
-import { mix } from './mix';
+import { InfoText } from '../objects/types/info-text';
 import { clamp } from './clamp';
+import { mix } from './mix';
 
 export class Autoscaler {
   // can have fractions
   private index: number;
 
   constructor(
-    private setters: Array<(value: number) => void>,
-    private targets: Array<Array<number>>,
+    private setters: { [key: string]: (value: number | boolean) => void },
+    private targets: Array<{ [key: string]: number | boolean }>,
     startingIndex: number,
     private scalingOptions: {
       additiveIncrease: number;
@@ -38,8 +39,22 @@ export class Autoscaler {
     const nextTarget =
       floor + 1 == this.targets.length ? previousTarget : this.targets[floor + 1];
 
-    this.setters.forEach((setter, i) =>
-      setter(mix(previousTarget[i], nextTarget[i], fract))
-    );
+    const result = {};
+    for (const key in this.setters) {
+      const previous = previousTarget[key];
+      const next = nextTarget[key];
+      let current: number | boolean;
+      if (typeof previous == 'number') {
+        current = mix(previous, next as number, fract);
+      } else {
+        current = next;
+      }
+
+      result[key] = current;
+
+      this.setters[key](current);
+    }
+
+    InfoText.modifyRecord('quality', result);
   }
 }

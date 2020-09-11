@@ -1,12 +1,11 @@
 import { vec2 } from 'gl-matrix';
+import { settings } from '../../settings';
 
 export abstract class FrameBuffer {
   public renderScale = 1;
+  public enableHighDpiRendering = settings.enableHighDpiRendering;
 
-  public enableHighDpiRendering = false;
-
-  protected size: vec2;
-
+  protected size = vec2.create();
   protected frameBuffer: WebGLFramebuffer;
 
   constructor(protected gl: WebGL2RenderingContext) {}
@@ -23,15 +22,20 @@ export abstract class FrameBuffer {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
   }
 
-  public setSize() {
-    const realToCssPixels = window.devicePixelRatio * this.renderScale;
+  public setSize(): boolean {
+    const realToCssPixels =
+      (this.enableHighDpiRendering ? window.devicePixelRatio : 1) * this.renderScale;
+
     const canvasWidth = (this.gl.canvas as HTMLCanvasElement).clientWidth;
     const canvasHeight = (this.gl.canvas as HTMLCanvasElement).clientHeight;
 
     const displayWidth = Math.floor(canvasWidth * realToCssPixels);
     const displayHeight = Math.floor(canvasHeight * realToCssPixels);
 
+    const oldSize = vec2.clone(this.getSize());
     this.size = vec2.fromValues(displayWidth, displayHeight);
+
+    return this.size.x != oldSize.x || this.size.y != oldSize.y;
   }
 
   public getSize(): vec2 {

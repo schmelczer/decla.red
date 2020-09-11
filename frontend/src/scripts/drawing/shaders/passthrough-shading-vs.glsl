@@ -1,6 +1,6 @@
 #version 300 es
 
-precision mediump float;
+precision lowp float;
 
 #define CIRCLE_LIGHT_COUNT {circleLightCount}
 #define POINT_LIGHT_COUNT {pointLightCount}
@@ -11,7 +11,7 @@ in vec4 vertexPosition;
 out vec2 position;
 out vec2 uvCoordinates;
 
-uniform vec2 viewAreaScale;
+uniform vec2 squareToAspectRatio;
 
 #if CIRCLE_LIGHT_COUNT > 0
     uniform struct {
@@ -37,7 +37,7 @@ uniform vec2 viewAreaScale;
 void main() {
     vec3 vertexPosition2D = vec3(vertexPosition.xy, 1.0) * modelTransform;
     gl_Position = vec4(vertexPosition2D.xy, 0.0, 1.0);
-    position = vertexPosition2D.xy * viewAreaScale;
+    position = vertexPosition2D.xy * squareToAspectRatio;
 
     uvCoordinates = (vertexPosition2D * mat3(
         0.5, 0.0, 0.5,

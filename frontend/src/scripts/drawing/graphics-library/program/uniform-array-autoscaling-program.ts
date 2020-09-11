@@ -12,7 +12,7 @@ export class UniformArrayAutoScalingProgram implements IProgram {
   }> = [];
 
   private current: FragmentShaderOnlyProgram;
-  private drawingRectangleTopLeft = vec2.fromValues(0, 0);
+  private drawingRectangleBottomLeft = vec2.fromValues(0, 0);
   private drawingRectangleSize = vec2.fromValues(1, 1);
 
   constructor(
@@ -50,15 +50,15 @@ export class UniformArrayAutoScalingProgram implements IProgram {
       });
     }
 
-    this.current.setDrawingRectangle(
-      this.drawingRectangleTopLeft,
+    this.current.setDrawingRectangleUV(
+      this.drawingRectangleBottomLeft,
       this.drawingRectangleSize
     );
     this.current.bindAndSetUniforms(uniforms);
   }
 
-  public setDrawingRectangle(topLeft: vec2, size: vec2) {
-    this.drawingRectangleTopLeft = topLeft;
+  public setDrawingRectangleUV(bottomLeft: vec2, size: vec2) {
+    this.drawingRectangleBottomLeft = bottomLeft;
     this.drawingRectangleSize = size;
   }
 

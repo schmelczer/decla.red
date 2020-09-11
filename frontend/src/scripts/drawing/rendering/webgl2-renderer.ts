@@ -22,12 +22,13 @@ export class WebGl2Renderer implements IRenderer {
   private gl: WebGL2RenderingContext;
   private stopwatch?: WebGlStopwatch;
 
-  private upscaleTransform = mat2d.create();
-  private linearUpscale = 1;
+  private scaleWorldToNDC = mat2d.create();
+  private scaleWorldAreaInViewToNDC = 1;
 
-  private viewBoxBottomLeft = vec2.create();
-  private viewBoxSize = vec2.create();
-  private viewAreaScale: vec2;
+  private viewAreaBottomLeft = vec2.create();
+  private worldAreaInView = vec2.create();
+  private squareToAspectRatio: vec2;
+  private uvToWorld: mat2d;
   private cursorPosition = vec2.create();
 
   private distanceFieldFrameBuffer: IntermediateFrameBuffer;
@@ -38,12 +39,7 @@ export class WebGl2Renderer implements IRenderer {
 
   private initializePromise: Promise<[void, void]> = null;
 
-  private matrices: {
-    distanceScreenToWorld?: mat2d;
-    worldToDistanceUV?: mat2d;
-    cursorPosition?: mat2d;
-    uvToWorld?: mat2d;
-  } = {};
+  private softShadowsEnabled: boolean;
 
   constructor(private canvas: HTMLCanvasElement, private overlay: HTMLElement) {
     this.gl = getWebGl2Context(canvas);
@@ -70,10 +66,12 @@ export class WebGl2Renderer implements IRenderer {
       this.lightingPass.initialize(),
     ]);
 
-    this.autoscaler = new FpsAutoscaler([
-      this.lightingFrameBuffer,
-      this.distanceFieldFrameBuffer,
-    ]);
+    this.autoscaler = new FpsAutoscaler({
+      distanceRenderScale: (v) =>
+        (this.distanceFieldFrameBuffer.renderScale = v as number),
+      finalRenderScale: (v) => (this.lightingFrameBuffer.renderScale = v as number),
+      softShadowsEnabled: (v) => (this.softShadowsEnabled = v as boolean),
+    });
 
     try {
       this.stopwatch = new WebGlStopwatch(this.gl);
@@ -106,11 +104,15 @@ export class WebGl2Renderer implements IRenderer {
   public finishFrame() {
     this.calculateMatrices();
 
-    this.distancePass.render(this.uniforms, this.linearUpscale, this.upscaleTransform);
+    this.distancePass.render(
+      this.uniforms,
+      this.scaleWorldAreaInViewToNDC,
+      this.scaleWorldToNDC
+    );
     this.lightingPass.render(
       this.uniforms,
-      this.linearUpscale,
-      this.upscaleTransform,
+      this.scaleWorldAreaInViewToNDC,
+      this.scaleWorldToNDC,
       this.distanceFieldFrameBuffer.colorTexture
     );
 
@@ -118,46 +120,37 @@ export class WebGl2Renderer implements IRenderer {
   }
 
   private get uniforms(): any {
-    const cursorPosition = this.screenUvToWorldCoordinate(this.cursorPosition);
+    const cursorPosition = this.uvToWorldCoordinate(this.cursorPosition);
     return {
-      ...this.matrices,
       cursorPosition,
-      viewAreaScale: this.viewAreaScale,
+      pixelSize:
+        (4.5 * this.scaleWorldAreaInViewToNDC) /
+        this.distanceFieldFrameBuffer.renderScale,
+      uvToWorld: this.uvToWorld,
+      worldAreaInView: this.worldAreaInView,
+      squareToAspectRatio: this.squareToAspectRatio,
+      softShadowsEnabled: this.softShadowsEnabled,
     };
   }
 
   private calculateMatrices() {
-    this.matrices.uvToWorld = mat2d.fromTranslation(
-      mat2d.create(),
-      this.viewBoxBottomLeft
-    );
-    mat2d.scale(this.matrices.uvToWorld, this.matrices.uvToWorld, this.viewBoxSize);
-
-    this.matrices.distanceScreenToWorld = this.getScreenToWorldTransform(
-      this.distanceFieldFrameBuffer.getSize()
-    );
-
-    this.matrices.worldToDistanceUV = mat2d.scale(
-      mat2d.create(),
-      this.matrices.distanceScreenToWorld,
-      this.distanceFieldFrameBuffer.getSize()
-    );
-    mat2d.invert(this.matrices.worldToDistanceUV, this.matrices.worldToDistanceUV);
+    this.uvToWorld = mat2d.fromTranslation(mat2d.create(), this.viewAreaBottomLeft);
+    mat2d.scale(this.uvToWorld, this.uvToWorld, this.worldAreaInView);
   }
 
   private getScreenToWorldTransform(screenSize: vec2) {
-    const transform = mat2d.fromTranslation(mat2d.create(), this.viewBoxBottomLeft);
+    const transform = mat2d.fromTranslation(mat2d.create(), this.viewAreaBottomLeft);
     mat2d.scale(
       transform,
       transform,
-      vec2.divide(vec2.create(), this.viewBoxSize, screenSize)
+      vec2.divide(vec2.create(), this.worldAreaInView, screenSize)
     );
     mat2d.translate(transform, transform, vec2.fromValues(0.5, 0.5));
 
     return transform;
   }
 
-  public screenUvToWorldCoordinate(screenUvPosition: vec2): vec2 {
+  public uvToWorldCoordinate(screenUvPosition: vec2): vec2 {
     const resolution = vec2.fromValues(this.canvas.width, this.canvas.height);
 
     return vec2.transformMat2d(
@@ -172,31 +165,36 @@ export class WebGl2Renderer implements IRenderer {
   }
 
   public setViewArea(viewArea: BoundingBoxBase) {
-    const targetRange = 2;
+    this.worldAreaInView = viewArea.size;
 
-    this.viewBoxSize = viewArea.size;
-    this.viewBoxBottomLeft = vec2.add(
+    // world coordinates
+    this.viewAreaBottomLeft = vec2.add(
       vec2.create(),
       viewArea.topLeft,
       vec2.fromValues(0, -viewArea.size.y)
     );
 
-    this.linearUpscale = targetRange / Math.max(this.viewBoxSize.x, this.viewBoxSize.y);
+    const scaleLongerEdgeTo1 =
+      1 / Math.max(this.worldAreaInView.x, this.worldAreaInView.y);
 
-    this.viewAreaScale = vec2.fromValues(
-      (this.viewBoxSize.x * this.linearUpscale) / 2,
-      (this.viewBoxSize.y * this.linearUpscale) / 2
+    this.squareToAspectRatio = vec2.fromValues(
+      this.worldAreaInView.x * scaleLongerEdgeTo1,
+      this.worldAreaInView.y * scaleLongerEdgeTo1
     );
+
+    this.scaleWorldAreaInViewToNDC = scaleLongerEdgeTo1 * 2;
 
     mat2d.fromScaling(
-      this.upscaleTransform,
-      vec2.fromValues(this.linearUpscale, this.linearUpscale)
+      this.scaleWorldToNDC,
+      vec2.fromValues(this.scaleWorldAreaInViewToNDC, this.scaleWorldAreaInViewToNDC)
     );
-
-    const translate = vec2.scale(vec2.create(), this.viewBoxBottomLeft, -1);
-    vec2.subtract(translate, translate, vec2.scale(vec2.create(), this.viewBoxSize, 0.5));
-
-    mat2d.translate(this.upscaleTransform, this.upscaleTransform, translate);
+    const translate = vec2.scale(vec2.create(), this.viewAreaBottomLeft, -1);
+    vec2.subtract(
+      translate,
+      translate,
+      vec2.scale(vec2.create(), this.worldAreaInView, 0.5)
+    );
+    mat2d.translate(this.scaleWorldToNDC, this.scaleWorldToNDC, translate);
   }
 
   public setCursorPosition(position: vec2): void {

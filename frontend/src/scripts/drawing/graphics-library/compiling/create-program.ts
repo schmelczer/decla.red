@@ -1,4 +1,4 @@
-import { waitWhileFalse } from '../../../helper/wait-for';
+import { waitWhileFalse } from '../../../helper/wait-while-false';
 import { tryEnableExtension } from '../helper/enable-extension';
 import { checkProgram } from './check-program';
 import { createShader } from './create-shader';

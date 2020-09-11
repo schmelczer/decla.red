@@ -1,19 +1,15 @@
-import { Autoscaler } from '../../helper/autoscaler';
-import { settings } from '../settings';
+import { Autoscaler as AutoScaler } from '../../helper/autoscaler';
 import { exponentialDecay } from '../../helper/exponential-decay';
-import { InfoText } from '../../objects/types/info-text';
-import { FrameBuffer } from '../graphics-library/frame-buffer/frame-buffer';
-import { toPercent } from '../../helper/to-percent';
+import { settings } from '../settings';
 
-export class FpsAutoscaler extends Autoscaler {
+export class FpsAutoscaler extends AutoScaler {
   private timeSinceLastAdjusment = 0;
-
   private exponentialDecayedDeltaTime = 0.0;
 
-  constructor(private frameBuffers: Array<FrameBuffer>) {
+  constructor(setters: { [key: string]: (value: number | boolean) => void }) {
     super(
-      frameBuffers.map((f) => (v) => (f.renderScale = v)),
-      settings.qualityScaling.scaleTargets,
+      setters,
+      settings.qualityScaling.qualityTargets,
       settings.qualityScaling.startingTargetIndex,
       settings.qualityScaling.scalingOptions
     );
@@ -45,10 +41,5 @@ export class FpsAutoscaler extends Autoscaler {
         this.decrease();
       }
     }
-
-    InfoText.modifyRecord(
-      'quality',
-      this.frameBuffers.map((f) => toPercent(f.renderScale)).join(', ')
-    );
   }
 }

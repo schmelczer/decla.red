@@ -1,10 +1,9 @@
-import { FrameBuffer } from './frame-buffer';
 import { enableExtension } from '../helper/enable-extension';
+import { FrameBuffer } from './frame-buffer';
 
 export class IntermediateFrameBuffer extends FrameBuffer {
   private frameTexture: WebGLTexture;
-
-  private floatLinearEnabled = true;
+  private floatLinearEnabled = false;
 
   constructor(gl: WebGL2RenderingContext) {
     super(gl);
@@ -13,8 +12,9 @@ export class IntermediateFrameBuffer extends FrameBuffer {
 
     try {
       enableExtension(gl, 'OES_texture_float_linear');
+      this.floatLinearEnabled = true;
     } catch {
-      this.floatLinearEnabled = false;
+      // it's okay
     }
 
     this.frameTexture = this.gl.createTexture();
@@ -30,22 +30,25 @@ export class IntermediateFrameBuffer extends FrameBuffer {
     return this.frameTexture;
   }
 
-  public setSize() {
-    super.setSize();
+  public setSize(): boolean {
+    const hasChanged = super.setSize();
+    if (hasChanged) {
+      this.gl.bindTexture(this.gl.TEXTURE_2D, this.frameTexture);
 
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.frameTexture);
+      this.gl.texImage2D(
+        this.gl.TEXTURE_2D,
+        0,
+        this.gl.RG16F,
+        this.size.x,
+        this.size.y,
+        0,
+        this.gl.RG,
+        this.gl.FLOAT,
+        null
+      );
+    }
 
-    this.gl.texImage2D(
-      this.gl.TEXTURE_2D,
-      0,
-      this.gl.RG16F,
-      this.size.x,
-      this.size.y,
-      0,
-      this.gl.RG,
-      this.gl.FLOAT,
-      null
-    );
+    return hasChanged;
   }
 
   private configureTexture() {
