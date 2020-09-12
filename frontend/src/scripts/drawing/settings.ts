@@ -17,18 +17,18 @@ export const settings = {
         softShadowsEnabled: false,
       },
       {
-        distanceRenderScale: 0.2,
+        distanceRenderScale: 0.3,
         finalRenderScale: 1.0,
         softShadowsEnabled: false,
       },
-      /* {
-        distanceRenderScale: 0.3,
+      {
+        distanceRenderScale: 0.5,
         finalRenderScale: 1.0,
-        softShadowsEnabled: true,
+        softShadowsEnabled: false,
       },
       {
-        distanceRenderScale: 1.0,
-        finalRenderScale: 1.25,
+        distanceRenderScale: 0.5,
+        finalRenderScale: 1.0,
         softShadowsEnabled: true,
       },
       {
@@ -45,7 +45,7 @@ export const settings = {
         distanceRenderScale: 2,
         finalRenderScale: 2,
         softShadowsEnabled: true,
-      },*/
+      },
     ],
     startingTargetIndex: 2,
     scalingOptions: {

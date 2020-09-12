@@ -17,7 +17,6 @@ uniform vec2 squareToAspectRatio;
     uniform struct {
         vec2 center;
         float radius;
-        float traceRadius;
         vec3 value;
     }[CIRCLE_LIGHT_COUNT] circleLights;
 

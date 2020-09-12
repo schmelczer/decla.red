@@ -21,13 +21,7 @@ export class Character extends GameObject {
   constructor(private game: IGame) {
     super();
 
-    this.light = new CircleLight(
-      vec2.create(),
-      40,
-      this.shape.boundingCircleRadius * 2,
-      vec3.fromValues(0.67, 0.0, 0.33),
-      2
-    );
+    this.light = new CircleLight(vec2.create(), 30, vec3.fromValues(0.67, 0.0, 0.33), 2);
 
     this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
@@ -115,7 +109,7 @@ export class Character extends GameObject {
 
   private setPosition(value: vec2) {
     this.shape.position = value;
-    this.light.center = value;
+    this.light.center = vec2.add(vec2.create(), value, vec2.fromValues(150, 0));
   }
 
   public stepHandler(c: StepCommand) {

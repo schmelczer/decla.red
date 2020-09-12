@@ -87,9 +87,9 @@ void main() {
 
     #if BLOB_COUNT > 0
         blobMinDistance(minDistance, color);
-        //fragmentColor = vec2(-1.0, 2.0);
-        //return;
     #endif
 
-    fragmentColor = vec2(minDistance, color);
+
+    // minDistance / 2.0: NDC to UV scale
+    fragmentColor = vec2(minDistance / 2.0, color);
 }

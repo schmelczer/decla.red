@@ -1,4 +1,4 @@
-import { mat2d, vec2 } from 'gl-matrix';
+import { vec2 } from 'gl-matrix';
 import { IDrawable } from '../drawables/i-drawable';
 import { IDrawableDescriptor } from '../drawables/i-drawable-descriptor';
 import { FrameBuffer } from '../graphics-library/frame-buffer/frame-buffer';
@@ -30,12 +30,7 @@ export class RenderingPass {
     this.drawables.push(drawable);
   }
 
-  public render(
-    commonUniforms: any,
-    scale: number,
-    transform: mat2d,
-    inputTexture?: WebGLTexture
-  ) {
+  public render(commonUniforms: any, inputTexture?: WebGLTexture) {
     this.frame.bindAndClear(inputTexture);
 
     const stepsInUV = 1 / settings.tileMultiplier;
@@ -49,7 +44,7 @@ export class RenderingPass {
     for (let x = -1; x < 1; x += stepsInNDC) {
       for (let y = -1; y < 1; y += stepsInNDC) {
         const uniforms = { ...commonUniforms };
-        uniforms.maxMinDistance = 2 * worldR * scale;
+        uniforms.maxMinDistance = 2 * worldR * uniforms.scaleWorldLengthToNDC;
 
         const ndcBottomLeft = vec2.fromValues(x, y);
 
@@ -73,7 +68,11 @@ export class RenderingPass {
         );
 
         primitivesNearTile.forEach((p) =>
-          p.serializeToUniforms(uniforms, scale, transform)
+          p.serializeToUniforms(
+            uniforms,
+            uniforms.scaleWorldLengthToNDC,
+            uniforms.transformWorldToNDC
+          )
         );
 
         this.program.bindAndSetUniforms(uniforms);
