@@ -15,6 +15,8 @@ RUN npm run build
 
 FROM nginx:alpine
 
+HEALTHCHECK --interval=1m --timeout=10s CMD curl --fail http://localhost/ || exit 1
+
 WORKDIR /usr/share/nginx/html
 
 RUN rm -rf *
