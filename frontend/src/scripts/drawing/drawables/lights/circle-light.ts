@@ -13,7 +13,7 @@ export class CircleLight implements ILight {
 
   constructor(
     public center: vec2,
-    public radius: number,
+    public lightDrop: number,
     public color: vec3,
     public lightness: number
   ) {}
@@ -31,7 +31,7 @@ export class CircleLight implements ILight {
 
     uniforms[uniformName].push({
       center: vec2.transformMat2d(vec2.create(), this.center, transform),
-      radius: this.radius * scale,
+      lightDrop: this.lightDrop,
       value: this.value,
     });
   }

@@ -8,23 +8,17 @@ export class Blob implements IShape {
   public readonly boundingCircleRadius = 100;
 
   protected readonly headRadius = 40;
-  protected readonly torsoRadius = 60;
-  protected readonly footRadius = 30;
+  protected readonly footRadius = 15;
 
   protected readonly k = 1000000;
 
-  private readonly headOffset = vec2.fromValues(
-    0,
-    this.headRadius + this.torsoRadius / 2
-  );
-  private readonly torsoOffset = vec2.fromValues(0, 0);
-  private readonly leftFootOffset = vec2.fromValues(-20, -60);
-  private readonly rightFootOffset = vec2.fromValues(20, -60);
+  private readonly headOffset = vec2.fromValues(0, -15);
+  private readonly leftFootOffset = vec2.fromValues(-12, -60);
+  private readonly rightFootOffset = vec2.fromValues(12, -60);
 
   public readonly isInverted = false;
   protected boundingCircle = new Circle(vec2.create(), this.boundingCircleRadius);
   protected head = new Circle(vec2.create(), this.headRadius);
-  protected torso = new Circle(vec2.create(), this.torsoRadius);
   protected leftFoot = new Circle(vec2.create(), this.footRadius);
   protected rightFoot = new Circle(vec2.create(), this.footRadius);
   public constructor(center: vec2, public readonly gameObject: GameObject = null) {
@@ -34,7 +28,6 @@ export class Blob implements IShape {
   public set position(value: vec2) {
     vec2.copy(this.boundingCircle.center, value);
     vec2.add(this.head.center, value, this.headOffset);
-    vec2.add(this.torso.center, value, this.torsoOffset);
     vec2.add(this.leftFoot.center, value, this.leftFootOffset);
     vec2.add(this.rightFoot.center, value, this.rightFootOffset);
   }

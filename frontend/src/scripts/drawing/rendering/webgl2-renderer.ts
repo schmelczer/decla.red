@@ -4,8 +4,8 @@ import { DrawableBlob } from '../drawables/drawable-blob';
 import { DrawableTunnel } from '../drawables/drawable-tunnel';
 import { IDrawable } from '../drawables/i-drawable';
 import { CircleLight } from '../drawables/lights/circle-light';
+import { Flashlight } from '../drawables/lights/flashlight';
 import { ILight } from '../drawables/lights/i-light';
-import { PointLight } from '../drawables/lights/point-light';
 import { DefaultFrameBuffer } from '../graphics-library/frame-buffer/default-frame-buffer';
 import { IntermediateFrameBuffer } from '../graphics-library/frame-buffer/intermediate-frame-buffer';
 import { getWebGl2Context } from '../graphics-library/helper/get-webgl2-context';
@@ -47,7 +47,7 @@ export class WebGl2Renderer implements IRenderer {
     this.lightingPass = new RenderingPass(
       this.gl,
       [lightsVertexShader, lightsFragmentShader],
-      [CircleLight.descriptor, PointLight.descriptor],
+      [CircleLight.descriptor, Flashlight.descriptor],
       this.lightingFrameBuffer
     );
 
@@ -95,9 +95,13 @@ export class WebGl2Renderer implements IRenderer {
   }
 
   public finishFrame() {
-    this.distancePass.render(this.uniformsProvider.uniforms);
+    const common = {
+      distanceUvPixelSize: 2 / this.distanceFieldFrameBuffer.getSize().y,
+    };
+
+    this.distancePass.render(this.uniformsProvider.getUniforms(common));
     this.lightingPass.render(
-      this.uniformsProvider.uniforms,
+      this.uniformsProvider.getUniforms(common),
       this.distanceFieldFrameBuffer.colorTexture
     );
 

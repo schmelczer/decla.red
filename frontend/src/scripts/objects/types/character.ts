@@ -1,7 +1,7 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { RenderCommand } from '../../drawing/commands/render';
 import { DrawableBlob } from '../../drawing/drawables/drawable-blob';
-import { CircleLight } from '../../drawing/drawables/lights/circle-light';
+import { Flashlight } from '../../drawing/drawables/lights/flashlight';
 import { IGame } from '../../i-game';
 import { KeyDownCommand } from '../../input/commands/key-down';
 import { KeyUpCommand } from '../../input/commands/key-up';
@@ -14,14 +14,21 @@ import { GameObject } from '../game-object';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();
-  private light: CircleLight;
+  private light: Flashlight;
   private shape = new DrawableBlob(vec2.create());
-  private static speed = 4.5;
+  private static speed = 1.5;
 
   constructor(private game: IGame) {
     super();
 
-    this.light = new CircleLight(vec2.create(), 30, vec3.fromValues(0.67, 0.0, 0.33), 2);
+    this.light = new Flashlight(
+      vec2.create(),
+      vec2.fromValues(-1, 0),
+      0.7,
+      vec3.fromValues(1, 0.6, 0.45),
+      1.5
+    );
+    //this.light = new CircleLight(vec2.create(), 0.2, vec3.fromValues(1, 0.6, 0.45), 1.5);
 
     this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));

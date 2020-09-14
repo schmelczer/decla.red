@@ -3,7 +3,7 @@
 precision lowp float;
 
 #define CIRCLE_LIGHT_COUNT {circleLightCount}
-#define POINT_LIGHT_COUNT {pointLightCount}
+#define FLASHLIGHT_COUNT {flashlightCount}
 
 uniform mat3 modelTransform;
 in vec4 vertexPosition;
@@ -14,23 +14,24 @@ out vec2 uvCoordinates;
 uniform vec2 squareToAspectRatio;
 
 #if CIRCLE_LIGHT_COUNT > 0
-    uniform struct {
+    uniform struct CircleLight {
         vec2 center;
-        float radius;
+        float lightDrop;
         vec3 value;
     }[CIRCLE_LIGHT_COUNT] circleLights;
 
     out vec2[CIRCLE_LIGHT_COUNT] circleLightDirections;
 #endif
 
-#if POINT_LIGHT_COUNT > 0
-    uniform struct {
+#if FLASHLIGHT_COUNT > 0
+    uniform struct Flashlight {
         vec2 center;
-        float radius;
+        vec2 direction;
+        float lightDrop;
         vec3 value;
-    }[POINT_LIGHT_COUNT] pointLights;
+    }[FLASHLIGHT_COUNT] flashlights;
 
-    out vec2[POINT_LIGHT_COUNT] pointLightDirections;
+    out vec2[FLASHLIGHT_COUNT] flashlightDirections;
 #endif
 
 void main() {
@@ -50,9 +51,9 @@ void main() {
         }
     #endif
 
-    #if POINT_LIGHT_COUNT > 0
-        for (int i = 0; i < POINT_LIGHT_COUNT; i++) {
-            pointLightDirections[i] = pointLights[i].center - position;
+    #if FLASHLIGHT_COUNT > 0
+        for (int i = 0; i < FLASHLIGHT_COUNT; i++) {
+            flashlightDirections[i] = flashlights[i].center - position;
         }
     #endif
 }

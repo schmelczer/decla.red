@@ -6,7 +6,7 @@ precision lowp float;
 #define BLOB_COUNT {blobCount}
  
 uniform float maxMinDistance;
-uniform float pixelSize;
+uniform float distanceUvPixelSize;
 
 in vec2 position;
 
@@ -38,7 +38,7 @@ in vec2 position;
             myMinDistance = min(myMinDistance, lineDistance);
         }
 
-        color = mix(0.0, color, step(pixelSize, -myMinDistance));
+        color = mix(0.0, color, step(distanceUvPixelSize, -myMinDistance));
 
         minDistance = -myMinDistance;
     }
@@ -47,11 +47,9 @@ in vec2 position;
 #if BLOB_COUNT > 0
     uniform struct {
         vec2 headCenter;
-        vec2 torsoCenter;
         vec2 leftFootCenter;
         vec2 rightFootCenter;
         float headRadius;
-        float torsoRadius;
         float footRadius;
         float k;
     }[BLOB_COUNT] blobs;
@@ -63,12 +61,11 @@ in vec2 position;
     void blobMinDistance(inout float minDistance, inout float color) {
         for (int i = 0; i < BLOB_COUNT; i++) {
             float res = exp2(-blobs[i].k * circleMinDistance(blobs[i].headCenter, blobs[i].headRadius));
-            res += exp2(-blobs[i].k * circleMinDistance(blobs[i].torsoCenter, blobs[i].torsoRadius));
             res += exp2(-blobs[i].k * circleMinDistance(blobs[i].leftFootCenter, blobs[i].footRadius));
             res += exp2(-blobs[i].k * circleMinDistance(blobs[i].rightFootCenter, blobs[i].footRadius));
             res = -log2(res) / blobs[i].k;
 
-            color = mix(1.0, color, step(pixelSize, res));
+            color = mix(1.0, color, step(distanceUvPixelSize, res));
             
             minDistance = min(minDistance, res);
         }
@@ -85,7 +82,7 @@ void main() {
         lineMinDistance(minDistance, color);
     #endif
 
-    #if BLOB_COUNT > 0
+    #if BLOB_COUNT > 10
         blobMinDistance(minDistance, color);
     #endif
 

@@ -59,6 +59,6 @@ export const settings = {
     lineSteps: [0, 1, 2, 4, 8, 16, 128],
     blobSteps: [0, 1, 2, 8],
     circleLightSteps: [0, 1],
-    pointLightSteps: [0, 1, 2, 3],
+    flashlightSteps: [0, 1],
   },
 };

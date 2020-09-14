@@ -15,11 +15,11 @@ export class UniformsProvider {
 
   public constructor(private gl: WebGL2RenderingContext) {}
 
-  public get uniforms(): any {
+  public getUniforms(uniforms: any): any {
     const cursorPosition = this.uvToWorldCoordinate(this.cursorPosition);
     return {
+      ...uniforms,
       cursorPosition,
-      pixelSize: 0.05,
       uvToWorld: this.uvToWorld,
       worldAreaInView: this.worldAreaInView,
       squareToAspectRatio: this.squareToAspectRatio,
