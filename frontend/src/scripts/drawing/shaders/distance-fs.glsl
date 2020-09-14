@@ -88,5 +88,6 @@ void main() {
 
 
     // minDistance / 2.0: NDC to UV scale
-    fragmentColor = vec2(minDistance / 2.0, color);
+    // - 0.005 is for making it more consistent with the physics
+    fragmentColor = vec2(minDistance / 2.0 - 0.005, color);
 }
