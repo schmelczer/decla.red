@@ -10,8 +10,6 @@ export class Blob implements IShape {
   protected readonly headRadius = 40;
   protected readonly footRadius = 15;
 
-  protected readonly k = 1000000;
-
   private readonly headOffset = vec2.fromValues(0, -15);
   private readonly leftFootOffset = vec2.fromValues(-12, -60);
   private readonly rightFootOffset = vec2.fromValues(12, -60);

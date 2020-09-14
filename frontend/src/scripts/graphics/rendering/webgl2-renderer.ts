@@ -96,7 +96,8 @@ export class WebGl2Renderer implements IRenderer {
 
   public finishFrame() {
     const common = {
-      distanceUvPixelSize: 2 / this.distanceFieldFrameBuffer.getSize().y,
+      distanceNdcPixelSize: 2 / Math.max(...this.distanceFieldFrameBuffer.getSize()),
+      shadingNdcPixelSize: 2 / Math.max(...this.distanceFieldFrameBuffer.getSize()),
     };
 
     this.distancePass.render(this.uniformsProvider.getUniforms(common));

@@ -1,7 +1,7 @@
 import { vec2 } from 'gl-matrix';
-import { IShape } from '../i-shape';
-import { BoundingBox } from '../bounding-box';
 import { GameObject } from '../../objects/game-object';
+import { BoundingBox } from '../bounding-box';
+import { IShape } from '../i-shape';
 
 export class Circle implements IShape {
   public readonly isInverted = false;

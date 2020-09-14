@@ -1,7 +1,7 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { RenderCommand } from '../../drawing/commands/render';
-import { DrawableBlob } from '../../drawing/drawables/drawable-blob';
-import { Flashlight } from '../../drawing/drawables/lights/flashlight';
+import { RenderCommand } from '../../graphics/commands/render';
+import { DrawableBlob } from '../../graphics/drawables/drawable-blob';
+import { Flashlight } from '../../graphics/drawables/lights/flashlight';
 import { IGame } from '../../i-game';
 import { KeyDownCommand } from '../../input/commands/key-down';
 import { KeyUpCommand } from '../../input/commands/key-up';
@@ -14,23 +14,19 @@ import { GameObject } from '../game-object';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();
-  private light: Flashlight;
+  private light = new Flashlight(
+    vec2.create(),
+    vec2.fromValues(-1, 0),
+    0.7,
+    vec3.fromValues(1, 0.6, 0.45),
+    1.5
+  );
   private shape = new DrawableBlob(vec2.create());
   private static speed = 1.5;
 
   constructor(private game: IGame) {
     super();
 
-    this.light = new Flashlight(
-      vec2.create(),
-      vec2.fromValues(-1, 0),
-      0.7,
-      vec3.fromValues(1, 0.6, 0.45),
-      1.5
-    );
-    //this.light = new CircleLight(vec2.create(), 0.2, vec3.fromValues(1, 0.6, 0.45), 1.5);
-
-    this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
     this.addCommandExecutor(TeleportToCommand, (c) => this.setPosition(c.position));
     this.addCommandExecutor(KeyDownCommand, (c) => this.keysDown.add(c.key));
@@ -116,7 +112,7 @@ export class Character extends GameObject {
 
   private setPosition(value: vec2) {
     this.shape.position = value;
-    this.light.center = vec2.add(vec2.create(), value, vec2.fromValues(150, 0));
+    this.light.center = vec2.add(vec2.create(), value, vec2.fromValues(50, -40));
   }
 
   public stepHandler(c: StepCommand) {

@@ -4,11 +4,22 @@ precision lowp float;
 
 #define LINE_COUNT {lineCount}
 #define BLOB_COUNT {blobCount}
+
+#define SURFACE_OFFSET 0.001
  
 uniform float maxMinDistance;
-uniform float distanceUvPixelSize;
+uniform float distanceNdcPixelSize;
 
 in vec2 position;
+
+float smoothMin(float a, float b)
+{
+    const float k = 2.0;
+    
+    a = pow(a, k);
+    b = pow(b, k);
+    return pow((a * b) / (a + b), 1.0 / k);
+}
 
 #if LINE_COUNT > 0
     uniform struct {
@@ -38,8 +49,7 @@ in vec2 position;
             myMinDistance = min(myMinDistance, lineDistance);
         }
 
-        color = mix(0.0, color, step(distanceUvPixelSize, -myMinDistance));
-
+        color = mix(0.0, color, step(distanceNdcPixelSize + SURFACE_OFFSET, -myMinDistance));
         minDistance = -myMinDistance;
     }
 #endif
@@ -60,14 +70,21 @@ in vec2 position;
 
     void blobMinDistance(inout float minDistance, inout float color) {
         for (int i = 0; i < BLOB_COUNT; i++) {
-            float res = exp2(-blobs[i].k * circleMinDistance(blobs[i].headCenter, blobs[i].headRadius));
-            res += exp2(-blobs[i].k * circleMinDistance(blobs[i].leftFootCenter, blobs[i].footRadius));
-            res += exp2(-blobs[i].k * circleMinDistance(blobs[i].rightFootCenter, blobs[i].footRadius));
-            res = -log2(res) / blobs[i].k;
+            float headDistance = circleMinDistance(blobs[i].headCenter, blobs[i].headRadius);
+            float leftFootDistance = circleMinDistance(blobs[i].leftFootCenter, blobs[i].footRadius);
+            float rightFootDistance = circleMinDistance(blobs[i].rightFootCenter, blobs[i].footRadius);
 
-            color = mix(1.0, color, step(distanceUvPixelSize, res));
-            
+            float res = min(
+                smoothMin(headDistance, leftFootDistance),
+                smoothMin(headDistance, rightFootDistance)
+            );
+
+            res = min(100.0, headDistance);
+            res = min(res, leftFootDistance);
+            res = min(res, rightFootDistance);
+            //color = mix(2.0, color, step(distanceUvPixelSize + SURFACE_OFFSET, res));
             minDistance = min(minDistance, res);
+            color = mix(2.0, color, step(distanceNdcPixelSize + SURFACE_OFFSET, res));
         }
     }
 #endif
@@ -82,12 +99,11 @@ void main() {
         lineMinDistance(minDistance, color);
     #endif
 
-    #if BLOB_COUNT > 10
+    #if BLOB_COUNT > 0
         blobMinDistance(minDistance, color);
     #endif
 
 
     // minDistance / 2.0: NDC to UV scale
-    // - 0.005 is for making it more consistent with the physics
-    fragmentColor = vec2(minDistance / 2.0 - 0.005, color);
+    fragmentColor = vec2((minDistance - SURFACE_OFFSET) / 2.0, color);
 }

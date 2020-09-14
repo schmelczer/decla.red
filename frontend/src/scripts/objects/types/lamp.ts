@@ -1,6 +1,6 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { RenderCommand } from '../../drawing/commands/render';
-import { CircleLight } from '../../drawing/drawables/lights/circle-light';
+import { RenderCommand } from '../../graphics/commands/render';
+import { CircleLight } from '../../graphics/drawables/lights/circle-light';
 import { MoveToCommand } from '../../physics/commands/move-to';
 import { GameObject } from '../game-object';
 

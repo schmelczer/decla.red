@@ -1,8 +1,8 @@
 import { CommandBroadcaster } from './commands/command-broadcaster';
-import { BeforeRenderCommand } from './drawing/commands/before-render';
-import { RenderCommand } from './drawing/commands/render';
-import { IRenderer } from './drawing/i-renderer';
-import { WebGl2Renderer } from './drawing/rendering/webgl2-renderer';
+import { BeforeRenderCommand } from './graphics/commands/before-render';
+import { RenderCommand } from './graphics/commands/render';
+import { IRenderer } from './graphics/i-renderer';
+import { WebGl2Renderer } from './graphics/rendering/webgl2-renderer';
 import { timeIt } from './helper/timing';
 import { IGame } from './i-game';
 import { KeyboardListener } from './input/keyboard-listener';
@@ -128,13 +128,12 @@ export class Game implements IGame {
     this.previousFpsValues.push(1000 / deltaTime);
     if (this.previousFpsValues.length > 30) {
       this.previousFpsValues.sort();
-      const text = `Min: ${this.previousFpsValues[0].toFixed(
-        2
-      )}\n\tMedian: ${this.previousFpsValues[
+      const min = this.previousFpsValues[0];
+      const median = this.previousFpsValues[
         Math.floor(this.previousFpsValues.length / 2)
-      ].toFixed(2)}`;
+      ];
 
-      InfoText.modifyRecord('FPS', text);
+      InfoText.modifyRecord('FPS', { min, median });
 
       this.previousFpsValues = [];
     }

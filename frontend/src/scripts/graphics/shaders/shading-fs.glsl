@@ -12,6 +12,7 @@ precision lowp float;
 
 uniform bool softShadowsEnabled;
 uniform vec2 squareToAspectRatioTimes2;
+uniform float shadingNdcPixelSize;
 uniform sampler2D distanceTexture;
 
 in vec2 position;
@@ -37,11 +38,11 @@ float softShadowTransparency(float startingDistance, float lightCenterDistance, 
     float rayLength = startingDistance;
     float q = 1.0 / SHADOW_HARDNESS;
 
-    for (int j = 0; j < 96; j++) {
+    for (int j = 0; j < 128; j++) {
         float minDistance = getDistance(uvCoordinates + direction * rayLength);
 
         q = min(q, minDistance / rayLength);
-        rayLength += minDistance / 2.0;
+        rayLength += minDistance / 2.5;
 
         if (rayLength >= lightCenterDistance) {
             return q * SHADOW_HARDNESS;

@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { BeforeRenderCommand } from '../../drawing/commands/before-render';
+import { BeforeRenderCommand } from '../../graphics/commands/before-render';
 import { CursorMoveCommand } from '../../input/commands/cursor-move-command';
 import { ZoomCommand } from '../../input/commands/zoom';
 import { MoveToCommand } from '../../physics/commands/move-to';
@@ -7,7 +7,7 @@ import { BoundingBox } from '../../shapes/bounding-box';
 import { GameObject } from '../game-object';
 
 export class Camera extends GameObject {
-  private inViewAreaSize = 1920 * 1080 * 5;
+  private inViewAreaSize = 1920 * 1080 * 2;
   private cursorPosition = vec2.create();
 
   private _viewArea: BoundingBox;

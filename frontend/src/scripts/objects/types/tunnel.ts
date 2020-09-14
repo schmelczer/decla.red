@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
-import { RenderCommand } from '../../drawing/commands/render';
-import { DrawableTunnel } from '../../drawing/drawables/drawable-tunnel';
+import { RenderCommand } from '../../graphics/commands/render';
+import { DrawableTunnel } from '../../graphics/drawables/drawable-tunnel';
 import { Physics } from '../../physics/physics';
 import { GameObject } from '../game-object';
 

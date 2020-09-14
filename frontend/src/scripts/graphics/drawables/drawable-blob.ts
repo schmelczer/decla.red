@@ -27,7 +27,6 @@ export class DrawableBlob extends Blob implements IDrawable {
       ),
       headRadius: this.headRadius * scale,
       footRadius: this.footRadius * scale,
-      k: this.k / scale,
     });
   }
 }

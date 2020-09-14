@@ -1,5 +1,5 @@
-import { IRenderer } from '../../drawing/i-renderer';
 import { Command } from '../../commands/command';
+import { IRenderer } from '../../graphics/i-renderer';
 
 export class RenderCommand extends Command {
   public constructor(public readonly renderer?: IRenderer) {

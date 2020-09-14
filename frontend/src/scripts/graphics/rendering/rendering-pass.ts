@@ -39,12 +39,13 @@ export class RenderingPass {
       0.5 *
       vec2.length(vec2.scale(vec2.create(), commonUniforms.worldAreaInView, stepsInUV));
 
+    const radiusInNDC = worldR * commonUniforms.scaleWorldLengthToNDC;
+
     const stepsInNDC = 2 * stepsInUV;
 
     for (let x = -1; x < 1; x += stepsInNDC) {
       for (let y = -1; y < 1; y += stepsInNDC) {
-        const uniforms = { ...commonUniforms };
-        uniforms.maxMinDistance = 2 * worldR * uniforms.scaleWorldLengthToNDC;
+        const uniforms = { ...commonUniforms, maxMinDistance: 0.0 };
 
         const ndcBottomLeft = vec2.fromValues(x, y);
 

@@ -1,4 +1,4 @@
-import { RenderCommand } from '../../drawing/commands/render';
+import { RenderCommand } from '../../graphics/commands/render';
 import { GameObject } from '../game-object';
 
 export class InfoText extends GameObject {
