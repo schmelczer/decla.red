@@ -3,12 +3,12 @@
     "outDir": "./dist/",
     "sourceMap": true,
     "noImplicitAny": false,
-    "target": "es5",
+    "target": "es6",
     "downlevelIteration": true,
     "allowJs": true,
     "experimentalDecorators": true,
     "moduleResolution": "Node",
-    "module": "commonjs",
+    "module": "es6",
     "lib": ["es2015", "dom"]
   }
 }

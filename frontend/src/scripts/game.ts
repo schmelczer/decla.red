@@ -1,9 +1,8 @@
+import { vec3 } from 'gl-matrix';
+import { CircleLight, compile, Flashlight, Renderer } from 'sdf-2d';
 import { CommandBroadcaster } from './commands/command-broadcaster';
-import { BeforeRenderCommand } from './graphics/commands/before-render';
 import { RenderCommand } from './graphics/commands/render';
-import { IRenderer } from './graphics/i-renderer';
-import { WebGl2Renderer } from './graphics/rendering/webgl2-renderer';
-import { timeIt } from './helper/timing';
+import { prettyPrint } from './helper/pretty-print';
 import { IGame } from './i-game';
 import { KeyboardListener } from './input/keyboard-listener';
 import { MouseListener } from './input/mouse-listener';
@@ -12,13 +11,14 @@ import { GameObject } from './objects/game-object';
 import { Objects } from './objects/objects';
 import { Camera } from './objects/types/camera';
 import { Character } from './objects/types/character';
-import { InfoText } from './objects/types/info-text';
 import { createDungeon } from './objects/world/create-dungeon';
 import { MoveToCommand } from './physics/commands/move-to';
 import { StepCommand } from './physics/commands/step';
 import { TeleportToCommand } from './physics/commands/teleport-to';
 import { Physics } from './physics/physics';
 import { BoundingBoxBase } from './shapes/bounding-box-base';
+import { CircleShape } from './shapes/types/circle-shape';
+import { TunnelShape } from './shapes/types/tunnel-shape';
 
 export class Game implements IGame {
   public readonly objects = new Objects();
@@ -26,14 +26,13 @@ export class Game implements IGame {
   public readonly camera = new Camera();
   private previousTime?: DOMHighResTimeStamp = null;
   private previousFpsValues: Array<number> = [];
-  private infoText = new InfoText();
   private character: Character;
-  private renderer: IRenderer;
-  private initializeRendererPromise: Promise<void>;
+  private renderer: Renderer;
+  private rendererPromise: Promise<Renderer>;
+  private overlay: HTMLElement = document.querySelector('#overlay');
 
   constructor() {
     const canvas: HTMLCanvasElement = document.querySelector('canvas#main');
-    const overlay: HTMLElement = document.querySelector('#overlay');
 
     document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
 
@@ -46,14 +45,31 @@ export class Game implements IGame {
       [this.objects]
     );
 
-    this.renderer = new WebGl2Renderer(canvas, overlay);
-    this.initializeRendererPromise = this.renderer.initialize();
+    this.rendererPromise = compile(
+      canvas,
+      [
+        CircleShape.descriptor,
+        TunnelShape.descriptor,
+        Flashlight.descriptor,
+        CircleLight.descriptor,
+      ],
+      [
+        vec3.fromValues(0, 0, 0),
+        vec3.fromValues(224 / 255, 96 / 255, 126 / 255),
+        vec3.fromValues(119 / 255, 173 / 255, 120 / 255),
+      ]
+    );
     this.initializeScene();
     this.physics.start();
   }
 
   public async start(): Promise<void> {
-    await this.initializeRendererPromise;
+    this.renderer = await this.rendererPromise;
+    this.renderer.setRuntimeSettings({
+      isWorldInverted: true,
+      ambientLight: vec3.fromValues(0.35, 0.1, 0.45),
+      shadowLength: 300,
+    });
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 
@@ -70,8 +86,6 @@ export class Game implements IGame {
   }
 
   private initializeScene() {
-    this.objects.addObject(this.infoText);
-
     const start = createDungeon(this.objects, this.physics);
     createDungeon(this.objects, this.physics);
 
@@ -90,7 +104,6 @@ export class Game implements IGame {
     }
   }
 
-  @timeIt()
   private gameLoop(time: DOMHighResTimeStamp) {
     if (this.previousTime === null) {
       this.previousTime = time;
@@ -98,44 +111,26 @@ export class Game implements IGame {
 
     const deltaTime = time - this.previousTime;
     this.previousTime = time;
-    this.calculateFps(deltaTime);
 
     this.objects.sendCommand(new StepCommand(deltaTime));
     this.camera.sendCommand(new MoveToCommand(this.character.position));
 
-    this.renderer.startFrame(deltaTime);
-
-    this.camera.sendCommand(new BeforeRenderCommand(this.renderer));
+    this.camera.sendCommand(new RenderCommand(this.renderer));
 
     const shouldBeDrawn = this.physics
       .findIntersecting(this.camera.viewArea)
       .map((b) => b.shape?.gameObject);
 
     for (const object of shouldBeDrawn) {
-      object?.sendCommand(new BeforeRenderCommand(this.renderer));
       object?.sendCommand(new RenderCommand(this.renderer));
     }
 
     this.character.sendCommand(new RenderCommand(this.renderer));
-    this.infoText.sendCommand(new RenderCommand(this.renderer));
-    this.renderer.finishFrame();
+    this.renderer.renderDrawables();
+
+    this.overlay.innerText = prettyPrint(this.renderer.insights);
 
     localStorage.setItem('character-position', JSON.stringify(this.character.position));
-    window.requestAnimationFrame(this.gameLoop.bind(this));
-  }
-
-  private calculateFps(deltaTime: number) {
-    this.previousFpsValues.push(1000 / deltaTime);
-    if (this.previousFpsValues.length > 30) {
-      this.previousFpsValues.sort();
-      const min = this.previousFpsValues[0];
-      const median = this.previousFpsValues[
-        Math.floor(this.previousFpsValues.length / 2)
-      ];
-
-      InfoText.modifyRecord('FPS', { min, median });
-
-      this.previousFpsValues = [];
-    }
+    requestAnimationFrame(this.gameLoop.bind(this));
   }
 }

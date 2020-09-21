@@ -7,23 +7,34 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 const Sass = require('sass');
 
-const isProduction = process.env.NODE_ENV == 'production';
-const isDevelopment = !isProduction;
+const PATHS = {
+  entryPoint: path.resolve(__dirname, 'src/index.ts'),
+  bundles: path.resolve(__dirname, 'dist'),
+};
 
 module.exports = {
+  entry: {
+    index: PATHS.entryPoint,
+  },
+  target: 'web',
+  output: {
+    filename: '[name].[contenthash].js',
+    path: PATHS.bundles,
+  },
+  devtool: 'source-map',
   watchOptions: {
     ignored: /node_modules/,
   },
-  devtool: 'inline-source-map',
   devServer: {
     host: '0.0.0.0',
     disableHostCheck: true,
   },
   optimization: {
     minimize: true,
+    usedExports: true,
     minimizer: [
       new TerserJSPlugin({
-        sourceMap: isDevelopment,
+        sourceMap: true,
         cache: true,
         test: /\.ts$/i,
         terserOptions: {
@@ -66,25 +77,8 @@ module.exports = {
       chunkFilename: '[id].[contenthash].css',
     }),
   ],
-  entry: {
-    index: './src/index.ts',
-  },
   module: {
     rules: [
-      {
-        test: /\.(glsl)$/,
-        use: {
-          loader: 'raw-loader',
-        },
-      },
-      {
-        test: /\.svg$/,
-        loader: 'svg-url-loader',
-        options: {
-          limit: 10 * 1024,
-          noquotes: true,
-        },
-      },
       {
         test: /\.ico$/i,
         use: {
@@ -117,17 +111,6 @@ module.exports = {
         ],
       },
       {
-        test: /\.(woff2?|ttf|eot|svg)(?:[?#].+)?$/,
-        use: {
-          loader: 'file-loader',
-          options: {
-            name: '[name].[ext]',
-            outputPath: 'static/fonts/',
-          },
-        },
-        include: /fonts/,
-      },
-      {
         test: /\.ts$/,
         use: {
           loader: 'ts-loader',
@@ -137,10 +120,6 @@ module.exports = {
     ],
   },
   resolve: {
-    extensions: ['.ts', '.js', '.glsl'],
-  },
-  output: {
-    filename: '[name].[contenthash].js',
-    path: path.resolve(__dirname, 'dist'),
+    extensions: ['.ts', '.js'],
   },
 };

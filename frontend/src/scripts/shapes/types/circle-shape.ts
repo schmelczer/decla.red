@@ -1,16 +1,19 @@
 import { vec2 } from 'gl-matrix';
+import { Circle } from 'sdf-2d';
 import { GameObject } from '../../objects/game-object';
 import { BoundingBox } from '../bounding-box';
 import { IShape } from '../i-shape';
 
-export class Circle implements IShape {
+export class CircleShape extends Circle implements IShape {
   public readonly isInverted = false;
 
   public constructor(
-    public center = vec2.create(),
-    public radius = 0,
+    center = vec2.create(),
+    radius = 0,
     public readonly gameObject: GameObject = null
-  ) {}
+  ) {
+    super(center, radius);
+  }
 
   public distance(target: vec2): number {
     return vec2.distance(this.center, target) - this.radius;
@@ -35,12 +38,12 @@ export class Circle implements IShape {
     return this.distance(target) < 0;
   }
 
-  public areIntersecting(other: Circle): boolean {
+  public areIntersecting(other: CircleShape): boolean {
     const distance = vec2.distance(this.center, other.center);
     return distance < this.radius + other.radius;
   }
 
-  public clone(): Circle {
-    return new Circle(vec2.clone(this.center), this.radius, this.gameObject);
+  public clone(): CircleShape {
+    return new CircleShape(vec2.clone(this.center), this.radius, this.gameObject);
   }
 }

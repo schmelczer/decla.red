@@ -1,24 +1,20 @@
 import { vec2 } from 'gl-matrix';
+import { InvertedTunnel } from 'sdf-2d';
 import { clamp01 } from '../../helper/clamp';
-import { mix } from '../../helper/mix';
 import { rotate90Deg } from '../../helper/rotate-90-deg';
 import { GameObject } from '../../objects/game-object';
 import { BoundingBox } from '../bounding-box';
 import { IShape } from '../i-shape';
 
-export default class TunnelShape implements IShape {
-  public readonly isInverted = true;
-
-  public readonly toFromDelta: vec2;
-
+export class TunnelShape extends InvertedTunnel implements IShape {
   constructor(
-    public readonly from: vec2,
-    public readonly to: vec2,
-    public readonly fromRadius: number,
-    public readonly toRadius: number,
+    readonly from: vec2,
+    readonly to: vec2,
+    readonly fromRadius: number,
+    readonly toRadius: number,
     public readonly gameObject: GameObject = null
   ) {
-    this.toFromDelta = vec2.subtract(vec2.create(), to, from);
+    super(from, to, fromRadius, toRadius);
   }
 
   public get boundingBox(): BoundingBox {
@@ -33,9 +29,10 @@ export default class TunnelShape implements IShape {
   public normal(target: vec2): vec2 {
     const targetFromDelta = vec2.subtract(vec2.create(), target, this.from);
 
+    const toFromDelta = vec2.subtract(vec2.create(), this.to, this.from);
+
     const h = clamp01(
-      vec2.dot(targetFromDelta, this.toFromDelta) /
-        vec2.dot(this.toFromDelta, this.toFromDelta)
+      vec2.dot(targetFromDelta, toFromDelta) / vec2.dot(toFromDelta, toFromDelta)
     );
 
     let diff = vec2.create();
@@ -46,10 +43,10 @@ export default class TunnelShape implements IShape {
       vec2.subtract(diff, target, this.from);
     } else {
       const side = Math.sign(
-        this.toFromDelta.x * targetFromDelta.y - this.toFromDelta.y * targetFromDelta.x
+        toFromDelta.x * targetFromDelta.y - toFromDelta.y * targetFromDelta.x
       );
 
-      const normal = rotate90Deg(this.toFromDelta);
+      const normal = rotate90Deg(toFromDelta);
       vec2.normalize(normal, normal);
 
       const translatedFrom = vec2.add(
@@ -70,20 +67,6 @@ export default class TunnelShape implements IShape {
     }
 
     return vec2.normalize(diff, diff);
-  }
-
-  public distance(target: vec2): number {
-    const targetFromDelta = vec2.subtract(vec2.create(), target, this.from);
-
-    const h = clamp01(
-      vec2.dot(targetFromDelta, this.toFromDelta) /
-        vec2.dot(this.toFromDelta, this.toFromDelta)
-    );
-
-    return (
-      vec2.distance(targetFromDelta, vec2.scale(vec2.create(), this.toFromDelta, h)) -
-      mix(this.fromRadius, this.toRadius, h)
-    );
   }
 
   public clone(): TunnelShape {

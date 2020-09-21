@@ -1,3 +1,19 @@
+$breakpoint: 800px;
+
+* {
+  margin: 0;
+  box-sizing: border-box;
+  color: white;
+}
+
+html {
+  background-color: linear-gradient(45deg, #103783, #9bafd9);
+
+  @media (max-width: $breakpoint) {
+    font-size: 0.7rem;
+  }
+}
+
 html,
 body,
 canvas#main {
@@ -6,31 +22,16 @@ canvas#main {
 }
 
 body {
-  position: relative;
-  margin: 0;
-
   #overlay {
-    font-family: Helvetica, Arial, sans-serif;
-    font-size: 0.75em;
-    margin: 0.75em 1em;
-    user-select: none;
-    pointer-events: none;
+    margin: 0.5rem 1.25rem;
     position: absolute;
     right: 0;
-    $outline-width: 0.5px;
-    text-shadow: -$outline-width -$outline-width 0 #000,
-      $outline-width -$outline-width 0 #000, -$outline-width $outline-width 0 #000,
-      $outline-width $outline-width 0 #000;
-    color: white;
+    font-size: 0.75rem;
     white-space: pre;
+    font-family: 'Lucida Console', Monaco, monospace;
 
-    @media (max-width: 800px) {
-      font-size: 0.65em;
+    @media (max-width: $breakpoint) {
+      font-size: 0.6rem;
     }
-  }
-
-  canvas#main {
-    width: 100%;
-    background-color: hotpink;
   }
 }

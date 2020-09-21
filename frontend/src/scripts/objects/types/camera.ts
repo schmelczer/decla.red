@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { BeforeRenderCommand } from '../../graphics/commands/before-render';
+import { RenderCommand } from '../../graphics/commands/render';
 import { CursorMoveCommand } from '../../input/commands/cursor-move-command';
 import { ZoomCommand } from '../../input/commands/zoom';
 import { MoveToCommand } from '../../physics/commands/move-to';
@@ -17,7 +17,7 @@ export class Camera extends GameObject {
 
     this._viewArea = new BoundingBox(null);
 
-    this.addCommandExecutor(BeforeRenderCommand, this.draw.bind(this));
+    this.addCommandExecutor(RenderCommand, this.draw.bind(this));
     this.addCommandExecutor(MoveToCommand, this.moveTo.bind(this));
     this.addCommandExecutor(CursorMoveCommand, this.setCursorPosition.bind(this));
     this.addCommandExecutor(ZoomCommand, this.zoom.bind(this));
@@ -27,7 +27,7 @@ export class Camera extends GameObject {
     return this._viewArea;
   }
 
-  private draw(c: BeforeRenderCommand) {
+  private draw(c: RenderCommand) {
     const canvasAspectRatio = c.renderer.canvasSize.x / c.renderer.canvasSize.y;
 
     this.viewArea.size = vec2.fromValues(
@@ -35,8 +35,8 @@ export class Camera extends GameObject {
       Math.sqrt(this.inViewAreaSize / canvasAspectRatio)
     );
 
-    c.renderer.setViewArea(this._viewArea);
-    c.renderer.setCursorPosition(this.cursorPosition);
+    c.renderer.setViewArea(this._viewArea.topLeft, this.viewArea.size);
+    //c.renderer.setCursorPosition(this.cursorPosition);
   }
 
   private moveTo(c: MoveToCommand) {

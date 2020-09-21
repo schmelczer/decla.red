@@ -1,7 +1,6 @@
 import { vec2, vec3 } from 'gl-matrix';
+import { Flashlight } from 'sdf-2d';
 import { RenderCommand } from '../../graphics/commands/render';
-import { DrawableBlob } from '../../graphics/drawables/drawable-blob';
-import { Flashlight } from '../../graphics/drawables/lights/flashlight';
 import { IGame } from '../../i-game';
 import { KeyDownCommand } from '../../input/commands/key-down';
 import { KeyUpCommand } from '../../input/commands/key-up';
@@ -9,19 +8,18 @@ import { SwipeCommand } from '../../input/commands/swipe';
 import { StepCommand } from '../../physics/commands/step';
 import { TeleportToCommand } from '../../physics/commands/teleport-to';
 import { IShape } from '../../shapes/i-shape';
-import { Blob } from '../../shapes/types/blob';
+import { BlobShape } from '../../shapes/types/blob-shape';
 import { GameObject } from '../game-object';
 
 export class Character extends GameObject {
   private keysDown: Set<string> = new Set();
   private light = new Flashlight(
     vec2.create(),
-    vec2.fromValues(-1, 0),
-    0.7,
     vec3.fromValues(1, 0.6, 0.45),
-    1.5
+    1.5,
+    vec2.fromValues(-1, 0)
   );
-  private shape = new DrawableBlob(vec2.create());
+  private shape = new BlobShape(vec2.create());
   private static speed = 1.5;
 
   constructor(private game: IGame) {
@@ -41,8 +39,8 @@ export class Character extends GameObject {
   }
 
   private draw(c: RenderCommand) {
-    c.renderer.drawShape(this.shape);
-    c.renderer.drawLight(this.light);
+    c.renderer.addDrawable(this.shape);
+    c.renderer.addDrawable(this.light);
   }
 
   private tryMoving(delta: vec2, isFirstIteration = true) {
@@ -98,14 +96,14 @@ export class Character extends GameObject {
     }
   }
 
-  private getNearShapesTo(shape: Blob): Array<{ shape: IShape; distance: number }> {
+  private getNearShapesTo(shape: BlobShape): Array<{ shape: IShape; distance: number }> {
     return this.game
       .findIntersecting(shape.boundingBox)
       .filter((b) => b.shape)
       .map((b) => ({
         shape: b.shape,
         // TODO: fix this
-        distance: b.shape.distance(shape.center) + shape.radius - 20,
+        distance: b.shape.minDistance(shape.center) + shape.radius - 20,
       }))
       .sort((e) => e.distance);
   }

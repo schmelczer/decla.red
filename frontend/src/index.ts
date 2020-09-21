@@ -1,13 +1,27 @@
-import { glMatrix, vec2 } from 'gl-matrix';
+import { glMatrix } from 'gl-matrix';
 import { Game } from './scripts/game';
-import { applyArrayPlugins } from './scripts/helper/array';
 import { Random } from './scripts/helper/random';
-import TunnelShape from './scripts/shapes/types/tunnel-shape';
 import './styles/main.scss';
 
-glMatrix.setMatrixArrayType(Array);
-applyArrayPlugins();
+glMatrix.setMatrixArrayType(
+  Array
+); /*
+    }
+  }
 
+  zeroes.forEach((z) => {
+    const blueIndex = z.y * (width * 4) + z.x * 4 + 2;
+    imageData.data[blueIndex] = 255;
+    imageData.data[blueIndex - 1] = 255;
+    imageData.data[blueIndex - 2] = 255;
+  });
+
+  console.log(errors);
+
+  ctx.putImageData(imageData, 0, 0);
+};*/ //testSDF(); // extract as new image (data-uri)
+
+/*
 const testSDF = () => {
   Random.seed = 44;
 
@@ -24,19 +38,32 @@ const testSDF = () => {
   res = -Math.log2(res) / k;
   return -res;
 
-  */
-    /*let min = 1000;
+  */ /*let min = 1000;
     for (const t of objects) {
       min = Math.min(min, t.distance(position));
     }
     if (min < 0) {
       // min = Math.min(min, vec2.distance(position, vec2.fromValues(40, 80 - 31.62)) - 31.62);
     }
-    return -min;*/
+    return -min;*/ /*
+const tree = new BoundingBoxTree([
+  new BoundingBox(300, 550, 150, 550, 'A'),
+  new BoundingBox(400, 800, 50, 200, 'B'),
+  new BoundingBox(450, 500, 175, 185, 'C'),
+  new BoundingBox(100, 200, 100, 500, 'D'),
+  new BoundingBox(750, 950, 450, 600, 'E'),
+  new BoundingBox(940, 1000, -2, 180, 'F'),
+  new BoundingBox(960, 1050, 50, 190, 'G'),
+  new BoundingBox(150, 900, 0, 575, 'H'),
+  new BoundingBox(-10000, 10000, -10000, 10000, 'I'),
+]);
 
+tree.print();
+console.log(tree.findIntersecting(new BoundingBox(960, 1050, 50, 190, 'G')));
+*/ /*
     return -vec2.distance(position, vec2.fromValues(40, 40)) + 30;
   };
-
+/*
   const width = 80;
   const height = 100;
 
@@ -92,43 +119,7 @@ const testSDF = () => {
       /*if (zeroes.find((z) => vec2.distance(z, position) < dist) !== undefined) {
         const blueIndex = y * (width * 4) + x * 4 + 2;
         imageData.data[blueIndex] = 255;
-      }*/
-    }
-  }
-
-  zeroes.forEach((z) => {
-    const blueIndex = z.y * (width * 4) + z.x * 4 + 2;
-    imageData.data[blueIndex] = 255;
-    imageData.data[blueIndex - 1] = 255;
-    imageData.data[blueIndex - 2] = 255;
-  });
-
-  console.log(errors);
-
-  ctx.putImageData(imageData, 0, 0);
-};
-
-//testSDF();
-// extract as new image (data-uri)
-
-/*
-const tree = new BoundingBoxTree([
-  new BoundingBox(300, 550, 150, 550, 'A'),
-  new BoundingBox(400, 800, 50, 200, 'B'),
-  new BoundingBox(450, 500, 175, 185, 'C'),
-  new BoundingBox(100, 200, 100, 500, 'D'),
-  new BoundingBox(750, 950, 450, 600, 'E'),
-  new BoundingBox(940, 1000, -2, 180, 'F'),
-  new BoundingBox(960, 1050, 50, 190, 'G'),
-  new BoundingBox(150, 900, 0, 575, 'H'),
-  new BoundingBox(-10000, 10000, -10000, 10000, 'I'),
-]);
-
-tree.print();
-console.log(tree.findIntersecting(new BoundingBox(960, 1050, 50, 190, 'G')));
-*/
-
-const main = async () => {
+      }*/ const main = async () => {
   try {
     Random.seed = 42;
     await new Game().start();

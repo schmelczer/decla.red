@@ -1,8 +1,8 @@
+import { Renderer } from 'sdf-2d';
 import { Command } from '../../commands/command';
-import { IRenderer } from '../../graphics/i-renderer';
 
 export class RenderCommand extends Command {
-  public constructor(public readonly renderer?: IRenderer) {
+  public constructor(public readonly renderer?: Renderer) {
     super();
   }
 
