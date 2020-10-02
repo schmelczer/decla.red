@@ -1,31 +1,30 @@
-import { vec3 } from 'gl-matrix';
-import { CircleLight, compile, Flashlight, Renderer } from 'sdf-2d';
+import { vec2 } from 'gl-matrix';
+import { CircleLight, compile, Flashlight, InvertedTunnel, Renderer } from 'sdf-2d';
 import { CommandBroadcaster } from './commands/command-broadcaster';
 import { RenderCommand } from './graphics/commands/render';
+import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { prettyPrint } from './helper/pretty-print';
+import { rgb } from './helper/rgb';
 import { IGame } from './i-game';
 import { KeyboardListener } from './input/keyboard-listener';
 import { MouseListener } from './input/mouse-listener';
 import { TouchListener } from './input/touch-listener';
-import { GameObject } from './objects/game-object';
 import { Objects } from './objects/objects';
 import { Camera } from './objects/types/camera';
 import { Character } from './objects/types/character';
 import { createDungeon } from './objects/world/create-dungeon';
+import { BoundingBoxBase } from './physics/bounds/bounding-box-base';
 import { MoveToCommand } from './physics/commands/move-to';
 import { StepCommand } from './physics/commands/step';
 import { TeleportToCommand } from './physics/commands/teleport-to';
 import { Physics } from './physics/physics';
-import { BoundingBoxBase } from './shapes/bounding-box-base';
-import { CircleShape } from './shapes/types/circle-shape';
-import { TunnelShape } from './shapes/types/tunnel-shape';
+import { settings } from './settings';
+import { BlobShape } from './shapes/types/blob-shape';
 
 export class Game implements IGame {
   public readonly objects = new Objects();
   public readonly physics = new Physics();
   public readonly camera = new Camera();
-  private previousTime?: DOMHighResTimeStamp = null;
-  private previousFpsValues: Array<number> = [];
   private character: Character;
   private renderer: Renderer;
   private rendererPromise: Promise<Renderer>;
@@ -33,8 +32,6 @@ export class Game implements IGame {
 
   constructor() {
     const canvas: HTMLCanvasElement = document.querySelector('canvas#main');
-
-    document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
 
     new CommandBroadcaster(
       [
@@ -48,16 +45,16 @@ export class Game implements IGame {
     this.rendererPromise = compile(
       canvas,
       [
-        CircleShape.descriptor,
-        TunnelShape.descriptor,
+        InvertedTunnel.descriptor,
         Flashlight.descriptor,
+        BlobShape.descriptor,
         CircleLight.descriptor,
       ],
-      [
-        vec3.fromValues(0, 0, 0),
-        vec3.fromValues(224 / 255, 96 / 255, 126 / 255),
-        vec3.fromValues(119 / 255, 173 / 255, 120 / 255),
-      ]
+      {
+        shadowTraceCount: 12,
+        paletteSize: 10,
+        enableStopwatch: true,
+      }
     );
     this.initializeScene();
     this.physics.start();
@@ -67,14 +64,20 @@ export class Game implements IGame {
     this.renderer = await this.rendererPromise;
     this.renderer.setRuntimeSettings({
       isWorldInverted: true,
-      ambientLight: vec3.fromValues(0.35, 0.1, 0.45),
-      shadowLength: 300,
+      ambientLight: rgb(0.35, 0.1, 0.45),
+      colorPalette: [
+        rgb(0.4, 1, 0.6),
+        rgb(1, 1, 0),
+        rgb(0.3, 1, 1),
+        rgb(0.3, 1, 1),
+        rgb(0.3, 1, 1),
+        rgb(0.3, 1, 1),
+        rgb(0.3, 1, 1),
+      ],
+      enableHighDpiRendering: false,
+      lightCutoffDistance: settings.lightCutoffDistance,
     });
     requestAnimationFrame(this.gameLoop.bind(this));
-  }
-
-  public addObject(o: GameObject) {
-    this.objects.addObject(o);
   }
 
   public get viewArea(): BoundingBoxBase {
@@ -86,51 +89,38 @@ export class Game implements IGame {
   }
 
   private initializeScene() {
-    const start = createDungeon(this.objects, this.physics);
     createDungeon(this.objects, this.physics);
+    //createDungeon(this.objects, this.physics);
 
-    this.character = new Character(this);
-    // this.physics.addDynamicBoundingBox(this.character.boundingBox);
-    this.addObject(this.character);
-    this.addObject(this.camera);
-    let pos: any = localStorage.getItem('character-position');
-    pos = pos ? JSON.parse(pos) : start.from;
+    this.character = new Character(this.physics, this);
+    this.objects.addObject(this.character);
+    this.objects.addObject(this.camera);
+    let pos: any = localStorage.getItem('characterPosition');
+    pos = pos ? JSON.parse(pos) : vec2.fromValues(0, 0);
     this.character.sendCommand(new TeleportToCommand(pos));
   }
 
-  private handleVisibilityChange() {
-    if (!document.hidden) {
-      this.previousTime = null;
-    }
-  }
+  private deltaTimeCalculator = new DeltaTimeCalculator();
 
   private gameLoop(time: DOMHighResTimeStamp) {
-    if (this.previousTime === null) {
-      this.previousTime = time;
-    }
-
-    const deltaTime = time - this.previousTime;
-    this.previousTime = time;
+    const deltaTime = this.deltaTimeCalculator.getNextDeltaTime(time);
 
     this.objects.sendCommand(new StepCommand(deltaTime));
     this.camera.sendCommand(new MoveToCommand(this.character.position));
-
     this.camera.sendCommand(new RenderCommand(this.renderer));
 
     const shouldBeDrawn = this.physics
       .findIntersecting(this.camera.viewArea)
-      .map((b) => b.shape?.gameObject);
+      .map((b) => b.owner);
 
     for (const object of shouldBeDrawn) {
       object?.sendCommand(new RenderCommand(this.renderer));
     }
 
-    this.character.sendCommand(new RenderCommand(this.renderer));
     this.renderer.renderDrawables();
 
     this.overlay.innerText = prettyPrint(this.renderer.insights);
-
-    localStorage.setItem('character-position', JSON.stringify(this.character.position));
+    localStorage.setItem('characterPosition', JSON.stringify(this.character.position));
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 }

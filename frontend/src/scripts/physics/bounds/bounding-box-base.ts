@@ -1,13 +1,14 @@
 import { vec2 } from 'gl-matrix';
-import { IShape } from './i-shape';
+import { PhysicalObject } from '../physical-object';
 
 export abstract class BoundingBoxBase {
   constructor(
-    public readonly shape: IShape,
+    public readonly owner: PhysicalObject,
     protected _xMin: number = 0,
     protected _xMax: number = 0,
     protected _yMin: number = 0,
-    protected _yMax: number = 0
+    protected _yMax: number = 0,
+    public readonly isInverted = false
   ) {}
 
   public get 0(): number {

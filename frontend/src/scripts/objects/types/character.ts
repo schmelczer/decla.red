@@ -1,41 +1,61 @@
-import { vec2, vec3 } from 'gl-matrix';
+import { vec2 } from 'gl-matrix';
 import { Flashlight } from 'sdf-2d';
 import { RenderCommand } from '../../graphics/commands/render';
+import { rgb } from '../../helper/rgb';
 import { IGame } from '../../i-game';
 import { KeyDownCommand } from '../../input/commands/key-down';
 import { KeyUpCommand } from '../../input/commands/key-up';
 import { SwipeCommand } from '../../input/commands/swipe';
+import { BoundingBoxBase } from '../../physics/bounds/bounding-box-base';
+import { BoundingCircle } from '../../physics/bounds/bounding-circle';
 import { StepCommand } from '../../physics/commands/step';
 import { TeleportToCommand } from '../../physics/commands/teleport-to';
-import { IShape } from '../../shapes/i-shape';
+import { DynamicPhysicalObject } from '../../physics/dynamic-physical-object';
+import { Physics } from '../../physics/physics';
 import { BlobShape } from '../../shapes/types/blob-shape';
-import { GameObject } from '../game-object';
 
-export class Character extends GameObject {
+export class Character extends DynamicPhysicalObject {
+  protected head: BoundingCircle;
+  protected leftFoot: BoundingCircle;
+  protected rightFoot: BoundingCircle;
+
   private keysDown: Set<string> = new Set();
+
   private light = new Flashlight(
-    vec2.create(),
-    vec3.fromValues(1, 0.6, 0.45),
-    1.5,
+    vec2.fromValues(0, 0),
+    rgb(1, 0.6, 0.45),
+    0.5,
     vec2.fromValues(-1, 0)
   );
-  private shape = new BlobShape(vec2.create());
+
+  private shape = new BlobShape();
+  private boundingCircle = new BoundingCircle(this, vec2.create(), 50);
+  private center = vec2.create();
   private static speed = 1.5;
 
-  constructor(private game: IGame) {
-    super();
+  constructor(physics: Physics, private game: IGame) {
+    super(physics, true);
 
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
     this.addCommandExecutor(TeleportToCommand, (c) => this.setPosition(c.position));
     this.addCommandExecutor(KeyDownCommand, (c) => this.keysDown.add(c.key));
     this.addCommandExecutor(KeyUpCommand, (c) => this.keysDown.delete(c.key));
+    this.addCommandExecutor(StepCommand, this.stepHandler.bind(this));
     this.addCommandExecutor(SwipeCommand, (c) => {
       this.tryMoving(vec2.multiply(vec2.create(), c.delta, this.game.viewArea.size));
     });
+
+    this.head = new BoundingCircle(this, this.center, 50);
+    this.leftFoot = new BoundingCircle(this, this.center, 50);
+    this.rightFoot = new BoundingCircle(this, this.center, 50);
+
+    this.shape.setCircles([this.head, this.leftFoot, this.rightFoot]);
+
+    this.addToPhysics();
   }
 
-  public get position(): vec2 {
-    return this.shape.center;
+  public distance(target: vec2): number {
+    return this.shape.minDistance(target);
   }
 
   private draw(c: RenderCommand) {
@@ -43,73 +63,24 @@ export class Character extends GameObject {
     c.renderer.addDrawable(this.light);
   }
 
-  private tryMoving(delta: vec2, isFirstIteration = true) {
-    const maxStep = 2;
-    if (vec2.length(delta) > maxStep) {
-      let steppedDelta = vec2.normalize(vec2.create(), delta);
-      vec2.scale(steppedDelta, steppedDelta, maxStep - 0.001);
-
-      for (let i = 0; i <= vec2.length(delta) / maxStep - 1; i++) {
-        this.tryMoving(vec2.clone(steppedDelta), isFirstIteration);
-      }
-
-      steppedDelta = vec2.normalize(vec2.create(), delta);
-
-      vec2.scale(steppedDelta, steppedDelta, vec2.length(delta) % maxStep);
-      this.tryMoving(vec2.clone(steppedDelta), isFirstIteration);
-
-      return;
-    }
-
-    const nextShape = this.shape.clone();
-    vec2.add(nextShape.center, nextShape.center, delta);
-
-    const nextNearShapes = this.getNearShapesTo(nextShape);
-
-    if (nextNearShapes.length && nextNearShapes[0].distance < 0) {
-      this.setPosition(nextShape.center);
-    } else {
-      if (!isFirstIteration) {
-        return;
-      }
-
-      const currentNearShapes = this.getNearShapesTo(this.shape);
-      const intersecting = nextNearShapes
-        .filter(
-          (n) =>
-            currentNearShapes.find((c) => c.shape === n.shape && c.distance <= 0) !==
-            undefined
-        )
-        .sort((e) => Math.abs(e.distance));
-
-      if (intersecting.length < 1) {
-        return;
-      }
-      const normal = intersecting[0].shape.normal(this.shape.center);
-
-      const maxDistance = intersecting.reduce((p, c) => (p.distance > c.distance ? p : c))
-        .distance;
-
-      vec2.add(delta, delta, vec2.scale(vec2.create(), normal, -maxDistance - 2));
-
-      this.tryMoving(delta, false);
-    }
+  public get position(): vec2 {
+    return this.center;
   }
 
-  private getNearShapesTo(shape: BlobShape): Array<{ shape: IShape; distance: number }> {
-    return this.game
-      .findIntersecting(shape.boundingBox)
-      .filter((b) => b.shape)
-      .map((b) => ({
-        shape: b.shape,
-        // TODO: fix this
-        distance: b.shape.minDistance(shape.center) + shape.radius - 20,
-      }))
-      .sort((e) => e.distance);
+  public getBoundingCircles(): Array<BoundingCircle> {
+    return [this.boundingCircle];
+  }
+
+  public getBoundingBox(): BoundingBoxBase {
+    return this.head.boundingBox;
+  }
+
+  private tryMoving(delta: vec2) {
+    this.physics.tryMovingDynamicCircle(this.head, delta);
   }
 
   private setPosition(value: vec2) {
-    this.shape.position = value;
+    //this.head.center = value;
     this.light.center = vec2.add(vec2.create(), value, vec2.fromValues(50, -40));
   }
 

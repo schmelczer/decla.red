@@ -1,14 +1,15 @@
-import { vec2 } from 'gl-matrix';
+import { vec2, vec3 } from 'gl-matrix';
 import { Random } from '../../helper/random';
 import { Physics } from '../../physics/physics';
 import { Objects } from '../objects';
+import { Lamp } from '../types/lamp';
 import { Tunnel } from '../types/tunnel';
 
-export const createDungeon = (objects: Objects, physics: Physics): Tunnel => {
+export const createDungeon = (objects: Objects, physics: Physics) => {
   let previousRadius = 350;
   let previousEnd = vec2.create();
 
-  let first: Tunnel;
+  let tunnelsCountSinceLastLight = 0;
 
   for (let i = 0; i < 500000; i += 500) {
     const deltaHeight = (Random.getRandom() - 0.5) * 2000;
@@ -24,30 +25,24 @@ export const createDungeon = (objects: Objects, physics: Physics): Tunnel => {
       currentToRadius
     );
 
-    if (!first) {
-      first = tunnel;
-    }
-
     objects.addObject(tunnel);
 
-    /* if (deltaHeight > 0 && Random.getRandom() > 0.8) {
+    if (++tunnelsCountSinceLastLight > 3 && Random.getRandom() > 0.6) {
       objects.addObject(
         new Lamp(
           currentEnd,
-          Random.getRandom() * 20 + 30,
-          vec3.scale(
+          vec3.normalize(
             vec3.create(),
-            vec3.normalize(vec3.create(), vec3.fromValues(0.5, 0.1, 0.8)),
-            Random.getRandom() * 0.5 + 0.5
+            vec3.fromValues(Random.getRandom(), 0, Random.getRandom())
           ),
-          1
+          0.5,
+          physics
         )
       );
-    } */
+      tunnelsCountSinceLastLight = 0;
+    }
 
     previousEnd = currentEnd;
     previousRadius = currentToRadius;
   }
-
-  return first;
 };

@@ -1,12 +1,10 @@
 // source: https://github.com/ubilabs/kd-tree-javascript/blob/master/kdTree.js
 
-import { ImmutableBoundingBox } from '../../shapes/immutable-bounding-box';
+import { ImmutableBoundingBox } from '../bounds/immutable-bounding-box';
 
 class Node {
   public left?: Node = null;
-
   public right?: Node = null;
-
   constructor(public rectangle: ImmutableBoundingBox, public parent: Node) {}
 }
 

@@ -1,110 +1,89 @@
 import { mat2d, vec2 } from 'gl-matrix';
-import { Circle, Drawable, DrawableDescriptor } from 'sdf-2d';
-import { GameObject } from '../../objects/game-object';
-import { BoundingBox } from '../bounding-box';
-import { IShape } from '../i-shape';
-import { CircleShape } from './circle-shape';
+import { Drawable, DrawableDescriptor } from 'sdf-2d';
+import { BoundingCircle } from '../../physics/bounds/bounding-circle';
 
-export class BlobShape extends Drawable implements IShape {
+export class BlobShape extends Drawable {
   public static descriptor: DrawableDescriptor = {
     sdf: {
       shader: `
-        uniform struct {
-          vec2 headCenter;
-          vec2 leftFootCenter;
-          vec2 rightFootCenter;
-          float headRadius;
-          float footRadius;
-          float k;
-        }[BLOB_COUNT] blobs;
+      uniform vec2 headCenters[BLOB_COUNT];
+      uniform vec2 leftFootCenters[BLOB_COUNT];
+      uniform vec2 rightFootCenters[BLOB_COUNT];
+      uniform float headRadii[BLOB_COUNT];
+      uniform float footRadii[BLOB_COUNT];
+      //uniform float ks[BLOB_COUNT];
 
-        float smoothMin(float a, float b)
-        {
-          const float k = 80.0;
-          float res = exp2( -k*a ) + exp2( -k*b );
-          return -log2( res )/k;
+      float smoothMin(float a, float b)
+      {
+        const float k = 80.0;
+        float res = exp2( -k*a ) + exp2( -k*b );
+        return -log2( res )/k;
+      }
+
+      float circleDistance(vec2 circleCenter, float radius, vec2 target) {
+        return distance(target, circleCenter) - radius;
+      }
+
+      float blobMinDistance(vec2 target, out float colorIndex) {
+        float minDistance = 1000.0;
+        colorIndex = 3.0;
+
+        for (int i = 0; i < BLOB_COUNT; i++) {
+          float headDistance = circleDistance(headCenters[i], headRadii[i], target);
+          float leftFootDistance = circleDistance(leftFootCenters[i], footRadii[i], target);
+          float rightFootDistance = circleDistance(rightFootCenters[i], footRadii[i], target);
+
+          float res = min(
+            smoothMin(headDistance, leftFootDistance),
+            smoothMin(headDistance, rightFootDistance)
+          );
+
+          minDistance = min(minDistance, res);
         }
 
-        float circleDistance(vec2 circleCenter, float radius) {
-          return distance(position, circleCenter) - radius;
-        }
-
-        void blobMinDistance(inout float minDistance, inout float color) {
-          for (int i = 0; i < BLOB_COUNT; i++) {
-            float headDistance = circleDistance(blobs[i].headCenter, blobs[i].headRadius);
-            float leftFootDistance = circleDistance(blobs[i].leftFootCenter, blobs[i].footRadius);
-            float rightFootDistance = circleDistance(blobs[i].rightFootCenter, blobs[i].footRadius);
-
-            float res = min(
-              smoothMin(headDistance, leftFootDistance),
-              smoothMin(headDistance, rightFootDistance)
-            );
-
-            minDistance = min(minDistance, res);
-            color = mix(1.0, color, step(distanceNdcPixelSize + SURFACE_OFFSET, res));
-          }
-        }
-      `,
+        return minDistance;
+      }
+    `,
       distanceFunctionName: 'blobMinDistance',
     },
-    uniformName: 'blobs',
+    propertyUniformMapping: {
+      footRadius: 'footRadii',
+      headRadius: 'headRadii',
+      rightFootCenter: 'rightFootCenters',
+      leftFootCenter: 'leftFootCenters',
+      headCenter: 'headCenters',
+    },
     uniformCountMacroName: 'BLOB_COUNT',
-    shaderCombinationSteps: [1],
-    empty: new BlobShape(vec2.fromValues(0, 0)),
+    shaderCombinationSteps: [0, 1, 10],
+    empty: new BlobShape(),
   };
+  protected head: BoundingCircle;
+  protected leftFoot: BoundingCircle;
+  protected rightFoot: BoundingCircle;
 
-  public readonly boundingCircleRadius = 100;
-
-  protected readonly headRadius = 40;
-  protected readonly footRadius = 15;
-
-  private readonly headOffset = vec2.fromValues(0, -15);
-  private readonly leftFootOffset = vec2.fromValues(-12, -60);
-  private readonly rightFootOffset = vec2.fromValues(12, -60);
-
-  public readonly isInverted = false;
-  protected boundingCircle = new CircleShape(vec2.create(), this.boundingCircleRadius);
-  protected head = new Circle(vec2.create(), this.headRadius);
-  protected leftFoot = new Circle(vec2.create(), this.footRadius);
-  protected rightFoot = new Circle(vec2.create(), this.footRadius);
-
-  public constructor(center: vec2, public readonly gameObject: GameObject = null) {
+  public constructor() {
     super();
-    this.position = center;
+
+    const circle = new BoundingCircle(null, vec2.create(), 200);
+    this.setCircles([circle, circle, circle]);
   }
 
-  public set position(value: vec2) {
-    vec2.copy(this.boundingCircle.center, value);
-    vec2.add(this.head.center, value, this.headOffset);
-    vec2.add(this.leftFoot.center, value, this.leftFootOffset);
-    vec2.add(this.rightFoot.center, value, this.rightFootOffset);
-  }
-
-  public get center(): vec2 {
-    return this.boundingCircle.center;
-  }
-
-  public get radius(): number {
-    return this.boundingCircle.radius;
+  public setCircles([head, leftFoot, rightFoot]: [
+    BoundingCircle,
+    BoundingCircle,
+    BoundingCircle
+  ]) {
+    this.head = head;
+    this.leftFoot = leftFoot;
+    this.rightFoot = rightFoot;
   }
 
   public minDistance(target: vec2): number {
-    return this.boundingCircle.minDistance(target);
-  }
-  public normal(from: vec2): vec2 {
-    return this.boundingCircle.normal(from);
-  }
-
-  public get boundingBox(): BoundingBox {
-    return this.boundingCircle.boundingBox;
-  }
-
-  public isInside(target: vec2): boolean {
-    return this.minDistance(target) < 0;
-  }
-
-  public clone(): BlobShape {
-    return new BlobShape(this.boundingCircle.center, this.gameObject);
+    return Math.min(
+      this.head.distance(target),
+      this.leftFoot.distance(target),
+      this.rightFoot.distance(target)
+    );
   }
 
   protected getObjectToSerialize(transform2d: mat2d, transform1d: number): any {
@@ -120,8 +99,8 @@ export class BlobShape extends Drawable implements IShape {
         this.rightFoot.center,
         transform2d
       ),
-      headRadius: this.headRadius * transform1d,
-      footRadius: this.footRadius * transform1d,
+      headRadius: this.head.radius * transform1d,
+      footRadius: this.leftFoot.radius * transform1d,
     };
   }
 }

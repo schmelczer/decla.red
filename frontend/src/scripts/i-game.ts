@@ -1,8 +1,6 @@
-import { GameObject } from './objects/game-object';
-import { BoundingBoxBase } from './shapes/bounding-box-base';
+import { BoundingBoxBase } from './physics/bounds/bounding-box-base';
 
 export interface IGame {
-  addObject(o: GameObject): void;
   readonly viewArea: BoundingBoxBase;
   findIntersecting(box: BoundingBoxBase): Array<BoundingBoxBase>;
 }
