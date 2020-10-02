@@ -17,7 +17,7 @@ jobs:
       - name: Deploy html
         uses: w9jds/firebase-action@master
         with:
-          args: deploy --only --project decla-red
+          args: deploy --only hosting --project decla-red
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           PROJECT_PATH: frontend
