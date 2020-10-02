@@ -1,50 +1,23 @@
-name: Deploy everything
+name: Deploy site
 on:
   push:
     branches:
       - main
-env:
-  CONTAINER_REGISTRY: schmelczera
-  DOMAIN: decla.red
-
 jobs:
-  build-frontend:
+  firebase-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current branch with lfs
-        uses: actions/checkout@main
-        with:
-          lfs: true
-
-      - name: Setup auth tokens
+        uses: actions/checkout@master
+      - name: Build site
         run: |
-          docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push frontend
-        run: |
-          docker build . -t $CONTAINER_REGISTRY/declared-frontend
-          docker push $CONTAINER_REGISTRY/declared-frontend
+          npm install
+          npm run build
         working-directory: frontend
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs:
-      - build-frontend
-    steps:
-      - name: Checkout current branch with lfs
-        uses: actions/checkout@main
+      - name: Deploy html
+        uses: w9jds/firebase-action@master
         with:
-          lfs: true
-
-      - name: Setup auth tokens
-        run: |
-          # SSH key
-          mkdir ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 400 ~/.ssh/id_ed25519
-          ssh -o StrictHostKeyChecking=no root@$DOMAIN uptime
-
-      - name: Stack deploy
-        run: |
-          DOCKER_HOST=ssh://root@$DOMAIN docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_HOST=ssh://root@$DOMAIN docker stack deploy declared -c docker-compose.yml --with-registry-auth
+          args: deploy --only --project decla-red
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          PROJECT_PATH: frontend
