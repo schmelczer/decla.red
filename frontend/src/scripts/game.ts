@@ -1,7 +1,10 @@
 import { vec2 } from 'gl-matrix';
 import { CircleLight, compile, Flashlight, InvertedTunnel, Renderer } from 'sdf-2d';
 import { CommandBroadcaster } from './commands/command-broadcaster';
-import { RenderCommand } from './graphics/commands/render';
+import { MoveToCommand } from './commands/move-to';
+import { RenderCommand } from './commands/render';
+import { StepCommand } from './commands/step';
+import { TeleportToCommand } from './commands/teleport-to';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { prettyPrint } from './helper/pretty-print';
 import { rgb } from './helper/rgb';
@@ -14,12 +17,9 @@ import { Camera } from './objects/types/camera';
 import { Character } from './objects/types/character';
 import { createDungeon } from './objects/world/create-dungeon';
 import { BoundingBoxBase } from './physics/bounds/bounding-box-base';
-import { MoveToCommand } from './physics/commands/move-to';
-import { StepCommand } from './physics/commands/step';
-import { TeleportToCommand } from './physics/commands/teleport-to';
 import { Physics } from './physics/physics';
 import { settings } from './settings';
-import { BlobShape } from './shapes/types/blob-shape';
+import { BlobShape } from './shapes/blob-shape';
 
 export class Game implements IGame {
   public readonly objects = new Objects();
@@ -45,10 +45,22 @@ export class Game implements IGame {
     this.rendererPromise = compile(
       canvas,
       [
-        InvertedTunnel.descriptor,
-        Flashlight.descriptor,
-        BlobShape.descriptor,
-        CircleLight.descriptor,
+        {
+          ...InvertedTunnel.descriptor,
+          shaderCombinationSteps: [0, 2, 4, 8, 16],
+        },
+        {
+          ...Flashlight.descriptor,
+          shaderCombinationSteps: [0, 1],
+        },
+        {
+          ...BlobShape.descriptor,
+          shaderCombinationSteps: [0, 1],
+        },
+        {
+          ...CircleLight.descriptor,
+          shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
+        },
       ],
       {
         shadowTraceCount: 12,
@@ -90,7 +102,9 @@ export class Game implements IGame {
 
   private initializeScene() {
     createDungeon(this.objects, this.physics);
-    //createDungeon(this.objects, this.physics);
+    createDungeon(this.objects, this.physics);
+    createDungeon(this.objects, this.physics);
+    createDungeon(this.objects, this.physics);
 
     this.character = new Character(this.physics, this);
     this.objects.addObject(this.character);

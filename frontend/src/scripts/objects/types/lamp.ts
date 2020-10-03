@@ -1,9 +1,9 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { CircleLight } from 'sdf-2d';
-import { RenderCommand } from '../../graphics/commands/render';
+import { MoveToCommand } from '../../commands/move-to';
+import { RenderCommand } from '../../commands/render';
 import { BoundingBoxBase } from '../../physics/bounds/bounding-box-base';
 import { ImmutableBoundingBox } from '../../physics/bounds/immutable-bounding-box';
-import { MoveToCommand } from '../../physics/commands/move-to';
 import { PhysicalObject } from '../../physics/physical-object';
 import { Physics } from '../../physics/physics';
 import { settings } from '../../settings';

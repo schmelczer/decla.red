@@ -1,6 +1,6 @@
 import { mat2d, vec2 } from 'gl-matrix';
 import { Drawable, DrawableDescriptor } from 'sdf-2d';
-import { BoundingCircle } from '../../physics/bounds/bounding-circle';
+import { BoundingCircle } from '../physics/bounds/bounding-circle';
 
 export class BlobShape extends Drawable {
   public static descriptor: DrawableDescriptor = {

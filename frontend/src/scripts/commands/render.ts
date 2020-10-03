@@ -1,5 +1,5 @@
 import { Renderer } from 'sdf-2d';
-import { Command } from '../../commands/command';
+import { Command } from './command';
 
 export class RenderCommand extends Command {
   public constructor(public readonly renderer?: Renderer) {

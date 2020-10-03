@@ -1,9 +1,9 @@
 import { vec2 } from 'gl-matrix';
-import { RenderCommand } from '../../graphics/commands/render';
+import { MoveToCommand } from '../../commands/move-to';
+import { RenderCommand } from '../../commands/render';
 import { CursorMoveCommand } from '../../input/commands/cursor-move-command';
 import { ZoomCommand } from '../../input/commands/zoom';
 import { BoundingBox } from '../../physics/bounds/bounding-box';
-import { MoveToCommand } from '../../physics/commands/move-to';
 import { GameObject } from '../game-object';
 
 export class Camera extends GameObject {

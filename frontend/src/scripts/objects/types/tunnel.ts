@@ -1,13 +1,13 @@
 import { vec2 } from 'gl-matrix';
-import { RenderCommand } from '../../graphics/commands/render';
+import { InvertedTunnel } from 'sdf-2d';
+import { RenderCommand } from '../../commands/render';
 import { BoundingBoxBase } from '../../physics/bounds/bounding-box-base';
 import { ImmutableBoundingBox } from '../../physics/bounds/immutable-bounding-box';
 import { Physics } from '../../physics/physics';
 import { StaticPhysicalObject } from '../../physics/static-physical-object';
-import { TunnelShape } from '../../shapes/types/tunnel-shape';
 
 export class Tunnel extends StaticPhysicalObject {
-  private shape: TunnelShape;
+  private shape: InvertedTunnel;
 
   constructor(
     physics: Physics,
@@ -17,7 +17,7 @@ export class Tunnel extends StaticPhysicalObject {
     toRadius: number
   ) {
     super(physics, true);
-    this.shape = new TunnelShape(from, to, fromRadius, toRadius);
+    this.shape = new InvertedTunnel(from, to, fromRadius, toRadius);
     this.addToPhysics();
 
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
