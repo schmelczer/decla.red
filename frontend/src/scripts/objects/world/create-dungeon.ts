@@ -27,7 +27,7 @@ export const createDungeon = (objects: Objects, physics: Physics) => {
 
     objects.addObject(tunnel);
 
-    if (++tunnelsCountSinceLastLight > 3 && Random.getRandom() > 0.6) {
+    if (++tunnelsCountSinceLastLight > 3 && Random.getRandom() > 0.7) {
       objects.addObject(
         new Lamp(
           currentEnd,

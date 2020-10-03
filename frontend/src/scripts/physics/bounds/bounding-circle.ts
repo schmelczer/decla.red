@@ -6,7 +6,11 @@ import { BoundingBoxBase } from './bounding-box-base';
 export class BoundingCircle {
   private _boundingBox: BoundingBox;
 
-  constructor(public readonly owner, private _center: vec2, private _radius: number) {
+  constructor(
+    public readonly owner: PhysicalObject,
+    private _center: vec2,
+    private _radius: number
+  ) {
     this._boundingBox = new BoundingBox(owner);
     this.recalculateBoundingBox();
   }
@@ -31,6 +35,10 @@ export class BoundingCircle {
 
   public distance(target: vec2): number {
     return vec2.distance(target, this.center) - this.radius;
+  }
+
+  public distanceBetween(target: BoundingCircle): number {
+    return vec2.distance(target.center, this.center) - this.radius - target.radius;
   }
 
   public areIntersecting(other: PhysicalObject): boolean {

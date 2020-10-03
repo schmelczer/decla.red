@@ -1,6 +1,5 @@
 import { vec2 } from 'gl-matrix';
 import { CommandGenerator } from '../commands/command-generator';
-import { clamp01 } from '../helper/clamp';
 import { CursorMoveCommand } from './commands/cursor-move-command';
 import { PrimaryActionCommand } from './commands/primary-action';
 import { SecondaryActionCommand } from './commands/secondary-action';
@@ -12,7 +11,7 @@ export class MouseListener extends CommandGenerator {
 
   private isMouseDown = false;
 
-  constructor(private target: Element) {
+  constructor(target: Element) {
     super();
 
     target.addEventListener('mousedown', (event: MouseEvent) => {
@@ -59,11 +58,6 @@ export class MouseListener extends CommandGenerator {
   }
 
   private positionFromEvent(event: MouseEvent): vec2 {
-    const bb = this.target.getBoundingClientRect();
-
-    return vec2.fromValues(
-      clamp01((event.clientX - bb.x) / bb.width),
-      clamp01(1 - (event.clientY - bb.y) / bb.height)
-    );
+    return vec2.fromValues(event.clientX, event.clientY);
   }
 }

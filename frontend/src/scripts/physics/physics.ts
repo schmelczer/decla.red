@@ -1,4 +1,6 @@
 import { vec2 } from 'gl-matrix';
+import { rotate90Deg } from '../helper/rotate-90-deg';
+import { settings } from '../settings';
 import { BoundingBoxBase } from './bounds/bounding-box-base';
 import { BoundingCircle } from './bounds/bounding-circle';
 import { ImmutableBoundingBox } from './bounds/immutable-bounding-box';
@@ -23,11 +25,19 @@ export class Physics {
     this.dynamicBoundingBoxes.insert(boundingBox);
   }
 
+  public removeDynamicBoundingBox(boundingBox: BoundingBoxBase) {
+    this.dynamicBoundingBoxes.remove(boundingBox);
+  }
+
   public tryMovingDynamicCircle(
     circle: BoundingCircle,
-    delta: vec2,
-    invocationCount = 0
-  ) {
+    delta: vec2
+  ): {
+    realDelta: vec2;
+    hitSurface: boolean;
+    normal?: vec2;
+    tangent?: vec2;
+  } {
     circle.center = vec2.add(circle.center, circle.center, delta);
 
     const intersecting = this.findIntersecting(circle.boundingBox).filter(
@@ -35,48 +45,65 @@ export class Physics {
         b.owner !== circle.owner && circle.areIntersecting(b.owner) && b.owner.canCollide
     );
 
-    const pointCount = 16;
-    const points = circle.getPerimeterPoints(pointCount);
+    if (intersecting.length === 0) {
+      return {
+        realDelta: delta,
+        hitSurface: false,
+      };
+    }
 
-    const distancesOfPoints = points.map((point) => ({
-      point,
-      distances: intersecting.map((i) => i.owner.distance(point)).sort((a, b) => a - b),
-    }));
+    const points = circle.getPerimeterPoints(settings.hitDetectionCirclePointCount);
+
+    const distancesOfPoints = points
+      .map((point) => ({
+        point,
+        closest: intersecting
+          .map((i) => ({
+            inverted: i.isInverted,
+            distance: i.owner.distance(point),
+          }))
+          .sort((a, b) => a.distance - b.distance)[0],
+      }))
+      .filter((i) => i.closest);
 
     const distancesOfIntersectingPoints = distancesOfPoints.filter(
-      (d) => d.distances[0] > 0
+      (d) =>
+        (d.closest.distance > 0 && d.closest.inverted) ||
+        (d.closest.distance < 0 && !d.closest.inverted)
     );
 
     if (distancesOfIntersectingPoints.length === 0) {
-      return;
+      return {
+        realDelta: delta,
+        hitSurface: false,
+      };
     }
 
-    const distanceToLeastIntersectingForEachPoint = distancesOfIntersectingPoints.map(
-      (pointDistances) => ({
-        point: pointDistances.point,
-        distance: pointDistances.distances[0],
-      })
-    );
-
-    const deltas = distanceToLeastIntersectingForEachPoint.map((pointDistance) => {
+    const deltas = distancesOfIntersectingPoints.map((pointDistance) => {
       vec2.subtract(pointDistance.point, circle.center, pointDistance.point);
       vec2.normalize(pointDistance.point, pointDistance.point);
-
-      vec2.scale(pointDistance.point, pointDistance.point, pointDistance.distance);
+      vec2.scale(
+        pointDistance.point,
+        pointDistance.point,
+        (pointDistance.closest.inverted ? 1 : -1) * pointDistance.closest.distance
+      );
       return pointDistance.point;
     });
 
-    const sumDelta = vec2.fromValues(0, 0);
+    const approxNormal = deltas.reduce(
+      (sum, current) => vec2.add(sum, sum, current),
+      vec2.create()
+    );
+    vec2.scale(approxNormal, approxNormal, 1 / deltas.length);
 
-    deltas.forEach((d) => vec2.add(sumDelta, sumDelta, d));
+    circle.center = vec2.add(circle.center, circle.center, approxNormal);
 
-    vec2.scale(sumDelta, sumDelta, 1 / deltas.length);
-
-    if (invocationCount > 10) {
-      return;
-    }
-
-    this.tryMovingDynamicCircle(circle, sumDelta, ++invocationCount);
+    return {
+      realDelta: delta,
+      hitSurface: true,
+      normal: vec2.normalize(approxNormal, approxNormal),
+      tangent: rotate90Deg(approxNormal),
+    };
   }
 
   public findIntersecting(box: BoundingBoxBase): Array<BoundingBoxBase> {

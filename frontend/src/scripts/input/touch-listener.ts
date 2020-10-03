@@ -1,6 +1,5 @@
 import { vec2 } from 'gl-matrix';
 import { CommandGenerator } from '../commands/command-generator';
-import { clamp01 } from '../helper/clamp';
 import { PrimaryActionCommand } from './commands/primary-action';
 import { SecondaryActionCommand } from './commands/secondary-action';
 import { SwipeCommand } from './commands/swipe';
@@ -39,11 +38,6 @@ export class TouchListener extends CommandGenerator {
   }
 
   private positionFromEvent(event: TouchEvent): vec2 {
-    const bb = this.target.getBoundingClientRect();
-
-    return vec2.fromValues(
-      clamp01(1 - (event.touches[0].clientX - bb.x) / bb.width),
-      clamp01((event.touches[0].clientY - bb.y) / bb.height)
-    );
+    return vec2.fromValues(event.touches[0].clientX, event.touches[0].clientY);
   }
 }

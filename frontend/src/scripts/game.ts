@@ -1,10 +1,16 @@
 import { vec2 } from 'gl-matrix';
-import { CircleLight, compile, Flashlight, InvertedTunnel, Renderer } from 'sdf-2d';
+import {
+  Circle,
+  CircleLight,
+  compile,
+  Flashlight,
+  InvertedTunnel,
+  Renderer,
+} from 'sdf-2d';
 import { CommandBroadcaster } from './commands/command-broadcaster';
 import { MoveToCommand } from './commands/move-to';
 import { RenderCommand } from './commands/render';
 import { StepCommand } from './commands/step';
-import { TeleportToCommand } from './commands/teleport-to';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { prettyPrint } from './helper/pretty-print';
 import { rgb } from './helper/rgb';
@@ -12,6 +18,7 @@ import { IGame } from './i-game';
 import { KeyboardListener } from './input/keyboard-listener';
 import { MouseListener } from './input/mouse-listener';
 import { TouchListener } from './input/touch-listener';
+import { GameObject } from './objects/game-object';
 import { Objects } from './objects/objects';
 import { Camera } from './objects/types/camera';
 import { Character } from './objects/types/character';
@@ -50,16 +57,20 @@ export class Game implements IGame {
           shaderCombinationSteps: [0, 2, 4, 8, 16],
         },
         {
-          ...Flashlight.descriptor,
-          shaderCombinationSteps: [0, 1],
-        },
-        {
           ...BlobShape.descriptor,
           shaderCombinationSteps: [0, 1],
         },
         {
+          ...Circle.descriptor,
+          shaderCombinationSteps: [0, 2, 4, 8, 16],
+        },
+        {
           ...CircleLight.descriptor,
-          shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
+          shaderCombinationSteps: [0, 1, 2, 4, 8],
+        },
+        {
+          ...Flashlight.descriptor,
+          shaderCombinationSteps: [0, 1],
         },
       ],
       {
@@ -68,8 +79,6 @@ export class Game implements IGame {
         enableStopwatch: true,
       }
     );
-    this.initializeScene();
-    this.physics.start();
   }
 
   public async start(): Promise<void> {
@@ -89,6 +98,8 @@ export class Game implements IGame {
       enableHighDpiRendering: false,
       lightCutoffDistance: settings.lightCutoffDistance,
     });
+    this.initializeScene();
+    this.physics.start();
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 
@@ -100,6 +111,10 @@ export class Game implements IGame {
     return this.physics.findIntersecting(box);
   }
 
+  public displayToWorldCoordinates(p: vec2): vec2 {
+    return this.renderer.displayToWorldCoordinates(p);
+  }
+
   private initializeScene() {
     createDungeon(this.objects, this.physics);
     createDungeon(this.objects, this.physics);
@@ -109,9 +124,6 @@ export class Game implements IGame {
     this.character = new Character(this.physics, this);
     this.objects.addObject(this.character);
     this.objects.addObject(this.camera);
-    let pos: any = localStorage.getItem('characterPosition');
-    pos = pos ? JSON.parse(pos) : vec2.fromValues(0, 0);
-    this.character.sendCommand(new TeleportToCommand(pos));
   }
 
   private deltaTimeCalculator = new DeltaTimeCalculator();
@@ -134,7 +146,14 @@ export class Game implements IGame {
     this.renderer.renderDrawables();
 
     this.overlay.innerText = prettyPrint(this.renderer.insights);
-    localStorage.setItem('characterPosition', JSON.stringify(this.character.position));
     requestAnimationFrame(this.gameLoop.bind(this));
+  }
+
+  public addObject(o: GameObject) {
+    this.objects.addObject(o);
+  }
+
+  public removeObject(o: GameObject) {
+    this.objects.removeObject(o);
   }
 }

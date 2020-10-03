@@ -11,13 +11,12 @@ export class BlobShape extends Drawable {
       uniform vec2 rightFootCenters[BLOB_COUNT];
       uniform float headRadii[BLOB_COUNT];
       uniform float footRadii[BLOB_COUNT];
-      //uniform float ks[BLOB_COUNT];
 
-      float smoothMin(float a, float b)
+      float blobSmoothMin(float a, float b)
       {
-        const float k = 80.0;
-        float res = exp2( -k*a ) + exp2( -k*b );
-        return -log2( res )/k;
+        const float k = 300.0;
+        float res = exp2(-k * a) + exp2(-k * b);
+        return -log2(res) / k;
       }
 
       float circleDistance(vec2 circleCenter, float radius, vec2 target) {
@@ -34,8 +33,31 @@ export class BlobShape extends Drawable {
           float rightFootDistance = circleDistance(rightFootCenters[i], footRadii[i], target);
 
           float res = min(
-            smoothMin(headDistance, leftFootDistance),
-            smoothMin(headDistance, rightFootDistance)
+            blobSmoothMin(headDistance, leftFootDistance),
+            blobSmoothMin(headDistance, rightFootDistance)
+          );
+
+          vec2 leftEyeOffset = vec2(-headRadii[i] * 0.35, headRadii[i] * 0.2);
+          vec2 rightEyeOffset = vec2(headRadii[i] * 0.35, headRadii[i] * 0.2);
+
+          res = max(
+            res,
+            -circleDistance(headCenters[i] + leftEyeOffset, headRadii[i] * 0.25, target)
+          );
+
+          res = max(
+            res,
+            -circleDistance(headCenters[i] + rightEyeOffset, headRadii[i] * 0.25, target)
+          );
+
+          res = min(
+            res,
+            circleDistance(headCenters[i] + leftEyeOffset + vec2(0, -headRadii[i] * 0.175), headRadii[i] * 0.25, target)
+          );
+          
+          res = min(
+            res,
+            circleDistance(headCenters[i] + rightEyeOffset + vec2(0, -headRadii[i] * 0.175), headRadii[i] * 0.25, target)
           );
 
           minDistance = min(minDistance, res);
@@ -57,6 +79,7 @@ export class BlobShape extends Drawable {
     shaderCombinationSteps: [0, 1, 10],
     empty: new BlobShape(),
   };
+
   protected head: BoundingCircle;
   protected leftFoot: BoundingCircle;
   protected rightFoot: BoundingCircle;
@@ -79,10 +102,12 @@ export class BlobShape extends Drawable {
   }
 
   public minDistance(target: vec2): number {
-    return Math.min(
-      this.head.distance(target),
-      this.leftFoot.distance(target),
-      this.rightFoot.distance(target)
+    return (
+      Math.min(
+        this.head.distance(target),
+        this.leftFoot.distance(target),
+        this.rightFoot.distance(target)
+      ) / 2
     );
   }
 

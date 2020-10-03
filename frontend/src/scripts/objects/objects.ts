@@ -20,6 +20,16 @@ export class Objects implements CommandReceiver {
 
   public removeObject(o: GameObject) {
     this.objects.delete(o.id);
+
+    for (const command of this.objectsGroupedByAbilities.keys()) {
+      if (o.reactsToCommand(command)) {
+        const array = this.objectsGroupedByAbilities.get(command);
+        array.splice(
+          array.findIndex((i) => i.id == o.id),
+          1
+        );
+      }
+    }
   }
 
   public sendCommandToSingleObject(id: Id, e: Command) {

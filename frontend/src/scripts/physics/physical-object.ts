@@ -6,6 +6,7 @@ import { Physics } from './physics';
 export abstract class PhysicalObject extends GameObject {
   public abstract getBoundingBox(): BoundingBoxBase;
   public abstract distance(target: vec2): number;
+  public readonly isInverted: boolean = false;
 
   constructor(protected physics: Physics, public readonly canCollide: boolean) {
     super();

@@ -7,6 +7,13 @@ export class BoundingBoxList {
     this.boundingBoxes.push(box);
   }
 
+  public remove(box: BoundingBoxBase) {
+    this.boundingBoxes.splice(
+      this.boundingBoxes.findIndex((i) => i === box),
+      1
+    );
+  }
+
   public findIntersecting(box: BoundingBoxBase): Array<BoundingBoxBase> {
     return this.boundingBoxes.filter((b) => b.intersects(box));
   }

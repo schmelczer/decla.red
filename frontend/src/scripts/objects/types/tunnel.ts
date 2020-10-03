@@ -7,6 +7,7 @@ import { Physics } from '../../physics/physics';
 import { StaticPhysicalObject } from '../../physics/static-physical-object';
 
 export class Tunnel extends StaticPhysicalObject {
+  public readonly isInverted = true;
   private shape: InvertedTunnel;
 
   constructor(
