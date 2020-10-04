@@ -7,9 +7,13 @@
     "downlevelIteration": true,
     "allowJs": true,
     "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "moduleResolution": "Node",
-    "module": "es6",
-    "lib": ["es2015", "dom"]
-  }
+    "moduleResolution": "node",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"]
+    }
+  },
+  "include": ["src/**/*"]
 }

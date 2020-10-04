@@ -1,0 +1,51 @@
+{
+  "name": "decla.red-server",
+  "version": "0.0.0",
+  "description": "Game server for decla.red",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently --kill-others \"webpack --mode development -w\" \"npx nodemon dist/main.js\"",
+    "lint": "npx eslint --fix \"src/**/*.ts\" && npx prettier --write \"src/**/*.ts\"",
+    "build": "webpack --mode production"
+  },
+  "keywords": [],
+  "author": "András Schmelczer <andras@schmelczer.dev> (https://schmelczer.dev/)",
+  "devDependencies": {
+    "@types/express": "^4.17.8",
+    "@types/gl-matrix": "^2.4.5",
+    "@types/node": "^14.11.2",
+    "@types/uuid": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^3.9.1",
+    "@typescript-eslint/parser": "^3.9.1",
+    "clean-webpack-plugin": "^3.0.0",
+    "concurrently": "^5.3.0",
+    "eslint": "^7.2.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-import": "^2.21.2",
+    "eslint-plugin-prettier": "^3.1.4",
+    "eslint-plugin-unused-imports": "^0.1.3",
+    "firebase": "^7.22.0",
+    "gl-matrix": "^3.3.0",
+    "nodemon": "^2.0.4",
+    "prettier": "^2.0.5",
+    "terser-webpack-plugin": "^2.3.5",
+    "ts-loader": "^8.0.1",
+    "typescript": "^3.8.3",
+    "uuid": "^8.2.0",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.10.3",
+    "file-loader": "^6.1.0"
+  },
+  "dependencies": {
+    "@types/cors": "^2.8.7",
+    "@types/socket.io": "^2.1.11",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "http": "0.0.1-security",
+    "socket.io": "^2.3.0",
+    "uws": "^10.148.1",
+    "webpack-node-externals": "^2.5.2"
+  }
+}

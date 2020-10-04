@@ -1,7 +1,10 @@
-import * as firebase from 'firebase/app';
+import firebase from 'firebase/app';
 import 'firebase/firebase-remote-config';
 
-export class Configuration {
+export abstract class Configuration {
+  private static remoteConfig: firebase.remoteConfig.RemoteConfig;
+  private static initialized = false;
+
   public static async initialize(): Promise<void> {
     const firebaseConfig = {
       apiKey: 'AIzaSyBG85dp-AhaCW-qi_6mu77wDPSipzipIF4',
@@ -12,19 +15,24 @@ export class Configuration {
 
     firebase.initializeApp(firebaseConfig);
 
-    const remoteConfig = firebase.remoteConfig();
-    remoteConfig.defaultConfig = {
-      online_servers: 'hi',
-    };
+    this.remoteConfig = firebase.remoteConfig();
 
-    remoteConfig.settings = {
-      minimumFetchIntervalMillis: 3600 * 1000,
+    this.remoteConfig.settings = {
+      minimumFetchIntervalMillis: 0, // todo: 3600 * 1000,
       fetchTimeoutMillis: 15 * 1000,
     } as any;
 
-    await remoteConfig.ensureInitialized();
-    await remoteConfig.fetchAndActivate();
+    await this.remoteConfig.ensureInitialized();
+    await this.remoteConfig.fetchAndActivate();
 
-    console.log(remoteConfig.getValue('online_servers'));
+    this.initialized = true;
+  }
+
+  public static get servers(): Array<string> {
+    if (!this.initialized) {
+      throw new Error('Configuration should be initialized');
+    }
+
+    return JSON.parse(this.remoteConfig.getValue('online_servers').asString());
   }
 }

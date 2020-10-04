@@ -3,9 +3,12 @@ import {
   Circle,
   CircleLight,
   compile,
+  FilteringOptions,
   Flashlight,
   InvertedTunnel,
   Renderer,
+  renderNoise,
+  WrapOptions,
 } from 'sdf-2d';
 import { CommandBroadcaster } from './commands/command-broadcaster';
 import { MoveToCommand } from './commands/move-to';
@@ -82,6 +85,8 @@ export class Game implements IGame {
   }
 
   public async start(): Promise<void> {
+    const noiseTexture = await renderNoise([1024, 1], 60, 1 / 8);
+
     this.renderer = await this.rendererPromise;
     this.renderer.setRuntimeSettings({
       isWorldInverted: true,
@@ -97,6 +102,15 @@ export class Game implements IGame {
       ],
       enableHighDpiRendering: false,
       lightCutoffDistance: settings.lightCutoffDistance,
+      textures: {
+        noiseTexture: {
+          source: noiseTexture,
+          overrides: {
+            maxFilter: FilteringOptions.LINEAR,
+            wrapS: WrapOptions.MIRRORED_REPEAT,
+          },
+        },
+      },
     });
     this.initializeScene();
     this.physics.start();

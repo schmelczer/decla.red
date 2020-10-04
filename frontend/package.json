@@ -32,7 +32,7 @@
     "css-loader": "^3.5.2",
     "cssnano": "^4.1.10",
     "eslint": "^7.2.0",
-    "sdf-2d": "^0.3.4",
+    "sdf-2d": "^0.4.0",
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-import": "^2.21.2",
     "eslint-plugin-prettier": "^3.1.4",
@@ -57,11 +57,12 @@
     "ts-loader": "^8.0.1",
     "typescript": "^3.8.3",
     "uuid": "^8.2.0",
+    "file-loader": "^6.1.0",
     "webpack": "^4.43.0",
     "webpack-cli": "^3.3.11",
-    "webpack-dev-server": "^3.10.3"
-  },
-  "dependencies": {
-    "firebase": "^7.22.0"
+    "webpack-dev-server": "^3.10.3",
+    "firebase": "^7.22.0",
+    "@types/socket.io-client": "^1.4.34",
+    "socket.io-client": "^2.3.1"
   }
 }
