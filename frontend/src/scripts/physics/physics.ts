@@ -1,4 +1,4 @@
-import { vec2 } from 'gl-matrix';
+/*import { vec2 } from 'gl-matrix';
 import { rotate90Deg } from '../helper/rotate-90-deg';
 import { settings } from '../settings';
 import { BoundingBoxBase } from './bounds/bounding-box-base';
@@ -118,3 +118,4 @@ export class Physics {
     this.isTreeInitialized = true;
   }
 }
+*/

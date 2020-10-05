@@ -10,50 +10,69 @@ import {
   renderNoise,
   WrapOptions,
 } from 'sdf-2d';
-import { CommandBroadcaster } from './commands/command-broadcaster';
-import { MoveToCommand } from './commands/move-to';
-import { RenderCommand } from './commands/render';
-import { StepCommand } from './commands/step';
+import { broadcastCommands, SetViewAreaActionCommand, TransportEvents } from 'shared';
+import io from 'socket.io-client';
+import { KeyboardListener } from './commands/generators/keyboard-listener';
+import { MouseListener } from './commands/generators/mouse-listener';
+import { TouchListener } from './commands/generators/touch-listener';
+import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
+import { RenderCommand } from './commands/types/render';
+import { StepCommand } from './commands/types/step';
+import { Configuration } from './config/configuration';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { prettyPrint } from './helper/pretty-print';
 import { rgb } from './helper/rgb';
-import { IGame } from './i-game';
-import { KeyboardListener } from './input/keyboard-listener';
-import { MouseListener } from './input/mouse-listener';
-import { TouchListener } from './input/touch-listener';
-import { GameObject } from './objects/game-object';
-import { Objects } from './objects/objects';
-import { Camera } from './objects/types/camera';
-import { Character } from './objects/types/character';
-import { createDungeon } from './objects/world/create-dungeon';
-import { BoundingBoxBase } from './physics/bounds/bounding-box-base';
-import { Physics } from './physics/physics';
+import { GameObjectContainer } from './objects/game-object-container';
 import { settings } from './settings';
 import { BlobShape } from './shapes/blob-shape';
+import { deserialize } from './transport/deserialize';
 
-export class Game implements IGame {
-  public readonly objects = new Objects();
-  public readonly physics = new Physics();
-  public readonly camera = new Camera();
-  private character: Character;
+export class Game {
+  public readonly gameObjects = new GameObjectContainer();
+  private readonly canvas: HTMLCanvasElement = document.querySelector('canvas#main');
   private renderer: Renderer;
-  private rendererPromise: Promise<Renderer>;
+  private socket: SocketIOClient.Socket;
+  private deltaTimeCalculator = new DeltaTimeCalculator();
   private overlay: HTMLElement = document.querySelector('#overlay');
+  private keyboardListener: KeyboardListener;
 
-  constructor() {
-    const canvas: HTMLCanvasElement = document.querySelector('canvas#main');
+  private async setupCommunication(): Promise<void> {
+    await Configuration.initialize();
 
-    new CommandBroadcaster(
+    this.socket = io(Configuration.servers[0], {
+      reconnectionDelayMax: 10000,
+      transports: ['websocket'],
+    });
+
+    this.socket.on('reconnect_attempt', () => {
+      this.socket.io.opts.transports = ['polling', 'websocket'];
+    });
+
+    this.socket.on(TransportEvents.ServerToPlayer, (serialized: string) => {
+      const command = deserialize(serialized);
+      console.log(command);
+      this.gameObjects.sendCommand(command);
+    });
+
+    this.socket.emit(TransportEvents.PlayerJoining, null);
+
+    this.keyboardListener = new KeyboardListener(document.body, 100);
+
+    broadcastCommands(
       [
-        new KeyboardListener(document.body),
-        new MouseListener(canvas),
-        new TouchListener(canvas),
+        this.keyboardListener,
+        new MouseListener(this.canvas),
+        new TouchListener(this.canvas),
       ],
-      [this.objects]
+      [this.gameObjects, new CommandReceiverSocket(this.socket)]
     );
+  }
 
-    this.rendererPromise = compile(
-      canvas,
+  private async setupRenderer(): Promise<void> {
+    const noiseTexture = await renderNoise([1024, 1], 60, 1 / 8);
+
+    this.renderer = await compile(
+      this.canvas,
       [
         {
           ...InvertedTunnel.descriptor,
@@ -61,7 +80,7 @@ export class Game implements IGame {
         },
         {
           ...BlobShape.descriptor,
-          shaderCombinationSteps: [0, 1],
+          shaderCombinationSteps: [0, 1, 2, 3, 4, 5, 8],
         },
         {
           ...Circle.descriptor,
@@ -82,12 +101,7 @@ export class Game implements IGame {
         enableStopwatch: true,
       }
     );
-  }
 
-  public async start(): Promise<void> {
-    const noiseTexture = await renderNoise([1024, 1], 60, 1 / 8);
-
-    this.renderer = await this.rendererPromise;
     this.renderer.setRuntimeSettings({
       isWorldInverted: true,
       ambientLight: rgb(0.35, 0.1, 0.45),
@@ -112,62 +126,46 @@ export class Game implements IGame {
         },
       },
     });
-    this.initializeScene();
-    this.physics.start();
+  }
+
+  public async start(): Promise<void> {
+    await Promise.all([this.setupCommunication(), this.setupRenderer()]);
     requestAnimationFrame(this.gameLoop.bind(this));
-  }
-
-  public get viewArea(): BoundingBoxBase {
-    return this.camera.viewArea;
-  }
-
-  public findIntersecting(box: BoundingBoxBase): Array<BoundingBoxBase> {
-    return this.physics.findIntersecting(box);
   }
 
   public displayToWorldCoordinates(p: vec2): vec2 {
     return this.renderer.displayToWorldCoordinates(p);
   }
 
-  private initializeScene() {
-    createDungeon(this.objects, this.physics);
-    createDungeon(this.objects, this.physics);
-    createDungeon(this.objects, this.physics);
-    createDungeon(this.objects, this.physics);
-
-    this.character = new Character(this.physics, this);
-    this.objects.addObject(this.character);
-    this.objects.addObject(this.camera);
-  }
-
-  private deltaTimeCalculator = new DeltaTimeCalculator();
-
   private gameLoop(time: DOMHighResTimeStamp) {
     const deltaTime = this.deltaTimeCalculator.getNextDeltaTime(time);
+    this.keyboardListener.generateCommands();
 
-    this.objects.sendCommand(new StepCommand(deltaTime));
-    this.camera.sendCommand(new MoveToCommand(this.character.position));
-    this.camera.sendCommand(new RenderCommand(this.renderer));
+    if (this.gameObjects.camera) {
+      // todo: Should only send aspect ratio
+      this.socket.emit(
+        TransportEvents.PlayerToServer,
+        JSON.stringify(new SetViewAreaActionCommand(this.gameObjects.camera.viewArea))
+      );
+    }
 
-    const shouldBeDrawn = this.physics
+    this.gameObjects.sendCommand(new StepCommand(deltaTime));
+    /*this.camera.sendCommand(new MoveToCommand(this.character.position));
+    this.camera.sendCommand(new RenderCommand(this.renderer));*/
+
+    /*const shouldBeDrawn = this.physics
       .findIntersecting(this.camera.viewArea)
       .map((b) => b.owner);
 
     for (const object of shouldBeDrawn) {
       object?.sendCommand(new RenderCommand(this.renderer));
-    }
+    }*/
+
+    this.gameObjects.sendCommand(new RenderCommand(this.renderer) as any);
 
     this.renderer.renderDrawables();
 
     this.overlay.innerText = prettyPrint(this.renderer.insights);
     requestAnimationFrame(this.gameLoop.bind(this));
-  }
-
-  public addObject(o: GameObject) {
-    this.objects.addObject(o);
-  }
-
-  public removeObject(o: GameObject) {
-    this.objects.removeObject(o);
   }
 }

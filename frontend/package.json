@@ -63,6 +63,7 @@
     "webpack-dev-server": "^3.10.3",
     "firebase": "^7.22.0",
     "@types/socket.io-client": "^1.4.34",
-    "socket.io-client": "^2.3.1"
+    "socket.io-client": "^2.3.1",
+    "shared": "file:../shared"
   }
 }

@@ -1,4 +1,4 @@
-import { vec2 } from 'gl-matrix';
+/*import { vec2 } from 'gl-matrix';
 import { Circle } from 'sdf-2d';
 import { RenderCommand } from '../../commands/render';
 import { StepCommand } from '../../commands/step';
@@ -6,11 +6,11 @@ import { IGame } from '../../i-game';
 import { BoundingBoxBase } from '../../physics/bounds/bounding-box-base';
 import { BoundingCircle } from '../../physics/bounds/bounding-circle';
 import { PhysicsCircle } from '../../physics/bounds/physics-circle';
-import { DynamicPhysicalObject } from '../../physics/dynamic-physical-object';
+import { PhysicalGameObject } from '../../physics/physical-object';
 import { Physics } from '../../physics/physics';
 import { settings } from '../../settings';
 
-export class Projectile extends DynamicPhysicalObject {
+export class Projectile extends PhysicalGameObject {
   private shape: Circle;
   private bounding: PhysicsCircle;
 
@@ -25,7 +25,7 @@ export class Projectile extends DynamicPhysicalObject {
     this.addCommandExecutor(RenderCommand, this.draw.bind(this));
     this.addCommandExecutor(StepCommand, this.step.bind(this));
 
-    this.addToPhysics();
+    this.addToPhysics(true);
   }
 
   private draw(c: RenderCommand) {
@@ -52,3 +52,4 @@ export class Projectile extends DynamicPhysicalObject {
     return this.bounding.distance(target);
   }
 }
+*/

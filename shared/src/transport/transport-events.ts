@@ -1,4 +1,5 @@
 export enum TransportEvents {
-  PlayerJoining = "PlayerJoining",
-  PlayerSendingInfo = "PlayerSendingInfo",
+  PlayerJoining = 'PlayerJoining',
+  PlayerToServer = 'PlayerToServer',
+  ServerToPlayer = 'ServerToPlayer',
 }

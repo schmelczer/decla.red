@@ -1,0 +1,17 @@
+{
+  "name": "shared",
+  "version": "0.0.0",
+  "description": "Shared library between backend and frontend",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/gl-matrix": "^3.2.0",
+    "@types/uuid": "^8.0.0",
+    "gl-matrix": "^3.3.0",
+    "uuid": "^8.2.0"
+  }
+}

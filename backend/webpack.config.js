@@ -11,7 +11,11 @@ module.exports = {
   entry: {
     main: [PATHS.entryPoint],
   },
-  externals: [nodeExternals()],
+  externals: [
+    nodeExternals({
+      allowlist: [/(^shared)/],
+    }),
+  ],
   target: 'node',
   output: {
     filename: '[name].js',

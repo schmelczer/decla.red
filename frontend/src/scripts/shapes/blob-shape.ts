@@ -1,6 +1,6 @@
 import { mat2d, vec2 } from 'gl-matrix';
 import { Drawable, DrawableDescriptor } from 'sdf-2d';
-import { BoundingCircle } from '../physics/bounds/bounding-circle';
+import { Circle } from 'shared';
 
 export class BlobShape extends Drawable {
   public static descriptor: DrawableDescriptor = {
@@ -80,35 +80,33 @@ export class BlobShape extends Drawable {
     empty: new BlobShape(),
   };
 
-  protected head: BoundingCircle;
-  protected leftFoot: BoundingCircle;
-  protected rightFoot: BoundingCircle;
+  protected head: Circle;
+  protected leftFoot: Circle;
+  protected rightFoot: Circle;
 
   public constructor() {
     super();
 
-    const circle = new BoundingCircle(null, vec2.create(), 200);
+    const circle = new Circle(vec2.create(), 200);
     this.setCircles([circle, circle, circle]);
   }
 
-  public setCircles([head, leftFoot, rightFoot]: [
-    BoundingCircle,
-    BoundingCircle,
-    BoundingCircle
-  ]) {
+  public setCircles([head, leftFoot, rightFoot]: [Circle, Circle, Circle]) {
     this.head = head;
     this.leftFoot = leftFoot;
     this.rightFoot = rightFoot;
   }
 
   public minDistance(target: vec2): number {
-    return (
+    // todo
+    return 0;
+    /*return (
       Math.min(
         this.head.distance(target),
         this.leftFoot.distance(target),
         this.rightFoot.distance(target)
       ) / 2
-    );
+    );*/
   }
 
   protected getObjectToSerialize(transform2d: mat2d, transform1d: number): any {

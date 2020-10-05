@@ -1,7 +1,7 @@
-import { vec2 } from 'gl-matrix';
+/*import { vec2 } from 'gl-matrix';
 import { clamp } from '../../helper/clamp';
 import { settings } from '../../settings';
-import { PhysicalObject } from '../physical-object';
+import { PhysicalGameObject } from '../physical-object';
 import { Physics } from '../physics';
 import { BoundingCircle } from './bounding-circle';
 
@@ -15,7 +15,7 @@ export class PhysicsCircle extends BoundingCircle {
 
   constructor(
     private readonly physics: Physics,
-    owner: PhysicalObject,
+    owner: PhysicalGameObject,
     center: vec2,
     radius: number
   ) {
@@ -71,3 +71,4 @@ export class PhysicsCircle extends BoundingCircle {
     return wasHit;
   }
 }
+*/

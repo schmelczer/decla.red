@@ -1,25 +1,17 @@
-import { vec2 } from 'gl-matrix';
+/*import { vec2 } from 'gl-matrix';
 import { Flashlight } from 'sdf-2d';
-import { RenderCommand } from '../../commands/render';
-import { StepCommand } from '../../commands/step';
-import { TeleportToCommand } from '../../commands/teleport-to';
 import { rgb } from '../../helper/rgb';
 import { IGame } from '../../i-game';
-import { CursorMoveCommand } from '../../input/commands/cursor-move-command';
-import { KeyDownCommand } from '../../input/commands/key-down';
-import { KeyUpCommand } from '../../input/commands/key-up';
-import { PrimaryActionCommand } from '../../input/commands/primary-action';
-import { SwipeCommand } from '../../input/commands/swipe';
 import { BoundingBoxBase } from '../../physics/bounds/bounding-box-base';
 import { BoundingCircle } from '../../physics/bounds/bounding-circle';
 import { PhysicsCircle } from '../../physics/bounds/physics-circle';
-import { DynamicPhysicalObject } from '../../physics/dynamic-physical-object';
+import { PhysicalGameObject } from '../../physics/physical-object';
 import { Physics } from '../../physics/physics';
 import { settings } from '../../settings';
 import { BlobShape } from '../../shapes/blob-shape';
 import { Projectile } from './projectile';
 
-export class Character extends DynamicPhysicalObject {
+export class Character extends PhysicalGameObject {
   protected head: PhysicsCircle;
   protected leftFoot: PhysicsCircle;
   protected rightFoot: PhysicsCircle;
@@ -69,7 +61,7 @@ export class Character extends DynamicPhysicalObject {
 
     this.shape.setCircles([this.head, this.leftFoot, this.rightFoot]);
 
-    this.addToPhysics();
+    this.addToPhysics(true);
   }
 
   public distance(target: vec2): number {
@@ -186,3 +178,4 @@ export class Character extends DynamicPhysicalObject {
     );
   }
 }
+*/
