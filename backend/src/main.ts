@@ -5,7 +5,7 @@ import cors from 'cors';
 import { applyArrayPlugins, Random, TransportEvents, deserializeCommand } from 'shared';
 import './index.html';
 import { Player } from './players/player';
-import { PhysicalGameObjectContainer } from './physics/physical-game-object-container';
+import { PhysicalContainer } from './physics/containers/physical-container';
 import { createDungeon } from './map/create-dungeon';
 import { glMatrix } from 'gl-matrix';
 
@@ -15,7 +15,7 @@ applyArrayPlugins();
 
 Random.seed = 42;
 
-const objects = new PhysicalGameObjectContainer();
+const objects = new PhysicalContainer();
 
 createDungeon(objects);
 createDungeon(objects);

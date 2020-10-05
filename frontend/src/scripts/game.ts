@@ -10,7 +10,13 @@ import {
   renderNoise,
   WrapOptions,
 } from 'sdf-2d';
-import { broadcastCommands, SetViewAreaActionCommand, TransportEvents } from 'shared';
+import {
+  broadcastCommands,
+  prettyPrint,
+  settings,
+  SetViewAreaActionCommand,
+  TransportEvents,
+} from 'shared';
 import io from 'socket.io-client';
 import { KeyboardListener } from './commands/generators/keyboard-listener';
 import { MouseListener } from './commands/generators/mouse-listener';
@@ -20,10 +26,8 @@ import { RenderCommand } from './commands/types/render';
 import { StepCommand } from './commands/types/step';
 import { Configuration } from './config/configuration';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
-import { prettyPrint } from './helper/pretty-print';
 import { rgb } from './helper/rgb';
 import { GameObjectContainer } from './objects/game-object-container';
-import { settings } from './settings';
 import { BlobShape } from './shapes/blob-shape';
 import { deserialize } from './transport/deserialize';
 
@@ -69,7 +73,7 @@ export class Game {
   }
 
   private async setupRenderer(): Promise<void> {
-    const noiseTexture = await renderNoise([1024, 1], 60, 1 / 8);
+    const noiseTexture = await renderNoise([512, 1], 50, 1 / 10);
 
     this.renderer = await compile(
       this.canvas,
@@ -96,7 +100,7 @@ export class Game {
         },
       ],
       {
-        shadowTraceCount: 12,
+        shadowTraceCount: 16,
         paletteSize: 10,
         enableStopwatch: true,
       }

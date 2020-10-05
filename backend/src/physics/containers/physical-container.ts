@@ -1,15 +1,15 @@
 import { GameObject, Id } from 'shared';
-import { BoundingBoxBase } from './bounds/bounding-box-base';
+import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
 
-import { BoundingBoxList } from './containers/bounding-box-list';
-import { BoundingBoxTree } from './containers/bounding-box-tree';
+import { BoundingBoxList } from './bounding-box-list';
+import { BoundingBoxTree } from './bounding-box-tree';
 import { Command } from 'shared';
-import { PhysicalGameObject } from './physical-game-object';
-import { ImmutableBoundingBox } from './bounds/immutable-bounding-box';
+import { Physical } from '../physical';
+import { StaticPhysical } from './static-physical-object';
 
-export class PhysicalGameObjectContainer {
+export class PhysicalContainer {
   private isTreeInitialized = false;
-  private staticBoundingBoxesWaitList: Array<ImmutableBoundingBox> = [];
+  private staticBoundingBoxesWaitList: Array<StaticPhysical> = [];
   private staticBoundingBoxes = new BoundingBoxTree();
   private dynamicBoundingBoxes = new BoundingBoxList();
 
@@ -21,40 +21,44 @@ export class PhysicalGameObjectContainer {
     this.isTreeInitialized = true;
   }
 
-  public addObject(object: PhysicalGameObject, isDynamic) {
-    this.objects.set(object.id, object);
+  public addObject(object: Physical) {
+    this.objects.set(object.gameObject.id, object.gameObject);
 
     for (const command of this.objectsGroupedByAbilities.keys()) {
-      if (object.reactsToCommand(command)) {
-        this.objectsGroupedByAbilities.get(command).push(object);
+      if (object.gameObject.reactsToCommand(command)) {
+        this.objectsGroupedByAbilities.get(command).push(object.gameObject);
       }
     }
 
-    if (isDynamic) {
-      this.dynamicBoundingBoxes.insert(object.getBoundingBox());
+    this.addPhysical(object);
+  }
+
+  public addPhysical(physical: Physical) {
+    if (physical.canMove) {
+      this.dynamicBoundingBoxes.insert(physical);
     } else {
       if (!this.isTreeInitialized) {
-        this.staticBoundingBoxesWaitList.push(object.getBoundingBox());
+        this.staticBoundingBoxesWaitList.push(physical);
       } else {
-        this.staticBoundingBoxes.insert(object.getBoundingBox());
+        this.staticBoundingBoxes.insert(physical);
       }
     }
   }
 
-  public removeObject(object: PhysicalGameObject) {
-    this.objects.delete(object.id);
+  public removeObject(object: Physical) {
+    this.objects.delete(object.gameObject.id);
 
     for (const command of this.objectsGroupedByAbilities.keys()) {
-      if (object.reactsToCommand(command)) {
+      if (object.gameObject.reactsToCommand(command)) {
         const array = this.objectsGroupedByAbilities.get(command);
         array.splice(
-          array.findIndex((i) => i.id == object.id),
+          array.findIndex((i) => i.id == object.gameObject.id),
           1
         );
       }
     }
 
-    this.dynamicBoundingBoxes.remove(object.getBoundingBox());
+    this.dynamicBoundingBoxes.remove(object);
   }
 
   public sendCommand(e: Command) {
@@ -77,10 +81,10 @@ export class PhysicalGameObjectContainer {
     this.objectsGroupedByAbilities.set(commandType, objectsReactingToCommand);
   }
 
-  public findIntersecting(box: BoundingBoxBase): Array<PhysicalGameObject> {
+  public findIntersecting(box: BoundingBoxBase): Array<Physical> {
     return [
       ...this.staticBoundingBoxes.findIntersecting(box),
       ...this.dynamicBoundingBoxes.findIntersecting(box),
-    ].map((b) => b.owner);
+    ];
   }
 }

@@ -1,15 +1,15 @@
 import { vec2 } from 'gl-matrix';
 import { clamp01, mix, TunnelBase, id } from 'shared';
-import { PhysicalGameObject } from '../physics/physical-game-object';
 
-import { ImmutableBoundingBox } from '../physics/bounds/immutable-bounding-box';
+import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
+import { StaticPhysical } from '../physics/containers/static-physical-object';
 
-export class TunnelPhysics extends TunnelBase implements PhysicalGameObject {
+export class TunnelPhysical extends TunnelBase implements StaticPhysical {
   public readonly canCollide = true;
   public readonly isInverted = true;
   public readonly canMove = false;
 
-  private boundingBox?: ImmutableBoundingBox;
+  private _boundingBox?: ImmutableBoundingBox;
 
   constructor(from: vec2, to: vec2, fromRadius: number, toRadius: number) {
     super(id(), from, to, fromRadius, toRadius);
@@ -29,16 +29,20 @@ export class TunnelPhysics extends TunnelBase implements PhysicalGameObject {
     );
   }
 
-  public getBoundingBox(): ImmutableBoundingBox {
-    if (!this.boundingBox) {
+  public get boundingBox(): ImmutableBoundingBox {
+    if (!this._boundingBox) {
       const xMin = Math.min(this.from.x - this.fromRadius, this.to.x - this.toRadius);
       const yMin = Math.min(this.from.y - this.fromRadius, this.to.y - this.toRadius);
       const xMax = Math.max(this.from.x + this.fromRadius, this.to.x + this.toRadius);
       const yMax = Math.max(this.from.y + this.fromRadius, this.to.y + this.toRadius);
-      this.boundingBox = new ImmutableBoundingBox(this, xMin, xMax, yMin, yMax, true);
+      this._boundingBox = new ImmutableBoundingBox(xMin, xMax, yMin, yMax);
     }
 
-    return this.boundingBox;
+    return this._boundingBox;
+  }
+
+  public get gameObject(): TunnelPhysical {
+    return this;
   }
 
   public toJSON(): any {

@@ -1,14 +1,11 @@
 import { vec2 } from 'gl-matrix';
-import { PhysicalGameObject } from '../physical-game-object';
 
 export abstract class BoundingBoxBase {
   constructor(
-    public owner: PhysicalGameObject,
     protected _xMin: number = 0,
     protected _xMax: number = 0,
     protected _yMin: number = 0,
-    protected _yMax: number = 0,
-    public readonly isInverted = false
+    protected _yMax: number = 0
   ) {}
 
   public get 0(): number {

@@ -13,6 +13,7 @@ export * from './commands/command-generator';
 export * from './commands/broadcast-commands';
 export * from './helper/array';
 export * from './helper/clamp';
+export * from './helper/pretty-print';
 export * from './helper/circle';
 export * from './helper/rectangle';
 export * from './helper/mix';

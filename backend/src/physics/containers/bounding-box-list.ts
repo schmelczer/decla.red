@@ -1,20 +1,21 @@
-import { BoundingBoxBase } from '../bounds/bounding-box-base';
+import { Physical } from '../physical';
+import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
 
 export class BoundingBoxList {
-  constructor(private boundingBoxes: Array<BoundingBoxBase> = []) {}
+  constructor(private objects: Array<Physical> = []) {}
 
-  public insert(box: BoundingBoxBase) {
-    this.boundingBoxes.push(box);
+  public insert(object: Physical) {
+    this.objects.push(object);
   }
 
-  public remove(box: BoundingBoxBase) {
-    this.boundingBoxes.splice(
-      this.boundingBoxes.findIndex((i) => i === box),
+  public remove(object: Physical) {
+    this.objects.splice(
+      this.objects.findIndex((i) => i === object),
       1
     );
   }
 
-  public findIntersecting(box: BoundingBoxBase): Array<BoundingBoxBase> {
-    return this.boundingBoxes.filter((b) => b.intersects(box));
+  public findIntersecting(boundingBox: BoundingBoxBase): Array<Physical> {
+    return this.objects.filter((b) => b.boundingBox.intersects(boundingBox));
   }
 }

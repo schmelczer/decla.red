@@ -1,10 +1,11 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { LampBase, settings, id } from 'shared';
 
-import { ImmutableBoundingBox } from '../physics/bounds/immutable-bounding-box';
-import { PhysicalGameObject } from '../physics/physical-game-object';
+import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 
-export class LampPhysics extends LampBase implements PhysicalGameObject {
+import { Physical } from '../physics/physical';
+
+export class LampPhysical extends LampBase implements Physical {
   public readonly canCollide = false;
   public readonly isInverted = false;
   public readonly canMove = false;
@@ -13,12 +14,11 @@ export class LampPhysics extends LampBase implements PhysicalGameObject {
     super(id(), center, color, lightness);
   }
 
-  private boundingBox?: ImmutableBoundingBox;
+  private _boundingBox?: ImmutableBoundingBox;
 
-  public getBoundingBox(): ImmutableBoundingBox {
-    if (!this.boundingBox) {
-      this.boundingBox = new ImmutableBoundingBox(
-        this,
+  public get boundingBox(): ImmutableBoundingBox {
+    if (!this._boundingBox) {
+      this._boundingBox = new ImmutableBoundingBox(
         this.center.x - settings.lightCutoffDistance,
         this.center.x + settings.lightCutoffDistance,
         this.center.y - settings.lightCutoffDistance,
@@ -26,7 +26,16 @@ export class LampPhysics extends LampBase implements PhysicalGameObject {
       );
     }
 
-    return this.boundingBox;
+    return this._boundingBox;
+  }
+
+  public get gameObject(): LampPhysical {
+    return this;
+  }
+
+  // todo
+  public distance(_: vec2): number {
+    return 0;
   }
 
   public toJSON(): any {

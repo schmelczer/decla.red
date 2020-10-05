@@ -1,10 +1,10 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { Random } from 'shared';
-import { LampPhysics } from '../objects/lamp-physics';
-import { TunnelPhysics } from '../objects/tunnel-physics';
-import { PhysicalGameObjectContainer } from '../physics/physical-game-object-container';
+import { LampPhysical } from '../objects/lamp-physical';
+import { TunnelPhysical } from '../objects/tunnel-physical';
+import { PhysicalContainer } from '../physics/containers/physical-container';
 
-export const createDungeon = (objects: PhysicalGameObjectContainer) => {
+export const createDungeon = (objects: PhysicalContainer) => {
   let previousRadius = 350;
   let previousEnd = vec2.create();
 
@@ -16,26 +16,25 @@ export const createDungeon = (objects: PhysicalGameObjectContainer) => {
     const currentEnd = vec2.fromValues(i, height);
     const currentToRadius = Random.getRandom() * 300 + 150;
 
-    const tunnel = new TunnelPhysics(
+    const tunnel = new TunnelPhysical(
       previousEnd,
       currentEnd,
       previousRadius,
       currentToRadius
     );
 
-    objects.addObject(tunnel, false);
+    objects.addObject(tunnel);
 
     if (++tunnelsCountSinceLastLight > 3 && Random.getRandom() > 0.7) {
       objects.addObject(
-        new LampPhysics(
+        new LampPhysical(
           currentEnd,
           vec3.normalize(
             vec3.create(),
             vec3.fromValues(Random.getRandom(), 0, Random.getRandom())
           ),
           0.5
-        ),
-        false
+        )
       );
       tunnelsCountSinceLastLight = 0;
     }

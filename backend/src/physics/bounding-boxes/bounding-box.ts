@@ -54,12 +54,6 @@ export class BoundingBox extends BoundingBoxBase {
   }
 
   public cloneAsImmutable(): ImmutableBoundingBox {
-    return new ImmutableBoundingBox(
-      this.owner,
-      this.xMin,
-      this.xMax,
-      this.yMin,
-      this.yMax
-    );
+    return new ImmutableBoundingBox(this.xMin, this.xMax, this.yMin, this.yMax);
   }
 }

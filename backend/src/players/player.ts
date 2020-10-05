@@ -11,25 +11,20 @@ import {
   TransportEvents,
   UpdateObjectsCommand,
 } from 'shared';
-import { CharacterPhysics } from '../objects/character-physics';
-import { CirclePhysics } from '../objects/circle-physics';
+import { CharacterPhysical } from '../objects/character-physical';
 
-import { BoundingBox } from '../physics/bounds/bounding-box';
-import { PhysicalGameObject } from '../physics/physical-game-object';
-import { PhysicalGameObjectContainer } from '../physics/physical-game-object-container';
+import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
+import { PhysicalContainer } from '../physics/containers/physical-container';
+import { Physical } from '../physics/physical';
 import { jsonSerialize } from '../serialize';
 
 export class Player extends CommandReceiver {
   public isActive = true;
 
-  private character: CharacterPhysics = new CharacterPhysics(
-    new CirclePhysics(vec2.fromValues(50, 50), 50),
-    new CirclePhysics(vec2.fromValues(50, 50), 50),
-    new CirclePhysics(vec2.fromValues(50, 50), 50)
-  );
+  private character: CharacterPhysical = new CharacterPhysical();
 
-  private objectsPreviouslyInViewArea: Array<PhysicalGameObject> = [];
-  private objectsInViewArea: Array<PhysicalGameObject> = [];
+  private objectsPreviouslyInViewArea: Array<Physical> = [];
+  private objectsInViewArea: Array<Physical> = [];
 
   protected commandExecutors: CommandExecutors = {
     [SetViewAreaActionCommand.type]: this.setViewArea.bind(this),
@@ -47,14 +42,14 @@ export class Player extends CommandReceiver {
   protected defaultCommandExecutor(command: Command) {}
 
   constructor(
-    private readonly objects: PhysicalGameObjectContainer,
+    private readonly objects: PhysicalContainer,
     private readonly socket: SocketIO.Socket
   ) {
     super();
     this.objectsPreviouslyInViewArea.push(this.character);
     this.objectsInViewArea.push(this.character);
 
-    this.objects.addObject(this.character, true);
+    this.objects.addObject(this.character);
 
     socket.emit(
       TransportEvents.ServerToPlayer,
@@ -86,14 +81,20 @@ export class Player extends CommandReceiver {
     if (noLongerIntersecting.length > 0) {
       this.socket.emit(
         TransportEvents.ServerToPlayer,
-        jsonSerialize(new DeleteObjectsCommand(noLongerIntersecting.map((o) => o.id)))
+        jsonSerialize(
+          new DeleteObjectsCommand(noLongerIntersecting.map((p) => p.gameObject.id))
+        )
       );
     }
 
     if (newlyIntersecting.length > 0) {
       this.socket.emit(
         TransportEvents.ServerToPlayer,
-        jsonSerialize(new CreateObjectsCommand(jsonSerialize(newlyIntersecting)))
+        jsonSerialize(
+          new CreateObjectsCommand(
+            jsonSerialize(newlyIntersecting.map((p) => p.gameObject))
+          )
+        )
       );
     }
 
