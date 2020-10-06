@@ -1,12 +1,12 @@
-/*import { vec2 } from 'gl-matrix';
-import { rotate90Deg } from 'shared';
-import { CirclePhysics } from './bounds/circle-physics';
-import { PhysicalGameObject } from './physical-game-object';
+import { vec2 } from 'gl-matrix';
+import { rotate90Deg, settings } from 'shared';
+import { CirclePhysical } from '../objects/circle-physical';
+import { Physical } from './physical';
 
 export const moveCircle = (
-  circle: CirclePhysics,
+  circle: CirclePhysical,
   delta: vec2,
-  possibleIntersectors: Array<PhysicalGameObject>
+  possibleIntersectors: Array<Physical>
 ): {
   realDelta: vec2;
   hitSurface: boolean;
@@ -16,7 +16,7 @@ export const moveCircle = (
   circle.center = vec2.add(circle.center, circle.center, delta);
 
   const intersecting = possibleIntersectors.filter(
-    (b) => b !== circle && circle.areIntersecting(b) && b.canCollide
+    (b) => b.gameObject !== circle.gameObject && circle.areIntersecting(b) && b.canCollide
   );
 
   if (intersecting.length === 0) {
@@ -34,7 +34,7 @@ export const moveCircle = (
       closest: intersecting
         .map((i) => ({
           inverted: i.isInverted,
-          distance: i.owner.distance(point),
+          distance: i.distance(point),
         }))
         .sort((a, b) => a.distance - b.distance)[0],
     }))
@@ -79,4 +79,3 @@ export const moveCircle = (
     tangent: rotate90Deg(approxNormal),
   };
 };
-*/

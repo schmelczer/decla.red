@@ -1,4 +1,4 @@
-import { Command } from 'shared';
+import { Command } from '../command';
 
 export class StepCommand extends Command {
   public static readonly type = 'StepCommand';

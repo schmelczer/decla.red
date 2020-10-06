@@ -5,7 +5,9 @@ export class DeltaTimeCalculator {
     document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
   }
 
-  public getNextDeltaTime(currentTime: DOMHighResTimeStamp): DOMHighResTimeStamp {
+  public getNextDeltaTimeInMilliseconds(
+    currentTime: DOMHighResTimeStamp
+  ): DOMHighResTimeStamp {
     if (this.previousTime === null) {
       this.previousTime = currentTime;
     }

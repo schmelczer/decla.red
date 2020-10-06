@@ -15,6 +15,7 @@ import {
   prettyPrint,
   settings,
   SetViewAreaActionCommand,
+  StepCommand,
   TransportEvents,
 } from 'shared';
 import io from 'socket.io-client';
@@ -23,7 +24,6 @@ import { MouseListener } from './commands/generators/mouse-listener';
 import { TouchListener } from './commands/generators/touch-listener';
 import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
 import { RenderCommand } from './commands/types/render';
-import { StepCommand } from './commands/types/step';
 import { Configuration } from './config/configuration';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { rgb } from './helper/rgb';
@@ -142,7 +142,7 @@ export class Game {
   }
 
   private gameLoop(time: DOMHighResTimeStamp) {
-    const deltaTime = this.deltaTimeCalculator.getNextDeltaTime(time);
+    const deltaTime = this.deltaTimeCalculator.getNextDeltaTimeInMilliseconds(time);
     this.keyboardListener.generateCommands();
 
     if (this.gameObjects.camera) {

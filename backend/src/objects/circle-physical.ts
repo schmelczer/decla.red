@@ -1,9 +1,18 @@
 import { vec2 } from 'gl-matrix';
-import { Circle, clamp, GameObject, settings } from 'shared';
+import {
+  Circle,
+  clamp,
+  CommandExecutors,
+  GameObject,
+  settings,
+  StepCommand,
+} from 'shared';
 import { Physical } from '../physics/physical';
 
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
+import { moveCircle } from '../physics/move-circle';
+import { PhysicalContainer } from '../physics/containers/physical-container';
 
 export class CirclePhysical implements Circle, Physical {
   readonly isInverted = false;
@@ -18,9 +27,18 @@ export class CirclePhysical implements Circle, Physical {
     return this._isAirborne;
   }
 
+  protected commandExecutors: CommandExecutors = {
+    [StepCommand.type]: this.step.bind(this),
+  };
+
   private _boundingBox: BoundingBox;
 
-  constructor(private _center: vec2, private _radius: number, private owner: GameObject) {
+  constructor(
+    private _center: vec2,
+    private _radius: number,
+    public owner: GameObject,
+    private readonly container: PhysicalContainer
+  ) {
     this._boundingBox = new BoundingBox(null);
     this.recalculateBoundingBox();
   }
@@ -59,11 +77,11 @@ export class CirclePhysical implements Circle, Physical {
     return vec2.distance(target.center, this.center) - this.radius - target.radius;
   }
 
-  public areIntersecting(other: CirclePhysical): boolean {
+  public areIntersecting(other: Physical): boolean {
     return other.distance(this.center) < this.radius;
   }
 
-  public isInside(other: CirclePhysical): boolean {
+  public isInside(other: Physical): boolean {
     return other.distance(this.center) < -this.radius;
   }
 
@@ -105,12 +123,13 @@ export class CirclePhysical implements Circle, Physical {
     this.velocity = vec2.create();
   }
 
-  /*public step(timeInMilliseconds: number): boolean {
+  public step(timeInMilliseconds: number): boolean {
     vec2.scale(
       this.velocity,
       this.velocity,
       Math.pow(settings.velocityAttenuation, timeInMilliseconds)
     );
+
     const distance = vec2.scale(vec2.create(), this.velocity, timeInMilliseconds);
     const distanceLength = vec2.length(distance);
     const stepCount = Math.ceil(distanceLength / settings.physicsMaxStep);
@@ -119,22 +138,21 @@ export class CirclePhysical implements Circle, Physical {
     let wasHit = false;
 
     for (let i = 0; i < stepCount; i++) {
-      const { normal, tangent, hitSurface } = this.physics.tryMovingDynamicCircle(
+      const { normal, tangent, hitSurface } = moveCircle(
         this,
-        distance
+        distance,
+        this.container.findIntersecting(this.boundingBox)
       );
       if (hitSurface) {
         vec2.scale(this.velocity, tangent, vec2.dot(tangent, this.velocity));
         wasHit = true;
       }
 
-      this._isAirborne = !(
-        hitSurface && vec2.dot(normal, settings.gravitationalForce) < 0
-      );
+      this._isAirborne = hitSurface;
     }
 
     return wasHit;
-  }*/
+  }
 
   public toJSON(): any {
     const { center, radius } = this;

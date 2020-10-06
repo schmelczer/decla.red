@@ -3,6 +3,7 @@ export * from './commands/types/create-objects';
 export * from './commands/types/create-player';
 export * from './commands/types/delete-objects';
 export * from './commands/types/update-objects';
+export * from './commands/types/step';
 export * from './commands/types/ternary-action';
 export * from './commands/types/move-action';
 export * from './commands/types/set-view-area-action';

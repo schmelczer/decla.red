@@ -7,9 +7,9 @@ import {
   DeleteObjectsCommand,
   GameObject,
   Id,
+  StepCommand,
   UpdateObjectsCommand,
 } from 'shared';
-import { StepCommand } from '../commands/types/step';
 import { deserialize, deserializeJsonArray } from '../transport/deserialize';
 import { Camera } from './camera';
 import { CharacterView } from './character-view';
