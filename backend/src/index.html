@@ -1,29 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.1/socket.io.js"
-      integrity="sha512-AcZyhRP/tbAEsXCCGlziPun5iFvcSUpEz2jKkx0blkYKbxU81F+iq8FURwPn1sYFeksJ+sDDrI5XujsqSobWdQ=="
-      crossorigin="anonymous"
-    ></script>
-    <title>Server info</title>
-  </head>
-  <body></body>
-  <script>
-    const socket = io({
-      transports: ['websocket'],
-    });
 
-    socket.on('reconnect_attempt', () => {
-      socket.io.opts.transports = ['polling', 'websocket'];
-    });
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.1/socket.io.js"
+    integrity="sha512-AcZyhRP/tbAEsXCCGlziPun5iFvcSUpEz2jKkx0blkYKbxU81F+iq8FURwPn1sYFeksJ+sDDrI5XujsqSobWdQ=="
+    crossorigin="anonymous"></script>
+  <title>Server info</title>
 
-    socket.emit('join', 'insights');
+</head>
 
-    socket.on('insights', (message) => {
-      document.body.innerText += message;
-    });
-  </script>
+<body></body>
+<script>
+  const socket = io({
+    transports: ['websocket'],
+  });
+
+  socket.on('reconnect_attempt', () => {
+    socket.io.opts.transports = ['polling', 'websocket'];
+  });
+
+  socket.emit('join', 'insights');
+
+  socket.on('insights', (message) => {
+    document.body.innerText += message;
+  });
+</script>
+
 </html>

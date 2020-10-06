@@ -23,8 +23,7 @@ module.exports = {
   },
   devtool: 'source-map',
   watchOptions: {
-    aggregateTimeout: 600,
-    ignored: /node_modules/,
+    poll: true
   },
   optimization: {
     minimize: true,

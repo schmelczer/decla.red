@@ -71,7 +71,6 @@ export class PhysicalContainer {
 
   private createGroupForCommand(commandType: string) {
     const objectsReactingToCommand = [];
-    console.log(commandType);
     this.objects.forEach((o, _) => {
       if (o.reactsToCommand(commandType)) {
         objectsReactingToCommand.push(o);

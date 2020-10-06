@@ -21,13 +21,14 @@ module.exports = {
     filename: '[name].[contenthash].js',
     path: PATHS.bundles,
   },
+
   devtool: 'source-map',
-  watchOptions: {
-    ignored: /node_modules/,
-  },
   devServer: {
     host: '0.0.0.0',
     disableHostCheck: true,
+    watchOptions: {
+      poll: true
+    },
   },
   optimization: {
     minimize: true,

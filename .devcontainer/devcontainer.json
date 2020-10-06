@@ -4,7 +4,6 @@
   "name": "Node.js & TypeScript",
   "build": {
     "dockerfile": "Dockerfile",
-    // Update 'VARIANT' to pick a Node version: 10, 12, 14
     "args": {
       "VARIANT": "14"
     }
@@ -12,14 +11,24 @@
   // Set *default* container specific settings.json values on container create.
   "settings": {
     "terminal.integrated.shell.linux": "/bin/zsh",
-    "workbench.sideBar.location": "right"
+    "workbench.sideBar.location": "right",
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/package-lock.json": true
+    }
   },
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": [
     "dbaeumer.vscode-eslint",
     "ms-vscode.vscode-typescript-tslint-plugin"
   ],
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "mounts": [
+    "source=decla-red-root-node_modules,target=/workspace/node_modules,type=volume",
+    "source=decla-red-frontend-node_modules,target=/workspace/frontend/node_modules,type=volume",
+    "source=decla-red-backend-node_modules,target=/workspace/backend/node_modules,type=volume",
+    "source=decla-red-shared-node_modules,target=/workspace/shared/node_modules,type=volume",
+  ],
   "forwardPorts": [
     3000,
     8080
