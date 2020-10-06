@@ -1,9 +1,10 @@
 import { vec2 } from 'gl-matrix';
-import { clamp01, mix, TunnelBase, id } from 'shared';
+import { clamp01, mix, TunnelBase, id, typeToBaseType } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { StaticPhysical } from '../physics/containers/static-physical-object';
 
+@typeToBaseType
 export class TunnelPhysical extends TunnelBase implements StaticPhysical {
   public readonly canCollide = true;
   public readonly isInverted = true;

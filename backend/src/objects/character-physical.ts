@@ -6,6 +6,7 @@ import {
   settings,
   CommandExecutors,
   MoveActionCommand,
+  typeToBaseType,
 } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
@@ -14,6 +15,7 @@ import { CirclePhysical } from './circle-physical';
 import { Physical } from '../physics/physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 
+@typeToBaseType
 export class CharacterPhysical extends CharacterBase implements Physical {
   public readonly canCollide = true;
   public readonly isInverted = false;
@@ -34,7 +36,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   private static readonly leftFootOffset = vec2.fromValues(-20, -10);
   private static readonly rightFootOffset = vec2.fromValues(20, -10);
 
-  constructor(container: PhysicalContainer) {
+  constructor(private readonly container: PhysicalContainer) {
     super(
       id(),
       new CirclePhysical(vec2.clone(CharacterPhysical.headOffset), 50, null, container),
@@ -157,6 +159,12 @@ export class CharacterPhysical extends CharacterBase implements Physical {
       this.head.center,
       vec2.fromValues(0, 0)
     );*/
+  }
+
+  public destroy() {
+    this.container.removeObject(this.head);
+    this.container.removeObject(this.leftFoot);
+    this.container.removeObject(this.rightFoot);
   }
 
   public toJSON(): any {

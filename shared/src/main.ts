@@ -29,3 +29,4 @@ export * from './objects/types/tunnel-base';
 export * from './settings';
 export * from './transport/transport-events';
 export * from './transport/identity';
+export * from './transport/type-to-base-type';

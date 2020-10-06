@@ -1,10 +1,7 @@
 import { vec2 } from 'gl-matrix';
 import { GameObject, Id } from '../../main';
-import { typed } from '../../transport/typed';
 
 export abstract class TunnelBase extends GameObject {
-  public static readonly type = 'Tunnel';
-
   constructor(
     id: Id,
     public readonly from: vec2,

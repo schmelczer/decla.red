@@ -1,10 +1,11 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { LampBase, settings, id } from 'shared';
+import { LampBase, settings, id, typeToBaseType } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 
 import { Physical } from '../physics/physical';
 
+@typeToBaseType
 export class LampPhysical extends LampBase implements Physical {
   public readonly canCollide = false;
   public readonly isInverted = false;

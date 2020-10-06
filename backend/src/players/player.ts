@@ -35,7 +35,7 @@ export class Player extends CommandReceiver {
     },
   };
 
-  protected defaultCommandExecutor(command: Command) {}
+  protected defaultCommandExecutor(command: Command) { }
 
   constructor(
     private readonly objects: PhysicalContainer,
@@ -118,6 +118,7 @@ export class Player extends CommandReceiver {
 
   public destroy() {
     this.isActive = false;
+    this.character.destroy();
     this.objects.removeObject(this.character);
   }
 }

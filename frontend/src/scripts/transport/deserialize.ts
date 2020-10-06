@@ -22,7 +22,7 @@ export const deserialize = (json: string): GameObject => {
 };
 
 export const deserializeJsonArray = (json: string): Array<GameObject> => {
-  return (JSON.parse(json) as Array<any>).map(
-    ([type, ...values]) => new constructors[type](...values)
-  );
+  return (JSON.parse(json) as Array<any>).map(([type, ...values]) => {
+    return new constructors[type](...values);
+  });
 };

@@ -7,7 +7,7 @@ export type CommandExecutors = {
 export abstract class CommandReceiver {
   protected commandExecutors: CommandExecutors = {};
 
-  protected defaultCommandExecutor(command: Command) {}
+  protected defaultCommandExecutor(command: Command) { }
 
   public reactsToCommand(commandType: string): boolean {
     return Object.prototype.hasOwnProperty.call(this.commandExecutors, commandType);

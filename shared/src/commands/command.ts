@@ -1,7 +1,3 @@
-import { Id } from '../transport/identity';
+import { Typed } from '../transport/typed';
 
-export abstract class Command {
-  public get type(): string {
-    return (this as any).constructor.type;
-  }
-}
+export abstract class Command extends Typed { }
