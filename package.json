@@ -2,7 +2,8 @@
   "name": "root",
   "private": true,
   "scripts": {
-    "start": "lerna run --parallel start"
+    "start": "lerna run --parallel start",
+    "initialize": "lerna run initialize"
   },
   "devDependencies": {
     "@types/cors": "^2.8.7",

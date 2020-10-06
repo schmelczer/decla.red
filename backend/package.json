@@ -6,7 +6,8 @@
   "scripts": {
     "start": "concurrently --kill-others \"webpack --mode development -w\" \"nodemon --legacy-watch dist/main.js\"",
     "lint": "eslint --fix \"src/**/*.ts\" && prettier --write \"src/**/*.ts\"",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "initialize": "npm install"
   },
   "keywords": [],
   "author": "András Schmelczer <andras@schmelczer.dev> (https://schmelczer.dev/)",
