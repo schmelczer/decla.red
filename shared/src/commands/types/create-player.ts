@@ -1,11 +1,14 @@
+import { CharacterBase } from '../../objects/types/character-base';
+import { serializable } from '../../transport/serializable/serializable';
 import { Command } from '../command';
 
+@serializable()
 export class CreatePlayerCommand extends Command {
-  public constructor(public readonly serializedPlayer: string) {
+  public constructor(public readonly character: CharacterBase) {
     super();
   }
 
-  public toJSON(): any {
-    return [this.type, this.serializedPlayer];
+  public toArray(): Array<any> {
+    return [this.character];
   }
 }

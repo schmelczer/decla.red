@@ -1,12 +1,14 @@
 import { vec2 } from 'gl-matrix';
+import { serializable } from '../../transport/serializable/serializable';
 import { Command } from '../command';
 
+@serializable()
 export class PrimaryActionCommand extends Command {
   public constructor(public readonly position: vec2) {
     super();
   }
 
-  public toJSON(): any {
-    return [this.type, this.position];
+  public toArray(): Array<any> {
+    return [this.position];
   }
 }

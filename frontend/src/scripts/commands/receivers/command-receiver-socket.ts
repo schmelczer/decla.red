@@ -1,4 +1,4 @@
-import { Command, CommandReceiver, TransportEvents } from 'shared';
+import { Command, CommandReceiver, serialize, TransportEvents } from 'shared';
 
 export class CommandReceiverSocket extends CommandReceiver {
   constructor(private readonly socket: SocketIOClient.Socket) {
@@ -6,6 +6,6 @@ export class CommandReceiverSocket extends CommandReceiver {
   }
 
   protected defaultCommandExecutor(command: Command) {
-    this.socket.emit(TransportEvents.PlayerToServer, JSON.stringify(command));
+    this.socket.emit(TransportEvents.PlayerToServer, serialize(command));
   }
 }

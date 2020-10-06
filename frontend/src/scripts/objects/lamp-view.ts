@@ -1,8 +1,9 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { CircleLight } from 'sdf-2d';
-import { CommandExecutors, Id, LampBase } from 'shared';
+import { CommandExecutors, deserializable, Id, LampBase } from 'shared';
 import { RenderCommand } from '../commands/types/render';
 
+@deserializable(LampBase)
 export class LampView extends LampBase {
   private light: CircleLight;
 

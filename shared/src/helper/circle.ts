@@ -1,5 +1,11 @@
 import { vec2 } from 'gl-matrix';
+import { serializable } from '../transport/serializable/serializable';
 
+@serializable()
 export class Circle {
-  constructor(public center: vec2, public radius: number) {}
+  constructor(public center: vec2, public radius: number) { }
+
+  public toArray(): Array<any> {
+    return [this.center, this.radius];
+  }
 }

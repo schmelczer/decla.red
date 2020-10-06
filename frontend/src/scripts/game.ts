@@ -12,7 +12,9 @@ import {
 } from 'sdf-2d';
 import {
   broadcastCommands,
+  deserialize,
   prettyPrint,
+  serialize,
   settings,
   SetViewAreaActionCommand,
   StepCommand,
@@ -27,9 +29,13 @@ import { RenderCommand } from './commands/types/render';
 import { Configuration } from './config/configuration';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { rgb } from './helper/rgb';
+import { CharacterView } from './objects/character-view';
+import { TunnelView } from './objects/tunnel-view';
+import { LampView } from './objects/lamp-view';
 import { GameObjectContainer } from './objects/game-object-container';
 import { BlobShape } from './shapes/blob-shape';
-import { deserialize } from './transport/deserialize';
+
+const a = [CharacterView, TunnelView, LampView];
 
 export class Game {
   public readonly gameObjects = new GameObjectContainer();
@@ -149,7 +155,7 @@ export class Game {
       // todo: Should only send aspect ratio
       this.socket.emit(
         TransportEvents.PlayerToServer,
-        JSON.stringify(new SetViewAreaActionCommand(this.gameObjects.camera.viewArea))
+        serialize(new SetViewAreaActionCommand(this.gameObjects.camera.viewArea))
       );
     }
 

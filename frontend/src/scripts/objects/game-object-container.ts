@@ -10,7 +10,6 @@ import {
   StepCommand,
   UpdateObjectsCommand,
 } from 'shared';
-import { deserialize, deserializeJsonArray } from '../transport/deserialize';
 import { Camera } from './camera';
 import { CharacterView } from './character-view';
 
@@ -21,7 +20,7 @@ export class GameObjectContainer extends CommandReceiver {
 
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
-      this.player = deserialize(c.serializedPlayer) as CharacterView;
+      this.player = c.character as CharacterView;
       this.camera = new Camera();
       this.addObject(this.player);
       this.addObject(this.camera);
@@ -34,13 +33,13 @@ export class GameObjectContainer extends CommandReceiver {
     },
 
     [CreateObjectsCommand.type]: (c: CreateObjectsCommand) =>
-      deserializeJsonArray(c.serializedObjects).forEach((o) => this.addObject(o)),
+      c.objects.forEach((o) => this.addObject(o)),
 
     [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
       c.ids.forEach((id: Id) => this.objects.delete(id)),
 
     [UpdateObjectsCommand.type]: (c: UpdateObjectsCommand) =>
-      deserializeJsonArray(c.serializedObjects).forEach((o) => {
+      c.objects.forEach((o) => {
         this.objects.delete(o.id);
         this.addObject(o);
         if (o.id === this.player.id) {

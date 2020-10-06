@@ -1,11 +1,14 @@
+import { GameObject } from '../../objects/game-object';
+import { serializable } from '../../transport/serializable/serializable';
 import { Command } from '../command';
 
+@serializable()
 export class CreateObjectsCommand extends Command {
-  public constructor(public readonly serializedObjects: string) {
+  public constructor(public readonly objects: Array<GameObject>) {
     super();
   }
 
-  public toJSON(): any {
-    return [this.type, this.serializedObjects];
+  public toArray(): Array<any> {
+    return [this.objects];
   }
 }

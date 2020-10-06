@@ -1,10 +1,10 @@
 import { vec2 } from 'gl-matrix';
-import { clamp01, mix, TunnelBase, id, typeToBaseType } from 'shared';
+import { clamp01, mix, TunnelBase, id, serializable } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { StaticPhysical } from '../physics/containers/static-physical-object';
 
-@typeToBaseType
+@serializable(TunnelBase)
 export class TunnelPhysical extends TunnelBase implements StaticPhysical {
   public readonly canCollide = true;
   public readonly isInverted = true;
@@ -44,10 +44,5 @@ export class TunnelPhysical extends TunnelBase implements StaticPhysical {
 
   public get gameObject(): TunnelPhysical {
     return this;
-  }
-
-  public toJSON(): any {
-    const { type, id, from, to, fromRadius, toRadius } = this;
-    return [type, id, from, to, fromRadius, toRadius];
   }
 }

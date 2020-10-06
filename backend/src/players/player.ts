@@ -7,6 +7,7 @@ import {
   CreatePlayerCommand,
   DeleteObjectsCommand,
   MoveActionCommand,
+  serialize,
   SetViewAreaActionCommand,
   TransportEvents,
   UpdateObjectsCommand,
@@ -16,7 +17,6 @@ import { CharacterPhysical } from '../objects/character-physical';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { Physical } from '../physics/physical';
-import { jsonSerialize } from '../serialize';
 
 export class Player extends CommandReceiver {
   public isActive = true;
@@ -50,7 +50,7 @@ export class Player extends CommandReceiver {
 
     socket.emit(
       TransportEvents.ServerToPlayer,
-      jsonSerialize(new CreatePlayerCommand(jsonSerialize(this.character)))
+      serialize(new CreatePlayerCommand(this.character))
     );
 
     this.sendObjects();
@@ -72,13 +72,12 @@ export class Player extends CommandReceiver {
     const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
       (o) => !this.objectsInViewArea.includes(o)
     );
-
     this.objectsPreviouslyInViewArea = this.objectsInViewArea;
 
     if (noLongerIntersecting.length > 0) {
       this.socket.emit(
         TransportEvents.ServerToPlayer,
-        jsonSerialize(
+        serialize(
           new DeleteObjectsCommand([
             ...new Set(noLongerIntersecting.map((p) => p.gameObject.id)),
           ])
@@ -89,24 +88,22 @@ export class Player extends CommandReceiver {
     if (newlyIntersecting.length > 0) {
       this.socket.emit(
         TransportEvents.ServerToPlayer,
-        jsonSerialize(
-          new CreateObjectsCommand(
-            jsonSerialize([...new Set(newlyIntersecting.map((p) => p.gameObject))])
-          )
+        serialize(
+          new CreateObjectsCommand([
+            ...new Set(newlyIntersecting.map((p) => p.gameObject)),
+          ])
         )
       );
     }
 
     this.socket.emit(
       TransportEvents.ServerToPlayer,
-      jsonSerialize(
-        new UpdateObjectsCommand(
-          jsonSerialize([
-            ...new Set(
-              this.objectsInViewArea.filter((p) => p.canMove).map((p) => p.gameObject)
-            ),
-          ])
-        )
+      serialize(
+        new UpdateObjectsCommand([
+          ...new Set(
+            this.objectsInViewArea.filter((p) => p.canMove).map((p) => p.gameObject)
+          ),
+        ])
       )
     );
 

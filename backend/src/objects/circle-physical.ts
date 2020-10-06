@@ -4,6 +4,7 @@ import {
   clamp,
   CommandExecutors,
   GameObject,
+  serializable,
   settings,
   StepCommand,
 } from 'shared';
@@ -14,6 +15,7 @@ import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
 import { moveCircle } from '../physics/move-circle';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 
+@serializable(Circle)
 export class CirclePhysical implements Circle, Physical {
   readonly isInverted = false;
   readonly canCollide = true;
@@ -154,8 +156,8 @@ export class CirclePhysical implements Circle, Physical {
     return wasHit;
   }
 
-  public toJSON(): any {
+  public toArray(): Array<any> {
     const { center, radius } = this;
-    return { center, radius };
+    return [center, radius];
   }
 }

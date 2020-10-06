@@ -32,29 +32,14 @@ module.exports = {
       new TerserJSPlugin({
         sourceMap: true,
         cache: true,
-        test: /\.ts$/i,
-        terserOptions: {
-          ecma: 5,
-          warnings: true,
-          parse: {},
-          compress: { defaults: true },
-          mangle: true,
-          module: false,
-          output: null,
-          toplevel: true,
-          nameCache: null,
-          ie8: false,
-          keep_classnames: false,
-          keep_fnames: false,
-          safari10: false,
-        },
+        test: /\.ts$/,
       }),
     ],
   },
   module: {
     rules: [
       {
-        test: /\.html$/i,
+        test: /\.html$/,
         use: {
           loader: 'file-loader',
           query: {

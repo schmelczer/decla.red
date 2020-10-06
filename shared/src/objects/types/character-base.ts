@@ -1,7 +1,9 @@
 import { Circle } from '../../helper/circle';
-import { Id } from '../../main';
+import { Id } from '../../transport/identity';
+import { serializable } from '../../transport/serializable/serializable';
 import { GameObject } from '../game-object';
 
+@serializable()
 export abstract class CharacterBase extends GameObject {
   constructor(
     id: Id,
@@ -10,5 +12,10 @@ export abstract class CharacterBase extends GameObject {
     public rightFoot: Circle
   ) {
     super(id);
+  }
+
+  public toArray(): Array<any> {
+    const { id, head, leftFoot, rightFoot } = this as any;
+    return [id, head, leftFoot, rightFoot];
   }
 }

@@ -6,7 +6,7 @@ import {
   settings,
   CommandExecutors,
   MoveActionCommand,
-  typeToBaseType,
+  serializable,
 } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
@@ -15,7 +15,7 @@ import { CirclePhysical } from './circle-physical';
 import { Physical } from '../physics/physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 
-@typeToBaseType
+@serializable(CharacterBase)
 export class CharacterPhysical extends CharacterBase implements Physical {
   public readonly canCollide = true;
   public readonly isInverted = false;
@@ -165,10 +165,5 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     this.container.removeObject(this.head);
     this.container.removeObject(this.leftFoot);
     this.container.removeObject(this.rightFoot);
-  }
-
-  public toJSON(): any {
-    const { type, id, head, leftFoot, rightFoot } = this;
-    return [type, id, head, leftFoot, rightFoot];
   }
 }

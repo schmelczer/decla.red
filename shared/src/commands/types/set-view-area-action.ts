@@ -1,12 +1,14 @@
 import { Rectangle } from '../../helper/rectangle';
+import { serializable } from '../../transport/serializable/serializable';
 import { Command } from '../command';
 
+@serializable()
 export class SetViewAreaActionCommand extends Command {
   public constructor(public readonly viewArea: Rectangle) {
     super();
   }
 
-  public toJSON(): any {
-    return [this.type, this.viewArea];
+  public toArray(): Array<any> {
+    return [this.viewArea];
   }
 }

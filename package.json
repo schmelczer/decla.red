@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "start": "lerna run --parallel start",
+    "try-build": "lerna run --parallel try-build",
+    "build": "lerna run build",
     "initialize": "lerna run initialize"
   },
   "devDependencies": {

@@ -1,11 +1,11 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { LampBase, settings, id, typeToBaseType } from 'shared';
+import { LampBase, settings, id, serializable } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 
 import { Physical } from '../physics/physical';
 
-@typeToBaseType
+@serializable(LampBase)
 export class LampPhysical extends LampBase implements Physical {
   public readonly canCollide = false;
   public readonly isInverted = false;
@@ -37,10 +37,5 @@ export class LampPhysical extends LampBase implements Physical {
   // todo
   public distance(_: vec2): number {
     return 0;
-  }
-
-  public toJSON(): any {
-    const { type, id, center, color, lightness } = this;
-    return [type, id, center, color, lightness];
   }
 }

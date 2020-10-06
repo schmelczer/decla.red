@@ -1,3 +1,9 @@
-import { Typed } from '../transport/typed';
+export abstract class Command {
+  public static get type(): string {
+    return (this as any).name;
+  }
 
-export abstract class Command extends Typed { }
+  public get type(): string {
+    return (this as any).constructor.name;
+  }
+}

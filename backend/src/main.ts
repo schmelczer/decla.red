@@ -6,7 +6,7 @@ import {
   applyArrayPlugins,
   Random,
   TransportEvents,
-  deserializeCommand,
+  deserialize,
   StepCommand,
 } from 'shared';
 import './index.html';
@@ -23,7 +23,6 @@ applyArrayPlugins();
 Random.seed = 42;
 
 const objects = new PhysicalContainer();
-
 createDungeon(objects);
 createDungeon(objects);
 createDungeon(objects);
@@ -59,8 +58,8 @@ app.get('/', function (req, res) {
 io.on('connection', (socket: SocketIO.Socket) => {
   socket.on(TransportEvents.PlayerJoining, () => {
     const player = new Player(objects, socket);
-    socket.on(TransportEvents.PlayerToServer, (text: string) => {
-      const command = deserializeCommand(JSON.parse(text));
+    socket.on(TransportEvents.PlayerToServer, (json: string) => {
+      const command = deserialize(json);
       player.sendCommand(command);
     });
 
