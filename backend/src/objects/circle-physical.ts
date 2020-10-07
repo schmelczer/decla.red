@@ -39,9 +39,9 @@ export class CirclePhysical implements Circle, Physical {
     private _center: vec2,
     private _radius: number,
     public owner: GameObject,
-    private readonly container: PhysicalContainer
+    private readonly container: PhysicalContainer,
   ) {
-    this._boundingBox = new BoundingBox(null);
+    this._boundingBox = new BoundingBox();
     this.recalculateBoundingBox();
   }
 
@@ -93,8 +93,8 @@ export class CirclePhysical implements Circle, Physical {
       result.push(
         vec2.fromValues(
           Math.cos((2 * Math.PI * i) / count) * this.radius + this.center.x,
-          Math.sin((2 * Math.PI * i) / count) * this.radius + this.center.y
-        )
+          Math.sin((2 * Math.PI * i) / count) * this.radius + this.center.y,
+        ),
       );
     }
     return result;
@@ -111,13 +111,13 @@ export class CirclePhysical implements Circle, Physical {
     vec2.add(
       this.velocity,
       this.velocity,
-      vec2.scale(vec2.create(), force, timeInMilliseconds)
+      vec2.scale(vec2.create(), force, timeInMilliseconds),
     );
 
     vec2.set(
       this.velocity,
       clamp(this.velocity.x, -settings.maxVelocityX, settings.maxVelocityX),
-      clamp(this.velocity.y, -settings.maxVelocityY, settings.maxVelocityY)
+      clamp(this.velocity.y, -settings.maxVelocityY, settings.maxVelocityY),
     );
   }
 
@@ -129,7 +129,7 @@ export class CirclePhysical implements Circle, Physical {
     vec2.scale(
       this.velocity,
       this.velocity,
-      Math.pow(settings.velocityAttenuation, timeInMilliseconds)
+      Math.pow(settings.velocityAttenuation, timeInMilliseconds),
     );
 
     const distance = vec2.scale(vec2.create(), this.velocity, timeInMilliseconds);
@@ -140,13 +140,13 @@ export class CirclePhysical implements Circle, Physical {
     let wasHit = false;
 
     for (let i = 0; i < stepCount; i++) {
-      const { normal, tangent, hitSurface } = moveCircle(
+      const { tangent, hitSurface } = moveCircle(
         this,
         distance,
-        this.container.findIntersecting(this.boundingBox)
+        this.container.findIntersecting(this.boundingBox),
       );
       if (hitSurface) {
-        vec2.scale(this.velocity, tangent, vec2.dot(tangent, this.velocity));
+        vec2.scale(this.velocity, tangent!, vec2.dot(tangent!, this.velocity));
         wasHit = true;
       }
 

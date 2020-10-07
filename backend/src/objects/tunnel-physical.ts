@@ -21,7 +21,7 @@ export class TunnelPhysical extends TunnelBase implements StaticPhysical {
     const targetFromDelta = vec2.subtract(vec2.create(), target, this.from);
 
     const h = clamp01(
-      vec2.dot(targetFromDelta, toFromDelta) / vec2.dot(toFromDelta, toFromDelta)
+      vec2.dot(targetFromDelta, toFromDelta) / vec2.dot(toFromDelta, toFromDelta),
     );
 
     return (

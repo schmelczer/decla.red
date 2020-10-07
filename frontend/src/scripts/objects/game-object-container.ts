@@ -26,7 +26,7 @@ export class GameObjectContainer extends CommandReceiver {
       this.addObject(this.camera);
     },
 
-    [StepCommand.type]: (c: StepCommand) => {
+    [StepCommand.type]: (_: StepCommand) => {
       if (this.player) {
         this.camera.center = this.player.position;
       }

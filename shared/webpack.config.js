@@ -20,7 +20,10 @@ module.exports = (env, argv) => ({
   devtool: argv.mode === 'development' ? 'source-map' : false,
   watchOptions: {
     poll: true,
-    ignored: /node_modules/
+    ignored: /node_modules/,
+  },
+  externals: {
+    'gl-matrix': 'gl-matrix',
   },
   optimization: {
     minimize: false,
@@ -39,10 +42,10 @@ module.exports = (env, argv) => ({
           loader: 'ts-loader',
         },
         exclude: /node_modules/,
-      }
+      },
     ],
   },
   resolve: {
-    extensions: ['.ts', '.js'],
+    extensions: ['.ts'],
   },
 });

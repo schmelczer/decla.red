@@ -115,12 +115,12 @@ export class BlobShape extends Drawable {
       leftFootCenter: vec2.transformMat2d(
         vec2.create(),
         this.leftFoot.center,
-        transform2d
+        transform2d,
       ),
       rightFootCenter: vec2.transformMat2d(
         vec2.create(),
         this.rightFoot.center,
-        transform2d
+        transform2d,
       ),
       headRadius: this.head.radius * transform1d,
       footRadius: this.leftFoot.radius * transform1d,

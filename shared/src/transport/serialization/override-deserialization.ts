@@ -4,7 +4,7 @@ import { serializableMapping } from './serializable-mapping';
 
 export const overrideDeserialization = (
   source: SerializableClass,
-  target: DeserializableClass
+  target: DeserializableClass,
 ) => {
   serializableMapping.set(source.name, {
     constructor: target,

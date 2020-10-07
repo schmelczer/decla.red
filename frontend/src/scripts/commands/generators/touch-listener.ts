@@ -36,8 +36,8 @@ export class TouchListener extends CommandGenerator {
 
       this.sendCommandToSubcribers(
         new MoveActionCommand(
-          vec2.subtract(vec2.create(), position, this.previousPosition)
-        )
+          vec2.subtract(vec2.create(), position, this.previousPosition),
+        ),
       );
 
       this.previousPosition = position;
@@ -49,7 +49,7 @@ export class TouchListener extends CommandGenerator {
       event.touches,
       (center: vec2, touch: Touch) =>
         vec2.add(center, center, vec2.fromValues(-touch.clientX, touch.clientY)),
-      vec2.create()
+      vec2.create(),
     );
 
     return vec2.scale(center, center, 1 / event.touches.length);

@@ -5,25 +5,33 @@
     "es2020": true
   },
   "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/eslint-recommended",
     "plugin:@typescript-eslint/recommended",
-    "prettier",
-    "prettier/@typescript-eslint"
+    "prettier/@typescript-eslint",
+    "plugin:prettier/recommended"
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "ecmaVersion": 11,
+    "ecmaVersion": 2020,
     "sourceType": "module"
   },
-  "plugins": ["unused-imports", "@typescript-eslint", "prettier"],
+  "plugins": ["unused-imports", "@typescript-eslint", "json-format", "prettier"],
+  "settings": {
+    "json/sort-package-json": true
+  },
   "rules": {
     "prettier/prettier": "error",
     "no-unused-vars": "off",
     "unused-imports/no-unused-imports-ts": "error",
-    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_"
+      }
+    ],
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/explicit-module-boundary-types": "off",
-    "@typescript-eslint/no-non-null-assertion": "off"
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/no-empty-function": "off",
+    "@typescript-eslint/no-var-requires": "off"
   }
 }

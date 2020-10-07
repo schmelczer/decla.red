@@ -20,7 +20,7 @@ export const createDungeon = (objects: PhysicalContainer) => {
       previousEnd,
       currentEnd,
       previousRadius,
-      currentToRadius
+      currentToRadius,
     );
 
     objects.addObject(tunnel);
@@ -31,10 +31,10 @@ export const createDungeon = (objects: PhysicalContainer) => {
           currentEnd,
           vec3.normalize(
             vec3.create(),
-            vec3.fromValues(Random.getRandom(), 0, Random.getRandom())
+            vec3.fromValues(Random.getRandom(), 0, Random.getRandom()),
           ),
-          0.5
-        )
+          0.5,
+        ),
       );
       tunnelsCountSinceLastLight = 0;
     }

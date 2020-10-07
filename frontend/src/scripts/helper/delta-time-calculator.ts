@@ -6,7 +6,7 @@ export class DeltaTimeCalculator {
   }
 
   public getNextDeltaTimeInMilliseconds(
-    currentTime: DOMHighResTimeStamp
+    currentTime: DOMHighResTimeStamp,
   ): DOMHighResTimeStamp {
     if (this.previousTime === null) {
       this.previousTime = currentTime;

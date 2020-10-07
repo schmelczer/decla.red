@@ -1,6 +1,5 @@
 import { vec2 } from 'gl-matrix';
 import {
-  Command,
   CommandExecutors,
   CommandReceiver,
   CreateObjectsCommand,
@@ -35,11 +34,9 @@ export class Player extends CommandReceiver {
     },
   };
 
-  protected defaultCommandExecutor(command: Command) { }
-
   constructor(
     private readonly objects: PhysicalContainer,
-    private readonly socket: SocketIO.Socket
+    private readonly socket: SocketIO.Socket,
   ) {
     super();
     this.character = new CharacterPhysical(objects);
@@ -50,7 +47,7 @@ export class Player extends CommandReceiver {
 
     socket.emit(
       TransportEvents.ServerToPlayer,
-      serialize(new CreatePlayerCommand(this.character))
+      serialize(new CreatePlayerCommand(this.character)),
     );
 
     this.sendObjects();
@@ -66,11 +63,11 @@ export class Player extends CommandReceiver {
 
   public sendObjects() {
     const newlyIntersecting = this.objectsInViewArea.filter(
-      (o) => !this.objectsPreviouslyInViewArea.includes(o)
+      (o) => !this.objectsPreviouslyInViewArea.includes(o),
     );
 
     const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
-      (o) => !this.objectsInViewArea.includes(o)
+      (o) => !this.objectsInViewArea.includes(o),
     );
     this.objectsPreviouslyInViewArea = this.objectsInViewArea;
 
@@ -80,8 +77,8 @@ export class Player extends CommandReceiver {
         serialize(
           new DeleteObjectsCommand([
             ...new Set(noLongerIntersecting.map((p) => p.gameObject.id)),
-          ])
-        )
+          ]),
+        ),
       );
     }
 
@@ -91,8 +88,8 @@ export class Player extends CommandReceiver {
         serialize(
           new CreateObjectsCommand([
             ...new Set(newlyIntersecting.map((p) => p.gameObject)),
-          ])
-        )
+          ]),
+        ),
       );
     }
 
@@ -101,10 +98,10 @@ export class Player extends CommandReceiver {
       serialize(
         new UpdateObjectsCommand([
           ...new Set(
-            this.objectsInViewArea.filter((p) => p.canMove).map((p) => p.gameObject)
+            this.objectsInViewArea.filter((p) => p.canMove).map((p) => p.gameObject),
           ),
-        ])
-      )
+        ]),
+      ),
     );
 
     if (this.isActive) {

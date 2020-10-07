@@ -1,28 +1,15 @@
 {
   "name": "decla.red-server",
-  "description": "Game server for decla.red",
   "private": true,
-  "main": "index.js",
-  "scripts": {
-    "start": "concurrently --kill-others \"webpack --mode development -w\" \"nodemon --legacy-watch dist/main.js\"",
-    "lint": "eslint --fix \"src/**/*.ts\" && prettier --write \"src/**/*.ts\"",
-    "build": "webpack --mode production",
-    "try-build": "npm run build && node dist/main.js",
-    "initialize": "npm install"
-  },
+  "description": "Game server for decla.red",
   "keywords": [],
   "author": "András Schmelczer <andras@schmelczer.dev> (https://schmelczer.dev/)",
-  "devDependencies": {
-    "clean-webpack-plugin": "^3.0.0",
-    "concurrently": "^5.3.0",
-    "esbuild-loader": "^2.4.0",
-    "nodemon": "^2.0.4",
-    "raw-loader": "^4.0.1",
-    "resolve-url-loader": "^3.1.1",
-    "terser-webpack-plugin": "^2.3.5",
-    "webpack": "^4.43.0",
-    "webpack-cli": "^3.3.11",
-    "webpack-dev-server": "^3.10.3"
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --mode production",
+    "initialize": "npm install",
+    "start": "concurrently --kill-others \"webpack --mode development -w\" \"nodemon --legacy-watch dist/main.js\"",
+    "try-build": "npm run build && node dist/main.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -31,5 +18,18 @@
     "socket.io": "^2.3.0",
     "uws": "^10.148.1",
     "webpack-node-externals": "^2.5.2"
+  },
+  "devDependencies": {
+    "clean-webpack-plugin": "^3.0.0",
+    "concurrently": "^5.3.0",
+    "esbuild-loader": "^2.4.0",
+    "nodemon": "^2.0.4",
+    "raw-loader": "^4.0.1",
+    "resolve-url-loader": "^3.1.1",
+    "terser-webpack-plugin": "^2.3.5",
+    "typescript": "^3.9.7",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.10.3"
   }
 }

@@ -2,10 +2,16 @@
   "name": "root",
   "private": true,
   "scripts": {
+    "build": "lerna run build-before && lerna run build",
+    "initialize": "lerna link && lerna run initialize",
+    "lint": "eslint './**/src/**/*.{js,ts,json}' --fix",
     "start": "lerna run --parallel start",
-    "try-build": "lerna run --parallel try-build-before && lerna run --parallel try-build",
-    "build": "lerna run build",
-    "initialize": "lerna run initialize"
+    "try-build": "lerna run --parallel try-build-before && lerna run --parallel try-build"
+  },
+  "dependencies": {
+    "decla.red-frontend": "file:frontend",
+    "decla.red-server": "file:backend",
+    "shared": "file:shared"
   },
   "devDependencies": {
     "@types/cors": "^2.8.7",
@@ -17,26 +23,21 @@
     "@typescript-eslint/eslint-plugin": "^3.9.1",
     "@typescript-eslint/parser": "^3.9.1",
     "autoprefixer": "^9.8.5",
-    "lerna": "^3.22.1",
     "css-loader": "^3.5.2",
     "cssnano": "^4.1.10",
     "eslint": "^7.2.0",
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-import": "^2.21.2",
+    "eslint-plugin-json-format": "^2.0.1",
     "eslint-plugin-prettier": "^3.1.4",
     "eslint-plugin-unused-imports": "^0.1.3",
     "file-loader": "^6.1.0",
     "firebase": "^7.22.0",
     "gl-matrix": "^3.3.0",
+    "lerna": "^3.22.1",
     "prettier": "^2.0.5",
     "sdf-2d": "^0.4.0",
     "socket.io-client": "^2.3.1",
-    "typescript": "^3.8.3",
     "uuid": "^8.2.0"
-  },
-  "dependencies": {
-    "decla.red-frontend": "file:frontend",
-    "decla.red-server": "file:backend",
-    "shared": "file:shared"
   }
 }

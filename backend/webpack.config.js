@@ -25,7 +25,7 @@ module.exports = (env, argv) => ({
   },
   devtool: argv.mode === 'development' ? 'source-map' : false,
   watchOptions: {
-    poll: true
+    poll: true,
   },
   optimization: {
     minimize: argv.mode !== 'development',
@@ -35,7 +35,7 @@ module.exports = (env, argv) => ({
         test: /\.js$/,
         terserOptions: {
           keep_classnames: true,
-        }
+        },
       }),
     ],
   },
@@ -64,7 +64,7 @@ module.exports = (env, argv) => ({
         options: {
           loader: 'ts',
           target: 'es2015',
-        }
+        },
       },
     ],
   },

@@ -70,7 +70,7 @@ export class Game {
         new MouseListener(this.canvas),
         new TouchListener(this.canvas),
       ],
-      [this.gameObjects, new CommandReceiverSocket(this.socket)]
+      [this.gameObjects, new CommandReceiverSocket(this.socket)],
     );
   }
 
@@ -105,7 +105,7 @@ export class Game {
         shadowTraceCount: 16,
         paletteSize: 10,
         enableStopwatch: true,
-      }
+      },
     );
 
     this.renderer.setRuntimeSettings({
@@ -151,7 +151,7 @@ export class Game {
       // todo: Should only send aspect ratio
       this.socket.emit(
         TransportEvents.PlayerToServer,
-        serialize(new SetViewAreaActionCommand(this.gameObjects.camera.viewArea))
+        serialize(new SetViewAreaActionCommand(this.gameObjects.camera.viewArea)),
       );
     }
 

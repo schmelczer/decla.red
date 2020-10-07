@@ -28,7 +28,7 @@ module.exports = (env, argv) => ({
     host: '0.0.0.0',
     disableHostCheck: true,
     watchOptions: {
-      poll: true
+      poll: true,
     },
   },
   optimization: {
@@ -39,7 +39,7 @@ module.exports = (env, argv) => ({
         test: /\.js$/,
         terserOptions: {
           keep_classnames: true,
-        }
+        },
       }),
       new OptimizeCSSAssetsPlugin({}),
     ],
@@ -55,7 +55,7 @@ module.exports = (env, argv) => ({
         removeRedundantAttributes: true,
         removeScriptTypeAttributes: true,
         removeStyleLinkTypeAttributes: true,
-        useShortDoctype: true
+        useShortDoctype: true,
       },
       inlineSource: '.(js|css)$',
     }),
@@ -108,7 +108,7 @@ module.exports = (env, argv) => ({
         options: {
           loader: 'ts',
           target: 'es2015',
-        }
+        },
       },
     ],
   },

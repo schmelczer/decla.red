@@ -23,7 +23,7 @@ export class LampPhysical extends LampBase implements Physical {
         this.center.x - settings.lightCutoffDistance,
         this.center.x + settings.lightCutoffDistance,
         this.center.y - settings.lightCutoffDistance,
-        this.center.y + settings.lightCutoffDistance
+        this.center.y + settings.lightCutoffDistance,
       );
     }
 

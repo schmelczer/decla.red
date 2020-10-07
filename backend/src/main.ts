@@ -40,16 +40,18 @@ app.use(
       callback(null, true);
     },
     credentials: true,
-  })
+  }),
 );
 
 const port = 3000;
 const server = new Server(app);
 const io = ioserver(server);
 
+/*
 const log = (text: string) => {
   io.to('insights').emit('insights', text + '\n');
 };
+*/
 
 app.get('/', function (req, res) {
   res.sendFile('dist/index.html', { root: '.' });

@@ -6,7 +6,7 @@ import { Physical } from './physical';
 export const moveCircle = (
   circle: CirclePhysical,
   delta: vec2,
-  possibleIntersectors: Array<Physical>
+  possibleIntersectors: Array<Physical>,
 ): {
   realDelta: vec2;
   hitSurface: boolean;
@@ -16,7 +16,8 @@ export const moveCircle = (
   circle.center = vec2.add(circle.center, circle.center, delta);
 
   const intersecting = possibleIntersectors.filter(
-    (b) => b.gameObject !== circle.gameObject && circle.areIntersecting(b) && b.canCollide
+    (b) =>
+      b.gameObject !== circle.gameObject && circle.areIntersecting(b) && b.canCollide,
   );
 
   if (intersecting.length === 0) {
@@ -43,7 +44,7 @@ export const moveCircle = (
   const distancesOfIntersectingPoints = distancesOfPoints.filter(
     (d) =>
       (d.closest.distance > 0 && d.closest.inverted) ||
-      (d.closest.distance < 0 && !d.closest.inverted)
+      (d.closest.distance < 0 && !d.closest.inverted),
   );
 
   if (distancesOfIntersectingPoints.length === 0) {
@@ -59,14 +60,14 @@ export const moveCircle = (
     vec2.scale(
       pointDistance.point,
       pointDistance.point,
-      (pointDistance.closest.inverted ? 1 : -1) * pointDistance.closest.distance
+      (pointDistance.closest.inverted ? 1 : -1) * pointDistance.closest.distance,
     );
     return pointDistance.point;
   });
 
   const approxNormal = deltas.reduce(
     (sum, current) => vec2.add(sum, sum, current),
-    vec2.create()
+    vec2.create(),
   );
   vec2.scale(approxNormal, approxNormal, 1 / deltas.length);
 

@@ -1,11 +1,11 @@
 import { vec2 } from 'gl-matrix';
 
-export abstract class BoundingBoxBase {
+export class BoundingBoxBase {
   constructor(
     protected _xMin: number = 0,
     protected _xMax: number = 0,
     protected _yMin: number = 0,
-    protected _yMax: number = 0
+    protected _yMax: number = 0,
   ) {}
 
   public get 0(): number {

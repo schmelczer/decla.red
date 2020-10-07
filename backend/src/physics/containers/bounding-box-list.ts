@@ -2,7 +2,7 @@ import { Physical } from '../physical';
 import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
 
 export class BoundingBoxList {
-  constructor(private objects: Array<Physical> = []) { }
+  constructor(private objects: Array<Physical> = []) {}
 
   public insert(object: Physical) {
     this.objects.push(object);
@@ -11,7 +11,7 @@ export class BoundingBoxList {
   public remove(object: Physical) {
     this.objects.splice(
       this.objects.findIndex((i) => i === object),
-      1
+      1,
     );
   }
 

@@ -44,14 +44,14 @@ export class CharacterPhysical extends CharacterBase implements Physical {
         vec2.clone(CharacterPhysical.leftFootOffset),
         20,
         null,
-        container
+        container,
       ),
       new CirclePhysical(
         vec2.clone(CharacterPhysical.rightFootOffset),
         20,
         null,
-        container
-      )
+        container,
+      ),
     );
 
     this.head.owner = this;
@@ -89,7 +89,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
 
     const movementForce = this.movementActions.reduce(
       (sum, current) => vec2.add(sum, sum, current.delta),
-      vec2.create()
+      vec2.create(),
     );
 
     vec2.scale(movementForce, movementForce, 1 / this.movementActions.length);
@@ -113,25 +113,25 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     const bodyCenter = vec2.sub(
       vec2.create(),
       this.head.center,
-      CharacterPhysical.headOffset
+      CharacterPhysical.headOffset,
     );
 
     const leftFootPositon = vec2.add(
       vec2.create(),
       bodyCenter,
-      CharacterPhysical.leftFootOffset
+      CharacterPhysical.leftFootOffset,
     );
     const rightFootPositon = vec2.add(
       vec2.create(),
       bodyCenter,
-      CharacterPhysical.rightFootOffset
+      CharacterPhysical.rightFootOffset,
     );
 
     const leftFootDelta = vec2.sub(vec2.create(), this.leftFoot.center, leftFootPositon);
     const rightFootDelta = vec2.sub(
       vec2.create(),
       this.rightFoot.center,
-      rightFootPositon
+      rightFootPositon,
     );
 
     vec2.scale(leftFootDelta, leftFootDelta, 0.0006);

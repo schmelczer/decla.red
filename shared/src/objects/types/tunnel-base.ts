@@ -10,7 +10,7 @@ export class TunnelBase extends GameObject {
     public readonly from: vec2,
     public readonly to: vec2,
     public readonly fromRadius: number,
-    public readonly toRadius: number
+    public readonly toRadius: number,
   ) {
     super(id);
   }

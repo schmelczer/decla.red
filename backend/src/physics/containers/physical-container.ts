@@ -53,7 +53,7 @@ export class PhysicalContainer {
         const array = this.objectsGroupedByAbilities.get(command);
         array.splice(
           array.findIndex((i) => i.id == object.gameObject.id),
-          1
+          1,
         );
       }
     }

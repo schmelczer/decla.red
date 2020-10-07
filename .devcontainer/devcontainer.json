@@ -1,5 +1,3 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.140.1/containers/typescript-node
 {
   "name": "Node.js & TypeScript",
   "build": {
@@ -8,31 +6,39 @@
       "VARIANT": "14"
     }
   },
-  // Set *default* container specific settings.json values on container create.
   "settings": {
     "terminal.integrated.shell.linux": "/bin/zsh",
-    "workbench.sideBar.location": "right",
     "files.exclude": {
       "**/node_modules": true,
-      "**/package-lock.json": true
-    }
+      "**/package-lock.json": true,
+      "**/dist": true,
+      "**/lib": true
+    },
+    "editor.tabSize": 2,
+    "editor.detectIndentation": false,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "eslint.enable": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true
+    },
+    "eslint.validate": ["json"],
+    "markdown.extension.toc.levels": "2..4"
   },
-  // Add the IDs of extensions you want installed when the container is created.
   "extensions": [
     "dbaeumer.vscode-eslint",
-    "ms-vscode.vscode-typescript-tslint-plugin"
+    "esbenp.prettier-vscode",
+    "yzhang.markdown-all-in-one",
+    "hediet.vscode-drawio"
   ],
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "workspaceFolder": "/workspace",
   "mounts": [
-    "source=decla-red-root-node_modules,target=/workspace/node_modules,type=volume",
-    "source=decla-red-frontend-node_modules,target=/workspace/frontend/node_modules,type=volume",
-    "source=decla-red-backend-node_modules,target=/workspace/backend/node_modules,type=volume",
-    "source=decla-red-shared-node_modules,target=/workspace/shared/node_modules,type=volume",
+    "source=decla-red-root-node_modules2,target=/workspace/node_modules,type=volume",
+    "source=decla-red-frontend-node_modules2,target=/workspace/frontend/node_modules,type=volume",
+    "source=decla-red-backend-node_modules2,target=/workspace/backend/node_modules,type=volume",
+    "source=decla-red-shared-node_modules2,target=/workspace/shared/node_modules,type=volume"
   ],
-  "forwardPorts": [
-    3000,
-    8080
-  ],
-  "postCreateCommand": "npm install && npx lerna run initialize"
+  "forwardPorts": [3000, 8080],
+  "postCreateCommand": "sudo npm install && sudo npm run initialize && npm run build"
 }

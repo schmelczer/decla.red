@@ -22,7 +22,7 @@ export class BoundingBoxTree {
   private buildRecursive(
     objects: Array<StaticPhysical>,
     depth: number,
-    parent: Node
+    parent: Node,
   ): Node {
     if (objects.length === 0) {
       return null;
@@ -71,7 +71,7 @@ export class BoundingBoxTree {
   private findMaybeIntersecting(
     boundingBox: BoundingBoxBase,
     node: Node,
-    depth: number
+    depth: number,
   ): Array<StaticPhysical> {
     if (node === null) {
       return [];
@@ -104,7 +104,7 @@ export class BoundingBoxTree {
     object: StaticPhysical,
     node: Node,
     depth: number,
-    parent: Node
+    parent: Node,
   ): [Node, number] {
     if (node === null) {
       return [parent, depth - 1];

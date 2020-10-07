@@ -1,17 +1,17 @@
 import { Command } from './command';
 
 export type CommandExecutors = {
-  [type: string]: (command: Command) => void;
+  [type: string]: (command: any) => unknown;
 };
 
 export abstract class CommandReceiver {
   protected commandExecutors: CommandExecutors = {};
 
-  protected defaultCommandExecutor(command: Command) { }
-
   public reactsToCommand(commandType: string): boolean {
     return Object.prototype.hasOwnProperty.call(this.commandExecutors, commandType);
   }
+
+  protected defaultCommandExecutor(_: Command) {}
 
   public sendCommand(command: Command) {
     const commandType = command.type;

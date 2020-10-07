@@ -9,7 +9,7 @@ export class CharacterBase extends GameObject {
     id: Id,
     public head: Circle,
     public leftFoot: Circle,
-    public rightFoot: Circle
+    public rightFoot: Circle,
   ) {
     super(id);
   }
