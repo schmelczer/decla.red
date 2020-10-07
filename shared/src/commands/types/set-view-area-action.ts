@@ -1,8 +1,8 @@
 import { Rectangle } from '../../helper/rectangle';
-import { serializable } from '../../transport/serializable/serializable';
+import { serializable } from '../../transport/serialization/serializable';
 import { Command } from '../command';
 
-@serializable()
+@serializable
 export class SetViewAreaActionCommand extends Command {
   public constructor(public readonly viewArea: Rectangle) {
     super();

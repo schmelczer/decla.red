@@ -1,10 +1,10 @@
 import { vec2 } from 'gl-matrix';
 import { Id } from '../../transport/identity';
-import { serializable } from '../../transport/serializable/serializable';
+import { serializable } from '../../transport/serialization/serializable';
 import { GameObject } from '../game-object';
 
-@serializable()
-export abstract class TunnelBase extends GameObject {
+@serializable
+export class TunnelBase extends GameObject {
   constructor(
     id: Id,
     public readonly from: vec2,

@@ -1,8 +1,8 @@
 import { CharacterBase } from '../../objects/types/character-base';
-import { serializable } from '../../transport/serializable/serializable';
+import { serializable } from '../../transport/serialization/serializable';
 import { Command } from '../command';
 
-@serializable()
+@serializable
 export class CreatePlayerCommand extends Command {
   public constructor(public readonly character: CharacterBase) {
     super();

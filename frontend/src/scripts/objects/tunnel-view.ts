@@ -1,9 +1,8 @@
 import { vec2 } from 'gl-matrix';
 import { InvertedTunnel } from 'sdf-2d';
-import { CommandExecutors, deserializable, Id, TunnelBase } from 'shared';
+import { CommandExecutors, Id, TunnelBase } from 'shared';
 import { RenderCommand } from '../commands/types/render';
 
-@deserializable(TunnelBase)
 export class TunnelView extends TunnelBase {
   private shape: InvertedTunnel;
 

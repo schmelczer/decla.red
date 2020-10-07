@@ -1,8 +1,8 @@
 import { GameObject } from '../../objects/game-object';
-import { serializable } from '../../transport/serializable/serializable';
+import { serializable } from '../../transport/serialization/serializable';
 import { Command } from '../command';
 
-@serializable()
+@serializable
 export class UpdateObjectsCommand extends Command {
   public constructor(public readonly objects: Array<GameObject>) {
     super();

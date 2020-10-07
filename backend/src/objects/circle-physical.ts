@@ -4,7 +4,7 @@ import {
   clamp,
   CommandExecutors,
   GameObject,
-  serializable,
+  serializesTo,
   settings,
   StepCommand,
 } from 'shared';
@@ -15,7 +15,7 @@ import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
 import { moveCircle } from '../physics/move-circle';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 
-@serializable(Circle)
+@serializesTo(Circle)
 export class CirclePhysical implements Circle, Physical {
   readonly isInverted = false;
   readonly canCollide = true;

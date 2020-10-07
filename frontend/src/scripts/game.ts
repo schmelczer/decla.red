@@ -29,13 +29,9 @@ import { RenderCommand } from './commands/types/render';
 import { Configuration } from './config/configuration';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { rgb } from './helper/rgb';
-import { CharacterView } from './objects/character-view';
-import { TunnelView } from './objects/tunnel-view';
-import { LampView } from './objects/lamp-view';
+
 import { GameObjectContainer } from './objects/game-object-container';
 import { BlobShape } from './shapes/blob-shape';
-
-const a = [CharacterView, TunnelView, LampView];
 
 export class Game {
   public readonly gameObjects = new GameObjectContainer();

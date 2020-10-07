@@ -1,9 +1,8 @@
 import { vec2 } from 'gl-matrix';
-import { CharacterBase, CommandExecutors, deserializable } from 'shared';
+import { CharacterBase, CommandExecutors } from 'shared';
 import { RenderCommand } from '../commands/types/render';
 import { BlobShape } from '../shapes/blob-shape';
 
-@deserializable(CharacterBase)
 export class CharacterView extends CharacterBase {
   private shape = new BlobShape();
 

@@ -6,7 +6,7 @@ import {
   settings,
   CommandExecutors,
   MoveActionCommand,
-  serializable,
+  serializesTo,
 } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
@@ -15,7 +15,7 @@ import { CirclePhysical } from './circle-physical';
 import { Physical } from '../physics/physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 
-@serializable(CharacterBase)
+@serializesTo(CharacterBase)
 export class CharacterPhysical extends CharacterBase implements Physical {
   public readonly canCollide = true;
   public readonly isInverted = false;

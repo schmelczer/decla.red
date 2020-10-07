@@ -1,8 +1,8 @@
 import { vec2 } from 'gl-matrix';
-import { serializable } from '../../transport/serializable/serializable';
+import { serializable } from '../../transport/serialization/serializable';
 import { Command } from '../command';
 
-@serializable()
+@serializable
 export class TernaryActionCommand extends Command {
   public constructor(public readonly position: vec2) {
     super();
