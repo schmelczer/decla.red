@@ -7,9 +7,9 @@ import { GameObject } from '../game-object';
 export class CharacterBase extends GameObject {
   constructor(
     id: Id,
-    public head: Circle,
-    public leftFoot: Circle,
-    public rightFoot: Circle,
+    public head?: Circle,
+    public leftFoot?: Circle,
+    public rightFoot?: Circle,
   ) {
     super(id);
   }

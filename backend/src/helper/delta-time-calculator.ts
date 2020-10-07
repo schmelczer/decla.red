@@ -9,4 +9,12 @@ export class DeltaTimeCalculator {
 
     return seconds * 1000 + nanoSeconds / 1000 / 1000;
   }
+
+  public getDeltaTimeInMilliseconds(): number {
+    const deltaTime = process.hrtime(this.previousTime);
+
+    const [seconds, nanoSeconds] = deltaTime;
+
+    return seconds * 1000 + nanoSeconds / 1000 / 1000;
+  }
 }

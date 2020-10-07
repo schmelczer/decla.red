@@ -8,6 +8,7 @@ import {
   TransportEvents,
   deserialize,
   StepCommand,
+  settings,
 } from 'shared';
 import './index.html';
 import { Player } from './players/player';
@@ -30,8 +31,9 @@ createDungeon(objects);
 
 objects.initialize();
 
-const app = express();
+let players: Array<Player> = [];
 
+const app = express();
 const deltaTimeCalculator = new DeltaTimeCalculator();
 
 app.use(
@@ -60,6 +62,7 @@ app.get('/', function (req, res) {
 io.on('connection', (socket: SocketIO.Socket) => {
   socket.on(TransportEvents.PlayerJoining, () => {
     const player = new Player(objects, socket);
+    players.push(player);
     socket.on(TransportEvents.PlayerToServer, (json: string) => {
       const command = deserialize(json);
       player.sendCommand(command);
@@ -67,14 +70,13 @@ io.on('connection', (socket: SocketIO.Socket) => {
 
     socket.on('disconnect', () => {
       player.destroy();
+      players = players.filter((p) => p !== player);
     });
   });
 
   socket.on('join', (room_name: string) => {
     socket.join(room_name);
   });
-
-  //socket.on('disconnect', () => {});
 });
 
 server.listen(port, () => {
@@ -86,8 +88,15 @@ const handlePhysics = () => {
   const step = new StepCommand(delta);
 
   objects.sendCommand(step);
+  players.forEach((p) => p.sendCommand(step));
 
-  setTimeout(handlePhysics, 5);
+  const physicsDelta = deltaTimeCalculator.getDeltaTimeInMilliseconds();
+  const sleepTime = settings.targetPhysicsDeltaTimeInMilliseconds - physicsDelta;
+  if (sleepTime >= settings.minPhysicsSleepTime) {
+    setTimeout(handlePhysics, sleepTime);
+  } else {
+    setImmediate(handlePhysics);
+  }
 };
 
 handlePhysics();

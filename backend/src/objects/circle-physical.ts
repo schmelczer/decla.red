@@ -1,13 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import {
-  Circle,
-  clamp,
-  CommandExecutors,
-  GameObject,
-  serializesTo,
-  settings,
-  StepCommand,
-} from 'shared';
+import { Circle, clamp, GameObject, serializesTo, settings } from 'shared';
 import { Physical } from '../physics/physical';
 
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
@@ -22,16 +14,11 @@ export class CirclePhysical implements Circle, Physical {
   readonly canMove = true;
 
   private _isAirborne = true;
-
   private velocity = vec2.create();
 
   public get isAirborne(): boolean {
     return this._isAirborne;
   }
-
-  protected commandExecutors: CommandExecutors = {
-    [StepCommand.type]: this.step.bind(this),
-  };
 
   private _boundingBox: BoundingBox;
 
@@ -117,7 +104,7 @@ export class CirclePhysical implements Circle, Physical {
     vec2.set(
       this.velocity,
       clamp(this.velocity.x, -settings.maxVelocityX, settings.maxVelocityX),
-      clamp(this.velocity.y, -settings.maxVelocityY, settings.maxVelocityY),
+      this.velocity.y,
     );
   }
 
@@ -140,7 +127,7 @@ export class CirclePhysical implements Circle, Physical {
     let wasHit = false;
 
     for (let i = 0; i < stepCount; i++) {
-      const { tangent, hitSurface } = moveCircle(
+      const { normal, tangent, hitSurface } = moveCircle(
         this,
         distance,
         this.container.findIntersecting(this.boundingBox),
@@ -149,10 +136,9 @@ export class CirclePhysical implements Circle, Physical {
         vec2.scale(this.velocity, tangent!, vec2.dot(tangent!, this.velocity));
         wasHit = true;
       }
-
-      this._isAirborne = hitSurface;
     }
 
+    this._isAirborne = !wasHit;
     return wasHit;
   }
 

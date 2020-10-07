@@ -98,15 +98,11 @@ export class BlobShape extends Drawable {
   }
 
   public minDistance(target: vec2): number {
-    // todo
-    return 0;
-    /*return (
-      Math.min(
-        this.head.distance(target),
-        this.leftFoot.distance(target),
-        this.rightFoot.distance(target)
-      ) / 2
-    );*/
+    return Math.min(
+      this.head.distance(target),
+      this.leftFoot.distance(target),
+      this.rightFoot.distance(target),
+    );
   }
 
   protected getObjectToSerialize(transform2d: mat2d, transform1d: number): any {

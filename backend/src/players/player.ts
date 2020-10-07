@@ -1,4 +1,3 @@
-import { vec2 } from 'gl-matrix';
 import {
   CommandExecutors,
   CommandReceiver,
@@ -10,6 +9,7 @@ import {
   SetViewAreaActionCommand,
   TransportEvents,
   UpdateObjectsCommand,
+  StepCommand,
 } from 'shared';
 import { CharacterPhysical } from '../objects/character-physical';
 
@@ -18,18 +18,15 @@ import { PhysicalContainer } from '../physics/containers/physical-container';
 import { Physical } from '../physics/physical';
 
 export class Player extends CommandReceiver {
-  public isActive = true;
-
   private character: CharacterPhysical;
 
   private objectsPreviouslyInViewArea: Array<Physical> = [];
   private objectsInViewArea: Array<Physical> = [];
 
   protected commandExecutors: CommandExecutors = {
+    [StepCommand.type]: this.sendObjects.bind(this),
     [SetViewAreaActionCommand.type]: this.setViewArea.bind(this),
     [MoveActionCommand.type]: (c: MoveActionCommand) => {
-      vec2.normalize(c.delta, c.delta);
-      vec2.scale(c.delta, c.delta, 15);
       this.character.sendCommand(c);
     },
   };
@@ -54,7 +51,7 @@ export class Player extends CommandReceiver {
   }
 
   public setViewArea(c: SetViewAreaActionCommand) {
-    const viewArea = new BoundingBox(null);
+    const viewArea = new BoundingBox();
     viewArea.topLeft = c.viewArea.topLeft;
     viewArea.size = c.viewArea.size;
 
@@ -103,15 +100,9 @@ export class Player extends CommandReceiver {
         ]),
       ),
     );
-
-    if (this.isActive) {
-      //setImmediate(this.sendObjects.bind(this));
-      setTimeout(this.sendObjects.bind(this), 5);
-    }
   }
 
   public destroy() {
-    this.isActive = false;
     this.character.destroy();
     this.objects.removeObject(this.character);
   }

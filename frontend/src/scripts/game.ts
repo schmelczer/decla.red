@@ -13,7 +13,6 @@ import {
 import {
   broadcastCommands,
   deserialize,
-  prettyPrint,
   serialize,
   settings,
   SetViewAreaActionCommand,
@@ -41,6 +40,7 @@ export class Game {
   private deltaTimeCalculator = new DeltaTimeCalculator();
   private overlay: HTMLElement = document.querySelector('#overlay');
   private keyboardListener: KeyboardListener;
+  private touchListener: TouchListener;
 
   private async setupCommunication(): Promise<void> {
     await Configuration.initialize();
@@ -62,14 +62,11 @@ export class Game {
 
     this.socket.emit(TransportEvents.PlayerJoining, null);
 
-    this.keyboardListener = new KeyboardListener(document.body, 100);
+    this.keyboardListener = new KeyboardListener(document.body);
+    this.touchListener = new TouchListener(this.canvas);
 
     broadcastCommands(
-      [
-        this.keyboardListener,
-        new MouseListener(this.canvas),
-        new TouchListener(this.canvas),
-      ],
+      [this.keyboardListener, new MouseListener(this.canvas), this.touchListener],
       [this.gameObjects, new CommandReceiverSocket(this.socket)],
     );
   }
@@ -82,15 +79,15 @@ export class Game {
       [
         {
           ...InvertedTunnel.descriptor,
-          shaderCombinationSteps: [0, 2, 4, 8, 16],
+          shaderCombinationSteps: [0, 2, 6, 16],
         },
         {
           ...BlobShape.descriptor,
-          shaderCombinationSteps: [0, 1, 2, 3, 4, 5, 8],
+          shaderCombinationSteps: [0, 1, 2, 8],
         },
         {
           ...Circle.descriptor,
-          shaderCombinationSteps: [0, 2, 4, 8, 16],
+          shaderCombinationSteps: [0, 2, 16],
         },
         {
           ...CircleLight.descriptor,
@@ -146,6 +143,7 @@ export class Game {
   private gameLoop(time: DOMHighResTimeStamp) {
     const deltaTime = this.deltaTimeCalculator.getNextDeltaTimeInMilliseconds(time);
     this.keyboardListener.generateCommands();
+    this.touchListener.generateCommands();
 
     if (this.gameObjects.camera) {
       // todo: Should only send aspect ratio
@@ -171,7 +169,7 @@ export class Game {
 
     this.renderer.renderDrawables();
 
-    this.overlay.innerText = prettyPrint(this.renderer.insights);
+    //this.overlay.innerText = prettyPrint(this.renderer.insights);
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 }

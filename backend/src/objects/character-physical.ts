@@ -7,10 +7,9 @@ import {
   CommandExecutors,
   MoveActionCommand,
   serializesTo,
+  clamp,
 } from 'shared';
-
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
-
 import { CirclePhysical } from './circle-physical';
 import { Physical } from '../physics/physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
@@ -20,6 +19,8 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   public readonly canCollide = true;
   public readonly isInverted = false;
   public readonly canMove = true;
+
+  private jumpEnergyLeft = settings.defaultJumpEnergy;
 
   public head: CirclePhysical;
   public leftFoot: CirclePhysical;
@@ -37,27 +38,25 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   private static readonly rightFootOffset = vec2.fromValues(20, -10);
 
   constructor(private readonly container: PhysicalContainer) {
-    super(
-      id(),
-      new CirclePhysical(vec2.clone(CharacterPhysical.headOffset), 50, null, container),
-      new CirclePhysical(
-        vec2.clone(CharacterPhysical.leftFootOffset),
-        20,
-        null,
-        container,
-      ),
-      new CirclePhysical(
-        vec2.clone(CharacterPhysical.rightFootOffset),
-        20,
-        null,
-        container,
-      ),
+    super(id(), undefined, undefined, undefined);
+    this.head = new CirclePhysical(
+      vec2.clone(CharacterPhysical.headOffset),
+      50,
+      this,
+      container,
     );
-
-    this.head.owner = this;
-    this.leftFoot.owner = this;
-    this.rightFoot.owner = this;
-
+    this.leftFoot = new CirclePhysical(
+      vec2.clone(CharacterPhysical.leftFootOffset),
+      20,
+      this,
+      container,
+    );
+    this.rightFoot = new CirclePhysical(
+      vec2.clone(CharacterPhysical.rightFootOffset),
+      20,
+      this,
+      container,
+    );
     container.addObject(this.head);
     container.addObject(this.leftFoot);
     container.addObject(this.rightFoot);
@@ -77,9 +76,14 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     return this;
   }
 
-  // todo
-  public distance(_: vec2): number {
-    return 0;
+  public distance(target: vec2): number {
+    return (
+      Math.min(
+        this.head.distance(target),
+        this.leftFoot.distance(target),
+        this.rightFoot.distance(target),
+      ) - 20
+    );
   }
 
   private sumAndResetMovementActions(): vec2 {
@@ -102,15 +106,32 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   public step(c: StepCommand) {
     const deltaTime = c.deltaTimeInMiliseconds;
 
+    this.head.applyForce(settings.gravitationalForce, deltaTime);
+    this.leftFoot.applyForce(settings.gravitationalForce, deltaTime);
+    this.rightFoot.applyForce(settings.gravitationalForce, deltaTime);
+
     const movementForce = this.sumAndResetMovementActions();
-    if (!this.leftFoot.isAirborne || !this.rightFoot.isAirborne) {
-      movementForce.y = 0;
+
+    const isAirborne = this.leftFoot.isAirborne && this.rightFoot.isAirborne;
+    if (isAirborne) {
+      this.jumpEnergyLeft -= deltaTime;
+    } else {
+      this.jumpEnergyLeft = settings.defaultJumpEnergy;
     }
+    const xMax = deltaTime * settings.maxAccelerationX;
+    const yMax = this.jumpEnergyLeft > 0 ? deltaTime * settings.maxAccelerationY : 0;
+
+    vec2.set(
+      movementForce,
+      clamp(movementForce.x, -xMax, xMax),
+      clamp(movementForce.y, -yMax, yMax),
+    );
 
     this.head.applyForce(movementForce, deltaTime);
-    this.head.applyForce(settings.gravitationalForce, deltaTime);
+    this.leftFoot.applyForce(movementForce, deltaTime);
+    this.rightFoot.applyForce(movementForce, deltaTime);
 
-    const bodyCenter = vec2.sub(
+    const bodyCenter = vec2.subtract(
       vec2.create(),
       this.head.center,
       CharacterPhysical.headOffset,
@@ -127,38 +148,35 @@ export class CharacterPhysical extends CharacterBase implements Physical {
       CharacterPhysical.rightFootOffset,
     );
 
-    const leftFootDelta = vec2.sub(vec2.create(), this.leftFoot.center, leftFootPositon);
-    const rightFootDelta = vec2.sub(
+    const leftFootDelta = vec2.subtract(
+      vec2.create(),
+      this.leftFoot.center,
+      leftFootPositon,
+    );
+
+    const rightFootDelta = vec2.subtract(
       vec2.create(),
       this.rightFoot.center,
       rightFootPositon,
     );
 
-    vec2.scale(leftFootDelta, leftFootDelta, 0.0006);
-    vec2.scale(rightFootDelta, rightFootDelta, 0.0006);
+    if (vec2.squaredLength(leftFootDelta) > 0) {
+      vec2.scale(leftFootDelta, leftFootDelta, 0.001);
+      this.head.applyForce(leftFootDelta, deltaTime);
+      vec2.scale(leftFootDelta, leftFootDelta, -4);
+      this.leftFoot.applyForce(leftFootDelta, deltaTime);
+    }
 
-    this.head.applyForce(leftFootDelta, deltaTime);
-    this.head.applyForce(rightFootDelta, deltaTime);
-
-    vec2.scale(leftFootDelta, leftFootDelta, -0.5);
-    vec2.scale(rightFootDelta, rightFootDelta, -0.5);
-
-    this.leftFoot.applyForce(movementForce, deltaTime);
-    this.rightFoot.applyForce(movementForce, deltaTime);
-    this.leftFoot.applyForce(leftFootDelta, deltaTime);
-    this.rightFoot.applyForce(rightFootDelta, deltaTime);
-    this.leftFoot.applyForce(settings.gravitationalForce, deltaTime);
-    this.rightFoot.applyForce(settings.gravitationalForce, deltaTime);
+    if (vec2.squaredLength(rightFootDelta) > 0) {
+      vec2.scale(rightFootDelta, rightFootDelta, 0.001);
+      this.head.applyForce(rightFootDelta, deltaTime);
+      vec2.scale(rightFootDelta, rightFootDelta, -4);
+      this.rightFoot.applyForce(rightFootDelta, deltaTime);
+    }
 
     this.head.step(deltaTime);
     this.leftFoot.step(deltaTime);
     this.rightFoot.step(deltaTime);
-
-    /*this.flashlight.center = vec2.add(
-      vec2.create(),
-      this.head.center,
-      vec2.fromValues(0, 0)
-    );*/
   }
 
   public destroy() {

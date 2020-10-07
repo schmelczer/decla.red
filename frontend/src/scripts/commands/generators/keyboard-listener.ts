@@ -4,7 +4,7 @@ import { CommandGenerator, MoveActionCommand } from 'shared';
 export class KeyboardListener extends CommandGenerator {
   private keysDown: Set<string> = new Set();
 
-  constructor(target: Element, private moveScale: number) {
+  constructor(target: HTMLElement) {
     super();
 
     target.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -31,7 +31,6 @@ export class KeyboardListener extends CommandGenerator {
     const movement = vec2.fromValues(right - left, up - down);
     if (vec2.squaredLength(movement) > 0) {
       vec2.normalize(movement, movement);
-      vec2.scale(movement, movement, this.moveScale);
       this.sendCommandToSubcribers(new MoveActionCommand(movement));
     }
   }

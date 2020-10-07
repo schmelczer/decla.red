@@ -7,7 +7,7 @@ import {
 } from 'shared';
 
 export class MouseListener extends CommandGenerator {
-  constructor(target: Element) {
+  constructor(target: HTMLElement) {
     super();
 
     target.addEventListener('mousemove', (event: MouseEvent) => {
