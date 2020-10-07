@@ -1,23 +1,53 @@
-name: Deploy site
+name: Build and deploy project
 on:
   push:
     branches:
       - main
+env:
+  CONTAINER_REGISTRY: schmelczera
+  DOMAIN: '174.138.103.56'
+
 jobs:
-  firebase-deploy:
+  build-project:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current branch with lfs
         uses: actions/checkout@master
-      - name: Build site
+        with:
+          lfs: true
+      - name: Build project
         run: |
           npm install
+          npm run initialize
           npm run build
-        working-directory: frontend
-      - name: Deploy html
+      - name: Deploy frontend
         uses: w9jds/firebase-action@master
         with:
           args: deploy --only hosting --project decla-red
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           PROJECT_PATH: frontend
+      - name: Authenticate with dockerhub
+        run: |
+          docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
+      - name: Install buildx
+        id: buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          version: latest
+      - name: Build and push server image
+        run: |
+          docker buildx build \
+          --tag $CONTAINER_REGISTRY/decla-red-server:latest \
+          --platform linux/amd64,linux/arm/v7,linux/arm64 . --push
+        working-directory: backend
+      - name: Setup auth tokens
+        run: |
+          mkdir ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 400 ~/.ssh/id_ed25519
+          ssh -o StrictHostKeyChecking=no root@$DOMAIN uptime
+      - name: Stack deploy
+        run: |
+          DOCKER_HOST=ssh://root@$DOMAIN docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_HOST=ssh://root@$DOMAIN docker stack deploy cluster -c cluster-stack.yml --with-registry-auth
