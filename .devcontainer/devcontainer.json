@@ -23,13 +23,21 @@
       "source.fixAll.eslint": true
     },
     "eslint.validate": ["json"],
-    "markdown.extension.toc.levels": "2..4"
+    "markdown.extension.toc.levels": "2..4",
+    // <style>
+    "workbench.iconTheme": "material-icon-theme",
+    "workbench.colorTheme": "Community Material Theme Palenight High Contrast",
+    "editor.fontFamily": "'Fira Code'",
+    "editor.fontLigatures": true
+    // </style>
   },
   "extensions": [
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
     "yzhang.markdown-all-in-one",
-    "hediet.vscode-drawio"
+    "hediet.vscode-drawio",
+    "pkief.material-icon-theme",
+    "equinusocio.vsc-community-material-theme"
   ],
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "workspaceFolder": "/workspace",
