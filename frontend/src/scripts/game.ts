@@ -56,7 +56,7 @@ export class Game {
 
     this.socket.on(TransportEvents.ServerToPlayer, (serialized: string) => {
       const command = deserialize(serialized);
-      console.log(command);
+      //console.log(command);
       this.gameObjects.sendCommand(command);
     });
 

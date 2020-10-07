@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "start": "lerna run --parallel start",
-    "try-build": "lerna run --parallel try-build",
+    "try-build": "lerna run --parallel try-build-before && lerna run --parallel try-build",
     "build": "lerna run build",
     "initialize": "lerna run initialize"
   },

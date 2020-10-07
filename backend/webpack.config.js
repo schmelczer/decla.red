@@ -1,13 +1,15 @@
 const path = require('path');
-const TerserJSPlugin = require('terser-webpack-plugin');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const nodeExternals = require('webpack-node-externals');
+const { ESBuildPlugin } = require('esbuild-loader');
+const TerserJSPlugin = require('terser-webpack-plugin');
 
 const PATHS = {
   entryPoint: path.resolve(__dirname, 'src/main.ts'),
   bundles: path.resolve(__dirname, 'dist'),
 };
 
-module.exports = {
+module.exports = (env, argv) => ({
   entry: {
     main: [PATHS.entryPoint],
   },
@@ -21,21 +23,29 @@ module.exports = {
     filename: '[name].js',
     path: PATHS.bundles,
   },
-  devtool: 'source-map',
+  devtool: argv.mode === 'development' ? 'source-map' : false,
   watchOptions: {
     poll: true
   },
   optimization: {
-    minimize: true,
-    usedExports: true,
+    minimize: argv.mode !== 'development',
     minimizer: [
       new TerserJSPlugin({
-        sourceMap: true,
-        cache: true,
-        test: /\.ts$/,
+        sourceMap: false,
+        test: /\.js$/,
+        terserOptions: {
+          keep_classnames: true,
+        }
       }),
     ],
   },
+  plugins: [
+    new ESBuildPlugin(),
+    new CleanWebpackPlugin({
+      protectWebpackAssets: false,
+      cleanAfterEveryBuildPatterns: [],
+    }),
+  ],
   module: {
     rules: [
       {
@@ -50,14 +60,15 @@ module.exports = {
       },
       {
         test: /\.ts$/,
-        use: {
-          loader: 'ts-loader',
-        },
-        exclude: /node_modules/,
+        loader: 'esbuild-loader',
+        options: {
+          loader: 'ts',
+          target: 'es2015',
+        }
       },
     ],
   },
   resolve: {
     extensions: ['.ts', '.js'],
   },
-};
+});

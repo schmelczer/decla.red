@@ -1,28 +1,29 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const TerserJSPlugin = require('terser-webpack-plugin');
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 const Sass = require('sass');
+const TerserJSPlugin = require('terser-webpack-plugin');
+const { ESBuildPlugin } = require('esbuild-loader');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 
 const PATHS = {
   entryPoint: path.resolve(__dirname, 'src/index.ts'),
   bundles: path.resolve(__dirname, 'dist'),
 };
 
-module.exports = {
+module.exports = (env, argv) => ({
   entry: {
     index: PATHS.entryPoint,
   },
   target: 'web',
   output: {
-    filename: '[name].[contenthash].js',
+    filename: '[name].js',
     path: PATHS.bundles,
   },
-
-  devtool: 'source-map',
+  devtool: argv.mode === 'development' ? 'source-map' : false,
   devServer: {
     host: '0.0.0.0',
     disableHostCheck: true,
@@ -31,19 +32,20 @@ module.exports = {
     },
   },
   optimization: {
-    minimize: false,
-    usedExports: true,
+    minimize: argv.mode !== 'development',
     minimizer: [
       new TerserJSPlugin({
-        sourceMap: true,
-        cache: true,
-        test: /\.ts$/,
+        sourceMap: false,
+        test: /\.js$/,
+        terserOptions: {
+          keep_classnames: true,
+        }
       }),
       new OptimizeCSSAssetsPlugin({}),
     ],
   },
   plugins: [
-    new CleanWebpackPlugin(),
+    new ESBuildPlugin(),
     new HtmlWebpackPlugin({
       xhtml: true,
       template: './src/index.html',
@@ -53,14 +55,18 @@ module.exports = {
         removeRedundantAttributes: true,
         removeScriptTypeAttributes: true,
         removeStyleLinkTypeAttributes: true,
-        useShortDoctype: true,
+        useShortDoctype: true
       },
       inlineSource: '.(js|css)$',
     }),
     new HtmlWebpackInlineSourcePlugin(),
     new MiniCssExtractPlugin({
-      filename: '[name].[contenthash].css',
-      chunkFilename: '[id].[contenthash].css',
+      filename: '[name].css',
+      chunkFilename: '[id].css',
+    }),
+    new CleanWebpackPlugin({
+      protectWebpackAssets: false,
+      cleanAfterEveryBuildPatterns: ['*.js', '*.css'],
     }),
   ],
   module: {
@@ -98,14 +104,15 @@ module.exports = {
       },
       {
         test: /\.ts$/,
-        use: {
-          loader: 'ts-loader',
-        },
-        exclude: /node_modules/,
+        loader: 'esbuild-loader',
+        options: {
+          loader: 'ts',
+          target: 'es2015',
+        }
       },
     ],
   },
   resolve: {
     extensions: ['.ts', '.js'],
   },
-};
+});

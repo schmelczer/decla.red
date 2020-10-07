@@ -2,9 +2,19 @@
   "name": "shared",
   "private": true,
   "description": "Shared library between backend and frontend",
-  "main": "src/main.ts",
+  "main": "lib/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "webpack --mode development --watch",
+    "lint": "eslint --fix \"src/**/*.ts\" && prettier --write \"src/**/*.ts\"",
+    "build": "webpack --mode production",
+    "try-build-before": "npm run build",
     "initialize": "npm install"
+  },
+  "devDependencies": {
+    "clean-webpack-plugin": "^3.0.0",
+    "terser-webpack-plugin": "^2.3.8",
+    "ts-loader": "^8.0.3",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11"
   }
 }

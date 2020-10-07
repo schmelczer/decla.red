@@ -38,14 +38,15 @@ export class GameObjectContainer extends CommandReceiver {
     [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
       c.ids.forEach((id: Id) => this.objects.delete(id)),
 
-    [UpdateObjectsCommand.type]: (c: UpdateObjectsCommand) =>
+    [UpdateObjectsCommand.type]: (c: UpdateObjectsCommand) => {
       c.objects.forEach((o) => {
         this.objects.delete(o.id);
         this.addObject(o);
         if (o.id === this.player.id) {
           this.player = o as CharacterView;
         }
-      }),
+      });
+    },
   };
 
   protected defaultCommandExecutor(c: Command) {

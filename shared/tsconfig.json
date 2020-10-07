@@ -1,18 +1,20 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
+    "outDir": "lib",
     "sourceMap": true,
-    "noImplicitAny": false,
-    "target": "es6",
-    "downlevelIteration": true,
-    "allowJs": true,
+    "declaration": true,
+    "declarationMap": true,
+    "target": "es2015",
+    "esModuleInterop": true,
+    "strict": true,
     "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
+    "downlevelIteration": true,
     "moduleResolution": "Node",
     "module": "es6",
+    "composite": true,
     "lib": [
-      "es2015",
-      "dom"
+      "dom",
+      "es2017"
     ]
   }
 }

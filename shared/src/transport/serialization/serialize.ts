@@ -1,4 +1,4 @@
-export const serialize = (object): string => {
+export const serialize = (object: any): string => {
   return JSON.stringify(object, (_, value) => {
     if (value?.__serializable_type) {
       return [value.__serializable_type, ...value.toArray()];
