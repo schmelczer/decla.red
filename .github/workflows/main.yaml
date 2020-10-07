@@ -50,5 +50,5 @@ jobs:
       - name: Stack deploy
         run: |
           DOCKER_HOST=ssh://root@$DOMAIN docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_HOST=ssh://root@$DOMAIN docker stack deploy cluster -c cluster-stack.yml --with-registry-auth
+          DOCKER_HOST=ssh://root@$DOMAIN docker stack deploy cluster -c docker-compose.yml --with-registry-auth
         working-directory: backend
