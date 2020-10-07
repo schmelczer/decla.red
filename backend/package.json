@@ -6,9 +6,9 @@
   "author": "András Schmelczer <andras@schmelczer.dev> (https://schmelczer.dev/)",
   "main": "index.js",
   "scripts": {
-    "build": "webpack --mode production",
+    "build": "npx webpack --mode production",
     "initialize": "npm install",
-    "start": "concurrently --kill-others \"webpack --mode development -w\" \"nodemon --legacy-watch dist/main.js\"",
+    "start": "concurrently --kill-others \"npx webpack --mode development -w\" \"nodemon --legacy-watch dist/main.js\"",
     "try-build": "npm run build && node dist/main.js"
   },
   "dependencies": {

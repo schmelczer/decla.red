@@ -42,11 +42,11 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "workspaceFolder": "/workspace",
   "mounts": [
-    "source=decla-red-root-node_modules2,target=/workspace/node_modules,type=volume",
-    "source=decla-red-frontend-node_modules2,target=/workspace/frontend/node_modules,type=volume",
-    "source=decla-red-backend-node_modules2,target=/workspace/backend/node_modules,type=volume",
-    "source=decla-red-shared-node_modules2,target=/workspace/shared/node_modules,type=volume"
+    "source=decla-red-root-node_modules-static,target=/workspace/node_modules,type=volume",
+    "source=decla-red-frontend-node_modules-static,target=/workspace/frontend/node_modules,type=volume",
+    "source=decla-red-backend-node_modules-static,target=/workspace/backend/node_modules,type=volume",
+    "source=decla-red-shared-node_modules-static,target=/workspace/shared/node_modules,type=volume"
   ],
   "forwardPorts": [3000, 8080],
-  "postCreateCommand": "sudo npm install && sudo npm run initialize && npm run build"
+  "postCreateCommand": "chown node:node ./**/node_modules && sudo npm install && npm run initialize && npm run build"
 }

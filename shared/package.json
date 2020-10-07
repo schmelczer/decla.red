@@ -8,11 +8,10 @@
     "lib"
   ],
   "scripts": {
-    "build": "webpack --mode production",
-    "build-before": "npm run build",
+    "build-before": "npx webpack --mode production",
     "initialize": "npm install",
-    "start": "webpack --mode development --watch",
-    "try-build-before": "npm run build-before"
+    "start": "npx webpack --mode development --watch",
+    "try-build-before": "npx webpack --mode production"
   },
   "devDependencies": {
     "clean-webpack-plugin": "^3.0.0",

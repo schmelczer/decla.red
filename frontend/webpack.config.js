@@ -37,6 +37,7 @@ module.exports = (env, argv) => ({
       new TerserJSPlugin({
         sourceMap: false,
         test: /\.js$/,
+        exclude: /node_modules/,
         terserOptions: {
           keep_classnames: true,
         },
@@ -109,6 +110,7 @@ module.exports = (env, argv) => ({
           loader: 'ts',
           target: 'es2015',
         },
+        exclude: /node_modules/,
       },
     ],
   },

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "outDir": "lib",
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
@@ -12,5 +13,6 @@
     "module": "es6",
     "composite": true,
     "lib": ["dom", "es2017"]
-  }
+  },
+  "include": ["**/src/**/*", "package.json"]
 }

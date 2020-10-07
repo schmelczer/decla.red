@@ -10,6 +10,7 @@ export * from './commands/types/set-view-area-action';
 export * from './commands/types/primary-action';
 export * from './commands/types/secondary-action';
 export * from './commands/command-receiver';
+export * from './commands/command-executors';
 export * from './commands/command-generator';
 export * from './commands/broadcast-commands';
 export * from './helper/array';
