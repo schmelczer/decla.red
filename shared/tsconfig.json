@@ -1,16 +1,16 @@
 {
   "compilerOptions": {
+    "target": "es5",
     "outDir": "lib",
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "target": "es2015",
     "esModuleInterop": true,
     "strict": true,
     "experimentalDecorators": true,
     "downlevelIteration": true,
-    "moduleResolution": "Node",
-    "module": "es6",
+    "moduleResolution": "node",
+    "module": "commonjs",
     "composite": true,
     "lib": ["dom", "es2017"]
   }

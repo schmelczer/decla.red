@@ -48,5 +48,5 @@
     "source=decla-red-shared-node_modules-static,target=/workspace/shared/node_modules,type=volume"
   ],
   "forwardPorts": [3000, 8080],
-  "postCreateCommand": "chown node:node ./**/node_modules && sudo npm install && npm run initialize && npm run build"
+  "postCreateCommand": "chown node:node ./**/node_modules && npm install && npm run initialize && npm run build"
 }

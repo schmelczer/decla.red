@@ -1,5 +1,4 @@
 const path = require('path');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 const PATHS = {
   entryPoint: path.resolve(__dirname, 'src/main.ts'),
@@ -28,12 +27,7 @@ module.exports = (env, argv) => ({
   optimization: {
     minimize: false,
   },
-  plugins: [
-    new CleanWebpackPlugin({
-      protectWebpackAssets: false,
-      cleanAfterEveryBuildPatterns: [],
-    }),
-  ],
+  plugins: [],
   module: {
     rules: [
       {

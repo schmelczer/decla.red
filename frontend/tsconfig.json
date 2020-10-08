@@ -1,14 +1,15 @@
 {
   "compilerOptions": {
+    "outDir": "dist",
+    "target": "es5",
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "target": "es6",
     "esModuleInterop": true,
     "strict": true,
     "experimentalDecorators": true,
     "downlevelIteration": true,
-    "moduleResolution": "Node",
+    "moduleResolution": "node",
     "module": "es6",
     "composite": true,
     "lib": ["dom", "es2017"]
