@@ -83,14 +83,36 @@ server.listen(port, () => {
   console.log(`server started at http://localhost:${port}`);
 });
 
+let deltas: Array<number> = [];
+
 const handlePhysics = () => {
   const delta = deltaTimeCalculator.getNextDeltaTimeInMilliseconds();
+  deltas.push(delta);
   const step = new StepCommand(delta);
+  if (deltas.length > 100) {
+    deltas.sort((a, b) => a - b);
+    console.log(`Median physics time: ${deltas[50].toFixed(2)} ms`);
+    console.log(
+      `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
+    );
+    deltas = [];
+    console.log(players.map((p) => p.latency));
+  }
+
+  if (deltas.length > 100) {
+    deltas.sort((a, b) => a - b);
+    console.log(`Median physics time: ${deltas[50].toFixed(2)} ms`);
+    console.log(
+      `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
+    );
+    deltas = [];
+  }
 
   objects.sendCommand(step);
   players.forEach((p) => p.sendCommand(step));
 
   const physicsDelta = deltaTimeCalculator.getDeltaTimeInMilliseconds();
+  deltas.push(physicsDelta);
   const sleepTime = settings.targetPhysicsDeltaTimeInMilliseconds - physicsDelta;
   if (sleepTime >= settings.minPhysicsSleepTime) {
     setTimeout(handlePhysics, sleepTime);

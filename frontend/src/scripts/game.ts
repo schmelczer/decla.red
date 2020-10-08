@@ -13,12 +13,13 @@ import {
 import {
   broadcastCommands,
   deserialize,
+  prettyPrint,
   serialize,
   settings,
-  SetViewAreaActionCommand,
   StepCommand,
   TransportEvents,
 } from 'shared';
+import { SetAspectRatioActionCommand } from 'shared/src/main';
 import io from 'socket.io-client';
 import { KeyboardListener } from './commands/generators/keyboard-listener';
 import { MouseListener } from './commands/generators/mouse-listener';
@@ -33,14 +34,14 @@ import { GameObjectContainer } from './objects/game-object-container';
 import { BlobShape } from './shapes/blob-shape';
 
 export class Game {
-  public readonly gameObjects = new GameObjectContainer();
-  private readonly canvas: HTMLCanvasElement = document.querySelector('canvas#main');
-  private renderer: Renderer;
-  private socket: SocketIOClient.Socket;
+  public readonly gameObjects = new GameObjectContainer(this);
+  private readonly canvas: HTMLCanvasElement = document.querySelector(
+    'canvas#main',
+  ) as HTMLCanvasElement;
+  private renderer!: Renderer;
+  private socket!: SocketIOClient.Socket;
   private deltaTimeCalculator = new DeltaTimeCalculator();
-  private overlay: HTMLElement = document.querySelector('#overlay');
-  private keyboardListener: KeyboardListener;
-  private touchListener: TouchListener;
+  private overlay: HTMLElement = document.querySelector('#overlay') as HTMLDivElement;
 
   private async setupCommunication(): Promise<void> {
     await Configuration.initialize();
@@ -56,17 +57,21 @@ export class Game {
 
     this.socket.on(TransportEvents.ServerToPlayer, (serialized: string) => {
       const command = deserialize(serialized);
-      //console.log(command);
       this.gameObjects.sendCommand(command);
+    });
+
+    this.socket.on(TransportEvents.Ping, () => {
+      this.socket.emit(TransportEvents.Pong);
     });
 
     this.socket.emit(TransportEvents.PlayerJoining, null);
 
-    this.keyboardListener = new KeyboardListener(document.body);
-    this.touchListener = new TouchListener(this.canvas);
-
     broadcastCommands(
-      [this.keyboardListener, new MouseListener(this.canvas), this.touchListener],
+      [
+        new KeyboardListener(document.body),
+        new MouseListener(this.canvas),
+        new TouchListener(this.canvas),
+      ],
       [this.gameObjects, new CommandReceiverSocket(this.socket)],
     );
   }
@@ -140,36 +145,21 @@ export class Game {
     return this.renderer.displayToWorldCoordinates(p);
   }
 
+  public aspectRatioChanged(aspectRatio: number) {
+    this.socket.emit(
+      TransportEvents.PlayerToServer,
+      serialize(new SetAspectRatioActionCommand(aspectRatio)),
+    );
+  }
+
   private gameLoop(time: DOMHighResTimeStamp) {
     const deltaTime = this.deltaTimeCalculator.getNextDeltaTimeInMilliseconds(time);
-    this.keyboardListener.generateCommands();
-    this.touchListener.generateCommands();
-
-    if (this.gameObjects.camera) {
-      // todo: Should only send aspect ratio
-      this.socket.emit(
-        TransportEvents.PlayerToServer,
-        serialize(new SetViewAreaActionCommand(this.gameObjects.camera.viewArea)),
-      );
-    }
 
     this.gameObjects.sendCommand(new StepCommand(deltaTime));
-    /*this.camera.sendCommand(new MoveToCommand(this.character.position));
-    this.camera.sendCommand(new RenderCommand(this.renderer));*/
-
-    /*const shouldBeDrawn = this.physics
-      .findIntersecting(this.camera.viewArea)
-      .map((b) => b.owner);
-
-    for (const object of shouldBeDrawn) {
-      object?.sendCommand(new RenderCommand(this.renderer));
-    }*/
-
-    this.gameObjects.sendCommand(new RenderCommand(this.renderer) as any);
-
+    this.gameObjects.sendCommand(new RenderCommand(this.renderer));
     this.renderer.renderDrawables();
 
-    //this.overlay.innerText = prettyPrint(this.renderer.insights);
+    this.overlay.innerText = prettyPrint(this.renderer.insights);
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 }

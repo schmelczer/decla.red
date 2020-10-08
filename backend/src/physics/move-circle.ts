@@ -73,10 +73,11 @@ export const moveCircle = (
 
   circle.center = vec2.add(circle.center, circle.center, approxNormal);
 
+  vec2.normalize(approxNormal, approxNormal);
   return {
     realDelta: delta,
     hitSurface: true,
-    normal: vec2.normalize(approxNormal, approxNormal),
+    normal: approxNormal,
     tangent: rotate90Deg(approxNormal),
   };
 };

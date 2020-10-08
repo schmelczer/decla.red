@@ -9,9 +9,6 @@ import {
 
 export class TouchListener extends CommandGenerator {
   private previousPosition = vec2.create();
-  private currentPosition = vec2.create();
-
-  private previousDeltas: Array<vec2> = [];
 
   constructor(target: HTMLElement) {
     super();
@@ -22,7 +19,6 @@ export class TouchListener extends CommandGenerator {
       const touchCount = event.touches.length;
       const position = this.positionFromEvent(event);
       this.previousPosition = position;
-      this.currentPosition = position;
 
       if (touchCount == 1) {
         this.sendCommandToSubcribers(new PrimaryActionCommand(position));
@@ -37,24 +33,20 @@ export class TouchListener extends CommandGenerator {
       event.preventDefault();
 
       const position = this.positionFromEvent(event);
-      this.previousDeltas.push(
-        vec2.subtract(vec2.create(), position, this.previousPosition),
-      );
-      this.currentPosition = position;
-    });
-  }
+      const movement = vec2.subtract(vec2.create(), position, this.previousPosition);
 
-  public generateCommands() {
-    const movement = vec2.subtract(
-      vec2.create(),
-      this.currentPosition,
-      this.previousPosition,
-    );
-    this.previousPosition = this.currentPosition;
-    if (vec2.squaredLength(movement) > 0) {
-      vec2.normalize(movement, movement);
-      this.sendCommandToSubcribers(new MoveActionCommand(movement));
-    }
+      if (vec2.squaredLength(movement) > 0) {
+        vec2.normalize(movement, movement);
+        this.sendCommandToSubcribers(new MoveActionCommand(movement));
+      }
+
+      this.previousPosition = position;
+    });
+
+    target.addEventListener('touchend', (event: TouchEvent) => {
+      event.preventDefault();
+      this.sendCommandToSubcribers(new MoveActionCommand(vec2.create()));
+    });
   }
 
   private positionFromEvent(event: TouchEvent): vec2 {

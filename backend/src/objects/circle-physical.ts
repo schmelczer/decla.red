@@ -62,7 +62,7 @@ export class CirclePhysical implements Circle, Physical {
     return vec2.distance(target, this.center) - this.radius;
   }
 
-  public distanceBetween(target: CirclePhysical): number {
+  public distanceBetween(target: Circle): number {
     return vec2.distance(target.center, this.center) - this.radius - target.radius;
   }
 
@@ -94,17 +94,17 @@ export class CirclePhysical implements Circle, Physical {
     this._boundingBox.yMax = this.center.y + this._radius;
   }
 
-  public applyForce(force: vec2, timeInMilliseconds: number) {
+  public applyForce(force: vec2, timeInSeconds: number) {
     vec2.add(
       this.velocity,
       this.velocity,
-      vec2.scale(vec2.create(), force, timeInMilliseconds),
+      vec2.scale(vec2.create(), force, timeInSeconds),
     );
 
     vec2.set(
       this.velocity,
       clamp(this.velocity.x, -settings.maxVelocityX, settings.maxVelocityX),
-      this.velocity.y,
+      clamp(this.velocity.y, -settings.maxVelocityY, settings.maxVelocityY),
     );
   }
 
@@ -112,14 +112,15 @@ export class CirclePhysical implements Circle, Physical {
     this.velocity = vec2.create();
   }
 
-  public step(timeInMilliseconds: number): boolean {
+  public step(deltaTimeInSeconds: number): boolean {
     vec2.scale(
       this.velocity,
       this.velocity,
-      Math.pow(settings.velocityAttenuation, timeInMilliseconds),
+      Math.pow(settings.velocityAttenuation, deltaTimeInSeconds),
     );
 
-    const distance = vec2.scale(vec2.create(), this.velocity, timeInMilliseconds);
+    const distance = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
+
     const distanceLength = vec2.length(distance);
     const stepCount = Math.ceil(distanceLength / settings.physicsMaxStep);
     vec2.scale(distance, distance, 1 / stepCount);
@@ -127,13 +128,20 @@ export class CirclePhysical implements Circle, Physical {
     let wasHit = false;
 
     for (let i = 0; i < stepCount; i++) {
-      const { normal, tangent, hitSurface } = moveCircle(
+      const { tangent, hitSurface } = moveCircle(
         this,
-        distance,
+        vec2.clone(distance),
         this.container.findIntersecting(this.boundingBox),
       );
+
       if (hitSurface) {
         vec2.scale(this.velocity, tangent!, vec2.dot(tangent!, this.velocity));
+        if (
+          vec2.length(this.velocity) <
+          settings.frictionMinVelocity * deltaTimeInSeconds
+        ) {
+          this.velocity = vec2.create();
+        }
         wasHit = true;
       }
     }

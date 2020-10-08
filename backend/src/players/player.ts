@@ -6,11 +6,13 @@ import {
   DeleteObjectsCommand,
   MoveActionCommand,
   serialize,
-  SetViewAreaActionCommand,
   TransportEvents,
   UpdateObjectsCommand,
   StepCommand,
+  SetAspectRatioActionCommand,
+  calculateViewArea,
 } from 'shared';
+import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
 import { CharacterPhysical } from '../objects/character-physical';
 
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
@@ -19,16 +21,31 @@ import { Physical } from '../physics/physical';
 
 export class Player extends CommandReceiver {
   private character: CharacterPhysical;
+  private aspectRatio: number = 16 / 9;
+  private isActive = true;
 
   private objectsPreviouslyInViewArea: Array<Physical> = [];
   private objectsInViewArea: Array<Physical> = [];
 
+  private pingTime?: number;
+  private _latency?: number;
+  public measureLatency() {
+    this.pingTime = getTimeInMilliseconds();
+    this.socket.emit(TransportEvents.Ping);
+    if (this.isActive) {
+      setTimeout(this.measureLatency.bind(this), 10000);
+    }
+  }
+
+  public get latency(): number | undefined {
+    return this._latency;
+  }
+
   protected commandExecutors: CommandExecutors = {
     [StepCommand.type]: this.sendObjects.bind(this),
-    [SetViewAreaActionCommand.type]: this.setViewArea.bind(this),
-    [MoveActionCommand.type]: (c: MoveActionCommand) => {
-      this.character.sendCommand(c);
-    },
+    [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) =>
+      (this.aspectRatio = v.aspectRatio),
+    [MoveActionCommand.type]: (c: MoveActionCommand) => this.character.sendCommand(c),
   };
 
   constructor(
@@ -47,18 +64,24 @@ export class Player extends CommandReceiver {
       serialize(new CreatePlayerCommand(this.character)),
     );
 
+    socket.on(
+      TransportEvents.Pong,
+      () => (this._latency = getTimeInMilliseconds() - this.pingTime!),
+    );
+
+    this.measureLatency();
+
     this.sendObjects();
   }
 
-  public setViewArea(c: SetViewAreaActionCommand) {
-    const viewArea = new BoundingBox();
-    viewArea.topLeft = c.viewArea.topLeft;
-    viewArea.size = c.viewArea.size;
-
-    this.objectsInViewArea = this.objects.findIntersecting(viewArea);
-  }
-
   public sendObjects() {
+    const viewArea = calculateViewArea(this.character.center, this.aspectRatio, 1.5);
+    const bb = new BoundingBox();
+    bb.topLeft = viewArea.topLeft;
+    bb.size = viewArea.size;
+
+    this.objectsInViewArea = this.objects.findIntersecting(bb);
+
     const newlyIntersecting = this.objectsInViewArea.filter(
       (o) => !this.objectsPreviouslyInViewArea.includes(o),
     );
@@ -103,6 +126,7 @@ export class Player extends CommandReceiver {
   }
 
   public destroy() {
+    this.isActive = false;
     this.character.destroy();
     this.objects.removeObject(this.character);
   }

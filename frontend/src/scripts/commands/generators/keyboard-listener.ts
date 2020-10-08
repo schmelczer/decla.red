@@ -10,15 +10,17 @@ export class KeyboardListener extends CommandGenerator {
     target.addEventListener('keydown', (event: KeyboardEvent) => {
       const key = this.normalize(event.key);
       this.keysDown.add(key);
+      this.generateCommands();
     });
 
     target.addEventListener('keyup', (event: KeyboardEvent) => {
       const key = this.normalize(event.key);
       this.keysDown.delete(key);
+      this.generateCommands();
     });
   }
 
-  public generateCommands() {
+  private generateCommands() {
     const up = ~~(
       this.keysDown.has('w') ||
       this.keysDown.has('arrowup') ||
@@ -31,8 +33,8 @@ export class KeyboardListener extends CommandGenerator {
     const movement = vec2.fromValues(right - left, up - down);
     if (vec2.squaredLength(movement) > 0) {
       vec2.normalize(movement, movement);
-      this.sendCommandToSubcribers(new MoveActionCommand(movement));
     }
+    this.sendCommandToSubcribers(new MoveActionCommand(movement));
   }
 
   private normalize(key: string): string {

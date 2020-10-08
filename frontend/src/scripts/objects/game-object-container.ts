@@ -10,6 +10,7 @@ import {
   StepCommand,
   UpdateObjectsCommand,
 } from 'shared';
+import { Game } from '../game';
 import { Camera } from './camera';
 import { CharacterView } from './character-view';
 
@@ -21,7 +22,7 @@ export class GameObjectContainer extends CommandReceiver {
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
       this.player = c.character as CharacterView;
-      this.camera = new Camera();
+      this.camera = new Camera(this.game);
       this.addObject(this.player);
       this.addObject(this.camera);
     },
@@ -48,6 +49,10 @@ export class GameObjectContainer extends CommandReceiver {
       });
     },
   };
+
+  constructor(private game: Game) {
+    super();
+  }
 
   protected defaultCommandExecutor(c: Command) {
     this.objects.forEach((o) => o.sendCommand(c));

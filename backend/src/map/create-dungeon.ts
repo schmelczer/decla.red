@@ -10,8 +10,8 @@ export const createDungeon = (objects: PhysicalContainer) => {
 
   let tunnelsCountSinceLastLight = 0;
 
-  for (let i = 0; i < 500000; i += 500) {
-    const deltaHeight = (Random.getRandom() - 0.5) * 2000;
+  for (let i = 0; i < 50000; i += 500) {
+    const deltaHeight = (Random.getRandom() - 0.5) * 500;
     const height = previousEnd.y + deltaHeight;
     const currentEnd = vec2.fromValues(i, height);
     const currentToRadius = Random.getRandom() * 300 + 150;
