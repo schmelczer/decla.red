@@ -136,12 +136,6 @@ export class CirclePhysical implements Circle, Physical {
 
       if (hitSurface) {
         vec2.scale(this.velocity, tangent!, vec2.dot(tangent!, this.velocity));
-        if (
-          vec2.length(this.velocity) <
-          settings.frictionMinVelocity * deltaTimeInSeconds
-        ) {
-          this.velocity = vec2.create();
-        }
         wasHit = true;
       }
     }

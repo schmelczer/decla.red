@@ -6,11 +6,12 @@ import {
   TernaryActionCommand,
   MoveActionCommand,
 } from 'shared';
+import { Game } from '../../game';
 
 export class TouchListener extends CommandGenerator {
   private previousPosition = vec2.create();
 
-  constructor(target: HTMLElement) {
+  constructor(target: HTMLElement, private readonly game: Game) {
     super();
 
     target.addEventListener('touchstart', (event: TouchEvent) => {
@@ -57,6 +58,8 @@ export class TouchListener extends CommandGenerator {
       vec2.create(),
     );
 
-    return vec2.scale(center, center, 1 / event.touches.length);
+    return this.game.displayToWorldCoordinates(
+      vec2.scale(center, center, 1 / event.touches.length),
+    );
   }
 }

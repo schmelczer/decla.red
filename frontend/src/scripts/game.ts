@@ -6,6 +6,7 @@ import {
   FilteringOptions,
   Flashlight,
   InvertedTunnel,
+  PolygonFactory,
   Renderer,
   renderNoise,
   WrapOptions,
@@ -18,21 +19,22 @@ import {
   settings,
   StepCommand,
   TransportEvents,
+  SetAspectRatioActionCommand,
 } from 'shared';
-import { SetAspectRatioActionCommand } from 'shared/src/main';
 import io from 'socket.io-client';
 import { KeyboardListener } from './commands/generators/keyboard-listener';
 import { MouseListener } from './commands/generators/mouse-listener';
 import { TouchListener } from './commands/generators/touch-listener';
 import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
 import { RenderCommand } from './commands/types/render';
-import { Configuration } from './config/configuration';
+
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { rgb } from './helper/rgb';
 
 import { GameObjectContainer } from './objects/game-object-container';
 import { BlobShape } from './shapes/blob-shape';
 
+const Polygon = PolygonFactory(20);
 export class Game {
   public readonly gameObjects = new GameObjectContainer(this);
   private readonly canvas: HTMLCanvasElement = document.querySelector(
@@ -44,12 +46,15 @@ export class Game {
   private overlay: HTMLElement = document.querySelector('#overlay') as HTMLDivElement;
 
   private async setupCommunication(): Promise<void> {
-    await Configuration.initialize();
+    // await Configuration.initialize();
 
-    this.socket = io(Configuration.servers[0], {
-      reconnectionDelayMax: 10000,
-      transports: ['websocket'],
-    });
+    this.socket = io(
+      'http://localhost:3000',
+      /*Configuration.servers[1],*/ {
+        reconnectionDelayMax: 10000,
+        transports: ['websocket'],
+      },
+    );
 
     this.socket.on('reconnect_attempt', () => {
       this.socket.io.opts.transports = ['polling', 'websocket'];
@@ -69,22 +74,26 @@ export class Game {
     broadcastCommands(
       [
         new KeyboardListener(document.body),
-        new MouseListener(this.canvas),
-        new TouchListener(this.canvas),
+        new MouseListener(this.canvas, this),
+        new TouchListener(this.canvas, this),
       ],
       [this.gameObjects, new CommandReceiverSocket(this.socket)],
     );
   }
 
   private async setupRenderer(): Promise<void> {
-    const noiseTexture = await renderNoise([512, 1], 50, 1 / 10);
+    const noiseTexture = await renderNoise([64, 1], 40, 1 / 10);
 
     this.renderer = await compile(
       this.canvas,
       [
         {
           ...InvertedTunnel.descriptor,
-          shaderCombinationSteps: [0, 2, 6, 16],
+          shaderCombinationSteps: [0, 2, 6, 16, 32],
+        },
+        {
+          ...Polygon.descriptor,
+          shaderCombinationSteps: [0, 1],
         },
         {
           ...BlobShape.descriptor,
@@ -92,7 +101,7 @@ export class Game {
         },
         {
           ...Circle.descriptor,
-          shaderCombinationSteps: [0, 2, 16],
+          shaderCombinationSteps: [0, 2, 16, 32],
         },
         {
           ...CircleLight.descriptor,
@@ -107,11 +116,12 @@ export class Game {
         shadowTraceCount: 16,
         paletteSize: 10,
         enableStopwatch: true,
+        ignoreWebGL2: true,
       },
     );
 
     this.renderer.setRuntimeSettings({
-      isWorldInverted: true,
+      //isWorldInverted: true,
       ambientLight: rgb(0.35, 0.1, 0.45),
       colorPalette: [
         rgb(0.4, 1, 0.6),
@@ -134,11 +144,19 @@ export class Game {
         },
       },
     });
+    this.renderer.addDrawable(
+      new Polygon([
+        [10.0, 10.0],
+        [200, 500],
+        [500, 400],
+      ]),
+    );
+    this.renderer.renderDrawables();
   }
 
   public async start(): Promise<void> {
-    await Promise.all([this.setupCommunication(), this.setupRenderer()]);
-    requestAnimationFrame(this.gameLoop.bind(this));
+    await Promise.all([/*this.setupCommunication(),*/ this.setupRenderer()]);
+    // requestAnimationFrame(this.gameLoop.bind(this));
   }
 
   public displayToWorldCoordinates(p: vec2): vec2 {

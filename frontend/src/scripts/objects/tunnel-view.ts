@@ -8,7 +8,7 @@ export class TunnelView extends TunnelBase {
 
   protected commandExecutors: CommandExecutors = {
     [RenderCommand.type]: (c: RenderCommand) => c.renderer.addDrawable(this.shape),
-  } as any;
+  };
 
   constructor(id: Id, from: vec2, to: vec2, fromRadius: number, toRadius: number) {
     super(id, from, to, fromRadius, toRadius);

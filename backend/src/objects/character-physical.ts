@@ -44,19 +44,22 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   constructor(private readonly container: PhysicalContainer) {
     super(id());
     this.head = new CirclePhysical(
-      vec2.clone(CharacterPhysical.headOffset),
+      //vec2.clone(CharacterPhysical.headOffset),
+      [-2952.911, 215.241],
       50,
       this,
       container,
     );
     this.leftFoot = new CirclePhysical(
-      vec2.clone(CharacterPhysical.leftFootOffset),
+      // vec2.clone(CharacterPhysical.leftFootOffset),
+      [-2930.603, 162.542],
       20,
       this,
       container,
     );
     this.rightFoot = new CirclePhysical(
-      vec2.clone(CharacterPhysical.rightFootOffset),
+      //vec2.clone(CharacterPhysical.rightFootOffset),
+      [-2973.152, 167.921],
       20,
       this,
       container,

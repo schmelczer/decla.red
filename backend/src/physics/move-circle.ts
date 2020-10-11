@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { rotate90Deg, settings } from 'shared';
+import { Circle, rotate90Deg } from 'shared';
 import { CirclePhysical } from '../objects/circle-physical';
 import { Physical } from './physical';
 
@@ -13,71 +13,47 @@ export const moveCircle = (
   normal?: vec2;
   tangent?: vec2;
 } => {
-  circle.center = vec2.add(circle.center, circle.center, delta);
+  const nextCircle = new Circle(vec2.clone(circle.center), circle.radius);
+  vec2.add(nextCircle.center, nextCircle.center, delta);
 
-  const intersecting = possibleIntersectors.filter(
-    (b) =>
-      b.gameObject !== circle.gameObject && circle.areIntersecting(b) && b.canCollide,
+  possibleIntersectors = possibleIntersectors.filter(
+    (b) => b.gameObject !== circle.gameObject && b.canCollide,
   );
 
-  if (intersecting.length === 0) {
+  const getSdfAtPoint = (point: vec2): number => {
+    const sdf = possibleIntersectors
+      .filter((i) => i.isInverted)
+      .reduce((min, i) => (min = Math.max(min, -i.distance(point))), -1000);
+
+    return possibleIntersectors
+      .filter((i) => !i.isInverted)
+      .reduce((min, i) => (min = Math.min(min, i.distance(point))), sdf);
+  };
+
+  const sdfAtCenter = getSdfAtPoint(nextCircle.center);
+
+  if (sdfAtCenter > nextCircle.radius) {
+    circle.center = vec2.add(circle.center, circle.center, delta);
     return {
       realDelta: delta,
       hitSurface: false,
     };
   }
 
-  const points = circle.getPerimeterPoints(settings.hitDetectionCirclePointCount);
+  const dx =
+    getSdfAtPoint(vec2.add(vec2.create(), nextCircle.center, vec2.fromValues(1, 0))) -
+    sdfAtCenter;
+  const dy =
+    getSdfAtPoint(vec2.add(vec2.create(), nextCircle.center, vec2.fromValues(0, 1))) -
+    sdfAtCenter;
+  const normal = vec2.fromValues(dx, dy);
 
-  const distancesOfPoints = points
-    .map((point) => ({
-      point,
-      closest: intersecting
-        .map((i) => ({
-          inverted: i.isInverted,
-          distance: i.distance(point),
-        }))
-        .sort((a, b) => a.distance - b.distance)[0],
-    }))
-    .filter((i) => i.closest);
+  vec2.normalize(normal, normal);
 
-  const distancesOfIntersectingPoints = distancesOfPoints.filter(
-    (d) =>
-      (d.closest.distance > 0 && d.closest.inverted) ||
-      (d.closest.distance < 0 && !d.closest.inverted),
-  );
-
-  if (distancesOfIntersectingPoints.length === 0) {
-    return {
-      realDelta: delta,
-      hitSurface: false,
-    };
-  }
-
-  const deltas = distancesOfIntersectingPoints.map((pointDistance) => {
-    vec2.subtract(pointDistance.point, circle.center, pointDistance.point);
-    vec2.normalize(pointDistance.point, pointDistance.point);
-    vec2.scale(
-      pointDistance.point,
-      pointDistance.point,
-      (pointDistance.closest.inverted ? 1 : -1) * pointDistance.closest.distance,
-    );
-    return pointDistance.point;
-  });
-
-  const approxNormal = deltas.reduce(
-    (sum, current) => vec2.add(sum, sum, current),
-    vec2.create(),
-  );
-  vec2.scale(approxNormal, approxNormal, 1 / deltas.length);
-
-  circle.center = vec2.add(circle.center, circle.center, approxNormal);
-
-  vec2.normalize(approxNormal, approxNormal);
   return {
     realDelta: delta,
     hitSurface: true,
-    normal: approxNormal,
-    tangent: rotate90Deg(approxNormal),
+    normal,
+    tangent: rotate90Deg(normal),
   };
 };

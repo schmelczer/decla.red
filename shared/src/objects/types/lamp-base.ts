@@ -9,7 +9,7 @@ export class LampBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    const { id, center, color, lightness } = this as any;
+    const { id, center, color, lightness } = this;
     return [id, center, color, lightness];
   }
 }

@@ -1,45 +1,61 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { Random } from 'shared';
 import { LampPhysical } from '../objects/lamp-physical';
+
 import { TunnelPhysical } from '../objects/tunnel-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 
 export const createDungeon = (objects: PhysicalContainer) => {
-  let previousRadius = 350;
-  let previousEnd = vec2.create();
+  const lightPositions: Array<vec2> = [];
 
-  let tunnelsCountSinceLastLight = 0;
-
-  for (let i = 0; i < 50000; i += 500) {
-    const deltaHeight = (Random.getRandom() - 0.5) * 500;
-    const height = previousEnd.y + deltaHeight;
-    const currentEnd = vec2.fromValues(i, height);
-    const currentToRadius = Random.getRandom() * 300 + 150;
-
-    const tunnel = new TunnelPhysical(
-      previousEnd,
-      currentEnd,
-      previousRadius,
-      currentToRadius,
+  for (let j = 0; j < 6; j++) {
+    let previousRadius = 500;
+    let previousEnd = vec2.fromValues(
+      j === 0 ? 0 : Random.getRandomInRange(-1000, 1000),
+      j === 0 ? 0 : Random.getRandomInRange(-1000, 1000),
     );
+    for (let i = 0; i < 500; i++) {
+      const delta = vec2.fromValues(j % 2 ? 1 : -1, Random.getRandomInRange(-1, 1));
 
-    objects.addObject(tunnel);
+      vec2.normalize(delta, delta);
+      vec2.scale(delta, delta, 500);
 
-    if (++tunnelsCountSinceLastLight > 3 && Random.getRandom() > 0.7) {
-      objects.addObject(
-        new LampPhysical(
-          currentEnd,
-          vec3.normalize(
-            vec3.create(),
-            vec3.fromValues(Random.getRandom(), 0, Random.getRandom()),
-          ),
-          0.5,
-        ),
+      const currentEnd = vec2.add(delta, delta, previousEnd);
+
+      const currentToRadius = Random.getRandom() * 250 + 150;
+
+      const tunnel = new TunnelPhysical(
+        previousEnd,
+        currentEnd,
+        previousRadius,
+        currentToRadius,
       );
-      tunnelsCountSinceLastLight = 0;
-    }
 
-    previousEnd = currentEnd;
-    previousRadius = currentToRadius;
+      objects.addObject(tunnel);
+
+      if (Random.getRandom() > 0.7) {
+        const position = currentEnd;
+        if (!lightPositions.find((p) => vec2.dist(p, position) < 2000)) {
+          lightPositions.push(position);
+          objects.addObject(
+            new LampPhysical(
+              currentEnd,
+              vec3.normalize(
+                vec3.create(),
+                vec3.fromValues(
+                  Random.getRandomInRange(0.5, 1),
+                  0,
+                  Random.getRandomInRange(0.5, 1),
+                ),
+              ),
+              Random.getRandomInRange(0.5, 1),
+            ),
+          );
+        }
+      }
+
+      previousEnd = currentEnd;
+      previousRadius = currentToRadius;
+    }
   }
 };

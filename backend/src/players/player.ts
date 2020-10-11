@@ -1,3 +1,4 @@
+import { vec2 } from 'gl-matrix';
 import {
   CommandExecutors,
   CommandReceiver,
@@ -11,9 +12,11 @@ import {
   StepCommand,
   SetAspectRatioActionCommand,
   calculateViewArea,
+  SecondaryActionCommand,
 } from 'shared';
 import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
 import { CharacterPhysical } from '../objects/character-physical';
+import { ProjectilePhysical } from '../objects/projectile-physical';
 
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
@@ -46,6 +49,15 @@ export class Player extends CommandReceiver {
     [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) =>
       (this.aspectRatio = v.aspectRatio),
     [MoveActionCommand.type]: (c: MoveActionCommand) => this.character.sendCommand(c),
+    [SecondaryActionCommand.type]: (c: SecondaryActionCommand) => {
+      const start = vec2.clone(this.character.center);
+      const direction = vec2.subtract(vec2.create(), c.position, start);
+      vec2.normalize(direction, direction);
+      vec2.add(start, start, vec2.scale(vec2.create(), direction, 100));
+      const force = vec2.scale(direction, direction, 1000);
+      const projectile = new ProjectilePhysical(start, 20, force, this.objects);
+      this.objects.addObject(projectile);
+    },
   };
 
   constructor(
@@ -70,7 +82,6 @@ export class Player extends CommandReceiver {
     );
 
     this.measureLatency();
-
     this.sendObjects();
   }
 
@@ -113,7 +124,7 @@ export class Player extends CommandReceiver {
       );
     }
 
-    this.socket.emit(
+    this.socket.volatile.emit(
       TransportEvents.ServerToPlayer,
       serialize(
         new UpdateObjectsCommand([

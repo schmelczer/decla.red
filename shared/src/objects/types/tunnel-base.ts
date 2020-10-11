@@ -16,7 +16,7 @@ export class TunnelBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    const { id, from, to, fromRadius, toRadius } = this as any;
+    const { id, from, to, fromRadius, toRadius } = this;
     return [id, from, to, fromRadius, toRadius];
   }
 }

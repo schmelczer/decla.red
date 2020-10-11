@@ -8,7 +8,7 @@ export class LampView extends LampBase {
 
   protected commandExecutors: CommandExecutors = {
     [RenderCommand.type]: (c: RenderCommand) => c.renderer.addDrawable(this.light),
-  } as any;
+  };
 
   constructor(id: Id, center: vec2, color: vec3, lightness: number) {
     super(id, center, color, lightness);

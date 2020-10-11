@@ -15,7 +15,7 @@ export class CharacterBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    const { id, head, leftFoot, rightFoot } = this as any;
+    const { id, head, leftFoot, rightFoot } = this;
     return [id, head, leftFoot, rightFoot];
   }
 }

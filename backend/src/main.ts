@@ -25,9 +25,6 @@ Random.seed = 42;
 
 const objects = new PhysicalContainer();
 createDungeon(objects);
-createDungeon(objects);
-createDungeon(objects);
-createDungeon(objects);
 
 objects.initialize();
 
@@ -97,15 +94,6 @@ const handlePhysics = () => {
     );
     deltas = [];
     console.log(players.map((p) => p.latency));
-  }
-
-  if (deltas.length > 100) {
-    deltas.sort((a, b) => a - b);
-    console.log(`Median physics time: ${deltas[50].toFixed(2)} ms`);
-    console.log(
-      `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
-    );
-    deltas = [];
   }
 
   objects.sendCommand(step);
