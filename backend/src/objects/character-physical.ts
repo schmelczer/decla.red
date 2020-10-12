@@ -7,24 +7,26 @@ import {
   serializesTo,
   clamp,
   last,
+  GameObject,
 } from 'shared';
 import { DynamicPhysical } from '../physics/conatiners/dynamic-physical';
-import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { CirclePhysical } from './circle-physical';
-
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { Spring } from './spring';
+import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
+import { ProjectilePhysical } from './projectile-physical';
 
 @serializesTo(CharacterBase)
 export class CharacterPhysical extends CharacterBase implements DynamicPhysical {
   public readonly canCollide = true;
   public readonly canMove = true;
-
+  private isDestroyed = false;
   private jumpEnergyLeft = settings.defaultJumpEnergy;
 
   public head: CirclePhysical;
   public leftFoot: CirclePhysical;
   public rightFoot: CirclePhysical;
+  public bound: CirclePhysical;
 
   private movementActions: Array<MoveActionCommand> = [];
   private lastMovementAction: MoveActionCommand = new MoveActionCommand(vec2.create());
@@ -34,6 +36,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   }
 
   private static readonly headOffset = vec2.fromValues(0, 40);
+  private static readonly headRadius = 50;
+  private static readonly feetRadius = 20;
   private static readonly leftFootOffset = vec2.fromValues(-20, -35);
   private static readonly rightFootOffset = vec2.fromValues(20, -35);
 
@@ -44,35 +48,44 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     super(id(), colorIndex);
     this.head = new CirclePhysical(
       vec2.clone(CharacterPhysical.headOffset),
-      50,
+      CharacterPhysical.headRadius,
       this,
       container,
     );
     this.leftFoot = new CirclePhysical(
       vec2.clone(CharacterPhysical.leftFootOffset),
-      20,
+      CharacterPhysical.feetRadius,
       this,
       container,
     );
     this.rightFoot = new CirclePhysical(
       vec2.clone(CharacterPhysical.rightFootOffset),
-      20,
+      CharacterPhysical.feetRadius,
       this,
       container,
     );
     container.addObject(this.head);
     container.addObject(this.leftFoot);
     container.addObject(this.rightFoot);
+
+    this.bound = new CirclePhysical(
+      vec2.create(),
+      (CharacterPhysical.headRadius + CharacterPhysical.feetRadius * 2) * 2,
+      this,
+      container,
+    );
   }
 
-  private _boundingBox?: ImmutableBoundingBox;
-
-  public get boundingBox(): ImmutableBoundingBox {
-    if (!this._boundingBox) {
-      this._boundingBox = (this.head as CirclePhysical).boundingBox;
+  public onCollision(other: GameObject) {
+    if (other instanceof ProjectilePhysical) {
+      other.destroy();
+      this.destroy();
     }
+  }
 
-    return this._boundingBox;
+  public get boundingBox(): BoundingBoxBase {
+    this.bound.center = this.head.center;
+    return this.bound.boundingBox;
   }
 
   public get gameObject(): this {
@@ -209,8 +222,12 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   }
 
   public destroy() {
-    this.container.removeObject(this.head);
-    this.container.removeObject(this.leftFoot);
-    this.container.removeObject(this.rightFoot);
+    if (!this.isDestroyed) {
+      this.isDestroyed = true;
+      this.container.removeObject(this);
+      this.container.removeObject(this.head);
+      this.container.removeObject(this.leftFoot);
+      this.container.removeObject(this.rightFoot);
+    }
   }
 }

@@ -103,7 +103,7 @@ export class Game {
       {
         shadowTraceCount: 16,
         paletteSize: 10,
-        enableStopwatch: true,
+        //enableStopwatch: true,
       },
     );
 
@@ -112,7 +112,7 @@ export class Game {
       colorPalette: [
         rgb(1, 1, 1),
         rgb(0.4, 0.4, 0.4),
-        rgb(0.3, 1, 1),
+        rgb(1, 1, 1),
         ...settings.playerColors,
       ],
       enableHighDpiRendering: false,

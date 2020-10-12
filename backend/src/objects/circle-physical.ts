@@ -6,7 +6,7 @@ import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
 import { moveCircle } from '../physics/move-circle';
 import { PhysicalContainer } from '../physics/containers/physical-container';
-import { DynamicPhysical } from '../physics/conatiners/dynamic-physical';
+import { DynamicPhysical } from '../physics/containers/dynamic-physical';
 
 @serializesTo(Circle)
 export class CirclePhysical implements Circle, DynamicPhysical {
@@ -25,7 +25,7 @@ export class CirclePhysical implements Circle, DynamicPhysical {
   constructor(
     private _center: vec2,
     private _radius: number,
-    public owner: GameObject,
+    public owner: DynamicPhysical,
     private readonly container: PhysicalContainer,
     private restitution = 0,
   ) {
@@ -44,6 +44,10 @@ export class CirclePhysical implements Circle, DynamicPhysical {
   public set center(value: vec2) {
     this._center = value;
     this.recalculateBoundingBox();
+  }
+
+  public onCollision(other: GameObject) {
+    this.owner.onCollision(other);
   }
 
   public get gameObject(): GameObject {

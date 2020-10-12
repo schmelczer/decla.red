@@ -28,6 +28,8 @@ export class Player extends CommandReceiver {
   private aspectRatio: number = 16 / 9;
   private isActive = true;
 
+  private timeSinceLastProjectile = 0;
+
   private objectsPreviouslyInViewArea: Array<Physical> = [];
   private objectsInViewArea: Array<Physical> = [];
 
@@ -51,6 +53,10 @@ export class Player extends CommandReceiver {
     [MoveActionCommand.type]: (c: MoveActionCommand) =>
       this.character.handleMovementAction(c),
     [SecondaryActionCommand.type]: (c: SecondaryActionCommand) => {
+      if (this.timeSinceLastProjectile < settings.projectileCreationInterval) {
+        return;
+      }
+
       const start = vec2.clone(this.character.center);
       const direction = vec2.subtract(vec2.create(), c.position, start);
       vec2.normalize(direction, direction);
@@ -63,6 +69,8 @@ export class Player extends CommandReceiver {
       vec2.add(velocity, velocity, this.character.velocity);
       const projectile = new ProjectilePhysical(start, 20, velocity, this.objects);
       this.objects.addObject(projectile);
+
+      this.timeSinceLastProjectile = 0;
     },
   };
 
@@ -92,6 +100,10 @@ export class Player extends CommandReceiver {
     this.sendObjects();
   }
 
+  public step(deltaTimeInMilliseconds: number) {
+    this.sendObjects();
+    this.timeSinceLastProjectile += deltaTimeInMilliseconds;
+  }
   public sendObjects() {
     const viewArea = calculateViewArea(this.character.center, this.aspectRatio, 1.5);
     const bb = new BoundingBox();

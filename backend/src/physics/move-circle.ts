@@ -1,6 +1,7 @@
 import { vec2 } from 'gl-matrix';
 import { Circle, rotate90Deg } from 'shared';
 import { CirclePhysical } from '../objects/circle-physical';
+import { DynamicPhysical } from './containers/dynamic-physical';
 import { Physical } from './physical';
 
 export const moveCircle = (
@@ -37,6 +38,15 @@ export const moveCircle = (
     };
   }
 
+  const intersecting = possibleIntersectors
+    .filter((i) => i.canCollide && i.canMove)
+    .find((i) => i.distance(nextCircle.center) < circle.radius);
+
+  (intersecting?.gameObject as DynamicPhysical)?.onCollision(circle.gameObject);
+  ((circle.gameObject as unknown) as DynamicPhysical).onCollision(
+    intersecting?.gameObject,
+  );
+
   const dx =
     getSdfAtPoint(vec2.add(vec2.create(), nextCircle.center, vec2.fromValues(1, 0))) -
     sdfAtCenter;
@@ -44,9 +54,7 @@ export const moveCircle = (
     getSdfAtPoint(vec2.add(vec2.create(), nextCircle.center, vec2.fromValues(0, 1))) -
     sdfAtCenter;
   const normal = vec2.fromValues(dx, dy);
-
   vec2.normalize(normal, normal);
-
   const rotatedNormal = rotate90Deg(normal);
   return {
     realDelta: delta,

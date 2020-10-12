@@ -95,7 +95,7 @@ const handlePhysics = () => {
   }
 
   objects.stepObjects(delta);
-  players.forEach((p) => p.sendObjects());
+  players.forEach((p) => p.step(delta));
 
   const physicsDelta = deltaTimeCalculator.getDeltaTimeInMilliseconds();
   deltas.push(physicsDelta);

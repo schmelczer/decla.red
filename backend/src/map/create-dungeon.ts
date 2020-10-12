@@ -71,7 +71,7 @@ export const createDungeon = (objectContainer: PhysicalContainer) => {
             Random.getRandomInRange(0.5, 1),
           ),
         ),
-        Random.getRandomInRange(0.75, 1.5),
+        Random.getRandomInRange(0.25, 1),
       ),
     );
   }

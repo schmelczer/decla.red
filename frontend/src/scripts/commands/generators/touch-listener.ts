@@ -33,7 +33,7 @@ export class TouchListener extends CommandGenerator {
     target.addEventListener('touchmove', (event: TouchEvent) => {
       event.preventDefault();
 
-      const position = this.positionFromEvent(event);
+      const position = this.positionFromEvent(event, true);
       const movement = vec2.subtract(vec2.create(), position, this.previousPosition);
 
       if (vec2.squaredLength(movement) > 0) {
@@ -50,11 +50,18 @@ export class TouchListener extends CommandGenerator {
     });
   }
 
-  private positionFromEvent(event: TouchEvent): vec2 {
+  private positionFromEvent(event: TouchEvent, invert = false): vec2 {
     const touches = Array.prototype.slice.call(event.touches);
     const center = touches.reduce(
       (center: vec2, touch: Touch) =>
-        vec2.add(center, center, vec2.fromValues(-touch.clientX, -touch.clientY)),
+        vec2.add(
+          center,
+          center,
+          vec2.fromValues(
+            touch.clientX * (invert ? -1 : 1),
+            touch.clientY * (invert ? -1 : 1),
+          ),
+        ),
       vec2.create(),
     );
 

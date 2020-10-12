@@ -1,12 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import {
-  id,
-  settings,
-  serializesTo,
-  ProjectileBase,
-  GameObject,
-  rotate90Deg,
-} from 'shared';
+import { id, settings, serializesTo, ProjectileBase, GameObject } from 'shared';
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { CirclePhysical } from './circle-physical';
 import { DynamicPhysical } from '../physics/conatiners/dynamic-physical';
@@ -16,6 +9,8 @@ import { PhysicalContainer } from '../physics/containers/physical-container';
 export class ProjectilePhysical extends ProjectileBase implements DynamicPhysical {
   public readonly canCollide = true;
   public readonly canMove = true;
+  private isDestroyed = false;
+  private bounceCount = 0;
 
   public object: CirclePhysical;
 
@@ -47,9 +42,17 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
     return this.object.distance(target);
   }
 
-  public onCollision(normal: vec2, other: GameObject) {
-    const tangent = rotate90Deg(normal);
-    vec2.scale(this.velocity, tangent, vec2.dot(tangent, this.velocity));
+  public destroy() {
+    if (!this.isDestroyed) {
+      this.isDestroyed = true;
+      this.container.removeObject(this);
+    }
+  }
+
+  public onCollision(other: GameObject) {
+    if (this.bounceCount++ === settings.projectileMaxBounceCount) {
+      this.destroy();
+    }
   }
 
   public step(deltaTimeInMiliseconds: number) {
