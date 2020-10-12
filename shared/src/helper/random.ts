@@ -9,6 +9,19 @@ export abstract class Random {
     Random._seed = value;
   }
 
+  public static choose<T>(values: Array<T>): T | undefined {
+    const to = values.length;
+    if (to === 0) {
+      return undefined;
+    }
+
+    return values[Math.floor(this.getRandomInRange(0, to))];
+  }
+
+  public static getRandomInRange(from: number, to: number): number {
+    return from + this.getRandom() * (to - from);
+  }
+
   public static getRandom(): number {
     let t = (Random._seed += 0x6d2b79f5);
     t = Math.imul(t ^ (t >>> 15), t | 1);

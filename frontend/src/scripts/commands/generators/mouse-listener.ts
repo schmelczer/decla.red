@@ -5,9 +5,10 @@ import {
   SecondaryActionCommand,
   TernaryActionCommand,
 } from 'shared';
+import { Game } from '../../game';
 
 export class MouseListener extends CommandGenerator {
-  constructor(target: HTMLElement) {
+  constructor(target: HTMLElement, private readonly game: Game) {
     super();
 
     target.addEventListener('mousemove', (event: MouseEvent) => {
@@ -31,6 +32,8 @@ export class MouseListener extends CommandGenerator {
   }
 
   private positionFromEvent(event: MouseEvent): vec2 {
-    return vec2.fromValues(event.clientX, event.clientY);
+    return this.game.displayToWorldCoordinates(
+      vec2.fromValues(event.clientX, event.clientY),
+    );
   }
 }

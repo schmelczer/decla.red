@@ -1,29 +1,38 @@
 import { vec2 } from 'gl-matrix';
-import { calculateViewArea, CommandExecutors, GameObject } from 'shared';
-import { RenderCommand } from '../commands/types/render';
-import { Game } from '../game';
+import { Renderer } from 'sdf-2d';
+import { calculateViewArea, GameObject, mixRgb, settings } from 'shared';
 
-export class Camera extends GameObject {
+import { Game } from '../game';
+import { ViewObject } from './view-object';
+
+export class Camera extends GameObject implements ViewObject {
   public center: vec2 = vec2.create();
 
   private aspectRatio?: number;
-
-  protected commandExecutors: CommandExecutors = {
-    [RenderCommand.type]: this.draw.bind(this),
-  };
 
   constructor(private game: Game) {
     super(null);
   }
 
-  private draw(c: RenderCommand) {
-    const canvasAspectRatio = c.renderer.canvasSize.x / c.renderer.canvasSize.y;
+  public step(deltaTimeInMilliseconds: number): void {}
+
+  public draw(renderer: Renderer) {
+    const canvasAspectRatio = renderer.canvasSize.x / renderer.canvasSize.y;
     if (canvasAspectRatio !== this.aspectRatio) {
       this.aspectRatio = canvasAspectRatio;
       this.game.aspectRatioChanged(canvasAspectRatio);
     }
 
     const viewArea = calculateViewArea(this.center, canvasAspectRatio);
-    c.renderer.setViewArea(viewArea.topLeft, viewArea.size);
+    renderer.setViewArea(viewArea.topLeft, viewArea.size);
+
+    renderer.setRuntimeSettings({
+      backgroundColor: mixRgb(
+        settings.backgroundGradient[0],
+        settings.backgroundGradient[1],
+        (this.center.x - settings.worldLeftEdge) /
+          (Math.abs(settings.worldLeftEdge) + Math.abs(settings.worldRightEdge)),
+      ),
+    });
   }
 }

@@ -7,6 +7,7 @@ import { GameObject } from '../game-object';
 export class CharacterBase extends GameObject {
   constructor(
     id: Id,
+    public colorIndex: number,
     public head?: Circle,
     public leftFoot?: Circle,
     public rightFoot?: Circle,
@@ -15,7 +16,7 @@ export class CharacterBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    const { id, head, leftFoot, rightFoot } = this as any;
-    return [id, head, leftFoot, rightFoot];
+    const { id, colorIndex, head, leftFoot, rightFoot } = this;
+    return [id, colorIndex, head, leftFoot, rightFoot];
   }
 }

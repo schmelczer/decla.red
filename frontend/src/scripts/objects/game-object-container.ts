@@ -1,23 +1,22 @@
+import { Renderer } from 'sdf-2d';
 import {
-  Command,
   CommandExecutors,
   CommandReceiver,
   CreateObjectsCommand,
   CreatePlayerCommand,
   DeleteObjectsCommand,
-  GameObject,
   Id,
-  StepCommand,
   UpdateObjectsCommand,
 } from 'shared';
 import { Game } from '../game';
 import { Camera } from './camera';
 import { CharacterView } from './character-view';
+import { ViewObject } from './view-object';
 
 export class GameObjectContainer extends CommandReceiver {
-  protected objects: Map<Id, GameObject> = new Map();
-  public player: CharacterView;
-  public camera: Camera;
+  protected objects: Map<Id, ViewObject> = new Map();
+  public player!: CharacterView;
+  public camera!: Camera;
 
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
@@ -27,14 +26,8 @@ export class GameObjectContainer extends CommandReceiver {
       this.addObject(this.camera);
     },
 
-    [StepCommand.type]: (_: StepCommand) => {
-      if (this.player) {
-        this.camera.center = this.player.position;
-      }
-    },
-
     [CreateObjectsCommand.type]: (c: CreateObjectsCommand) =>
-      c.objects.forEach((o) => this.addObject(o)),
+      c.objects.forEach((o) => this.addObject(o as ViewObject)),
 
     [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
       c.ids.forEach((id: Id) => this.objects.delete(id)),
@@ -42,7 +35,7 @@ export class GameObjectContainer extends CommandReceiver {
     [UpdateObjectsCommand.type]: (c: UpdateObjectsCommand) => {
       c.objects.forEach((o) => {
         this.objects.delete(o.id);
-        this.addObject(o);
+        this.addObject(o as ViewObject);
         if (o.id === this.player.id) {
           this.player = o as CharacterView;
         }
@@ -54,15 +47,19 @@ export class GameObjectContainer extends CommandReceiver {
     super();
   }
 
-  protected defaultCommandExecutor(c: Command) {
-    this.objects.forEach((o) => o.sendCommand(c));
+  public stepObjects(delta: number) {
+    if (this.player) {
+      this.camera.center = this.player.position;
+    }
+
+    this.objects.forEach((o) => o.step(delta));
   }
 
-  public sendCommandToSingleObject(id: Id, e: Command) {
-    this.objects.get(id)!.sendCommand(e);
+  public drawObjects(renderer: Renderer) {
+    this.objects.forEach((o) => o.draw(renderer));
   }
 
-  private addObject(object: GameObject) {
+  private addObject(object: ViewObject) {
     this.objects.set(object.id, object);
   }
 }

@@ -1,11 +1,11 @@
-import { GameObject, Id } from 'shared';
 import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
 
 import { BoundingBoxList } from './bounding-box-list';
 import { BoundingBoxTree } from './bounding-box-tree';
-import { Command } from 'shared';
+
 import { Physical } from '../physical';
-import { StaticPhysical } from './static-physical-object';
+import { StaticPhysical } from './static-physical';
+import { DynamicPhysical } from './dynamic-physical';
 
 export class PhysicalContainer {
   private isTreeInitialized = false;
@@ -13,27 +13,12 @@ export class PhysicalContainer {
   private staticBoundingBoxes = new BoundingBoxTree();
   private dynamicBoundingBoxes = new BoundingBoxList();
 
-  protected objects: Map<Id, GameObject> = new Map();
-  private objectsGroupedByAbilities: Map<string, Array<GameObject>> = new Map();
-
   public initialize() {
     this.staticBoundingBoxes.build(this.staticBoundingBoxesWaitList);
     this.isTreeInitialized = true;
   }
 
-  public addObject(object: Physical) {
-    this.objects.set(object.gameObject.id, object.gameObject);
-
-    for (const command of this.objectsGroupedByAbilities.keys()) {
-      if (object.gameObject.reactsToCommand(command)) {
-        this.objectsGroupedByAbilities.get(command).push(object.gameObject);
-      }
-    }
-
-    this.addPhysical(object);
-  }
-
-  public addPhysical(physical: Physical) {
+  public addObject(physical: Physical) {
     if (physical.canMove) {
       this.dynamicBoundingBoxes.insert(physical);
     } else {
@@ -45,39 +30,12 @@ export class PhysicalContainer {
     }
   }
 
-  public removeObject(object: Physical) {
-    this.objects.delete(object.gameObject.id);
-
-    for (const command of this.objectsGroupedByAbilities.keys()) {
-      if (object.gameObject.reactsToCommand(command)) {
-        const array = this.objectsGroupedByAbilities.get(command);
-        array.splice(
-          array.findIndex((i) => i.id == object.gameObject.id),
-          1,
-        );
-      }
-    }
-
+  public removeObject(object: DynamicPhysical) {
     this.dynamicBoundingBoxes.remove(object);
   }
 
-  public sendCommand(e: Command) {
-    if (!this.objectsGroupedByAbilities.has(e.type)) {
-      this.createGroupForCommand(e.type);
-    }
-
-    this.objectsGroupedByAbilities.get(e.type).forEach((o, _) => o.sendCommand(e));
-  }
-
-  private createGroupForCommand(commandType: string) {
-    const objectsReactingToCommand = [];
-    this.objects.forEach((o, _) => {
-      if (o.reactsToCommand(commandType)) {
-        objectsReactingToCommand.push(o);
-      }
-    });
-
-    this.objectsGroupedByAbilities.set(commandType, objectsReactingToCommand);
+  public stepObjects(deltaTimeInMilliseconds: number) {
+    this.dynamicBoundingBoxes.forEach((o) => o.step(deltaTimeInMilliseconds));
   }
 
   public findIntersecting(box: BoundingBoxBase): Array<Physical> {

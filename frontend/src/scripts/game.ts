@@ -5,7 +5,6 @@ import {
   compile,
   FilteringOptions,
   Flashlight,
-  InvertedTunnel,
   Renderer,
   renderNoise,
   WrapOptions,
@@ -13,25 +12,23 @@ import {
 import {
   broadcastCommands,
   deserialize,
-  prettyPrint,
   serialize,
   settings,
-  StepCommand,
   TransportEvents,
+  SetAspectRatioActionCommand,
+  rgb,
 } from 'shared';
-import { SetAspectRatioActionCommand } from 'shared/src/main';
 import io from 'socket.io-client';
 import { KeyboardListener } from './commands/generators/keyboard-listener';
 import { MouseListener } from './commands/generators/mouse-listener';
 import { TouchListener } from './commands/generators/touch-listener';
 import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
-import { RenderCommand } from './commands/types/render';
+
 import { Configuration } from './config/configuration';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
-import { rgb } from './helper/rgb';
-
 import { GameObjectContainer } from './objects/game-object-container';
 import { BlobShape } from './shapes/blob-shape';
+import { Polygon } from './shapes/polygon';
 
 export class Game {
   public readonly gameObjects = new GameObjectContainer(this);
@@ -46,7 +43,7 @@ export class Game {
   private async setupCommunication(): Promise<void> {
     await Configuration.initialize();
 
-    this.socket = io(Configuration.servers[0], {
+    this.socket = io(Configuration.servers[1], {
       reconnectionDelayMax: 10000,
       transports: ['websocket'],
     });
@@ -69,22 +66,22 @@ export class Game {
     broadcastCommands(
       [
         new KeyboardListener(document.body),
-        new MouseListener(this.canvas),
-        new TouchListener(this.canvas),
+        new MouseListener(this.canvas, this),
+        new TouchListener(this.canvas, this),
       ],
       [this.gameObjects, new CommandReceiverSocket(this.socket)],
     );
   }
 
   private async setupRenderer(): Promise<void> {
-    const noiseTexture = await renderNoise([512, 1], 50, 1 / 10);
+    const noiseTexture = await renderNoise([64, 1], 20, 1 / 10);
 
     this.renderer = await compile(
       this.canvas,
       [
         {
-          ...InvertedTunnel.descriptor,
-          shaderCombinationSteps: [0, 2, 6, 16],
+          ...Polygon.descriptor,
+          shaderCombinationSteps: [0, 2, 6, 16, 32],
         },
         {
           ...BlobShape.descriptor,
@@ -92,7 +89,7 @@ export class Game {
         },
         {
           ...Circle.descriptor,
-          shaderCombinationSteps: [0, 2, 16],
+          shaderCombinationSteps: [0, 2, 16, 32],
         },
         {
           ...CircleLight.descriptor,
@@ -111,16 +108,12 @@ export class Game {
     );
 
     this.renderer.setRuntimeSettings({
-      isWorldInverted: true,
-      ambientLight: rgb(0.35, 0.1, 0.45),
+      ambientLight: rgb(0.45, 0.4, 0.45),
       colorPalette: [
-        rgb(0.4, 1, 0.6),
-        rgb(1, 1, 0),
+        rgb(1, 1, 1),
+        rgb(0.4, 0.4, 0.4),
         rgb(0.3, 1, 1),
-        rgb(0.3, 1, 1),
-        rgb(0.3, 1, 1),
-        rgb(0.3, 1, 1),
-        rgb(0.3, 1, 1),
+        ...settings.playerColors,
       ],
       enableHighDpiRendering: false,
       lightCutoffDistance: settings.lightCutoffDistance,
@@ -155,11 +148,11 @@ export class Game {
   private gameLoop(time: DOMHighResTimeStamp) {
     const deltaTime = this.deltaTimeCalculator.getNextDeltaTimeInMilliseconds(time);
 
-    this.gameObjects.sendCommand(new StepCommand(deltaTime));
-    this.gameObjects.sendCommand(new RenderCommand(this.renderer));
+    this.gameObjects.stepObjects(deltaTime);
+    this.gameObjects.drawObjects(this.renderer);
     this.renderer.renderDrawables();
 
-    this.overlay.innerText = prettyPrint(this.renderer.insights);
+    // this.overlay.innerText = prettyPrint(this.renderer.insights);
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 }

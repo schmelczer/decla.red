@@ -1,3 +1,4 @@
+import { vec2 } from 'gl-matrix';
 import {
   CommandExecutors,
   CommandReceiver,
@@ -8,16 +9,19 @@ import {
   serialize,
   TransportEvents,
   UpdateObjectsCommand,
-  StepCommand,
   SetAspectRatioActionCommand,
   calculateViewArea,
+  SecondaryActionCommand,
+  settings,
 } from 'shared';
 import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
 import { CharacterPhysical } from '../objects/character-physical';
+import { ProjectilePhysical } from '../objects/projectile-physical';
 
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { Physical } from '../physics/physical';
+import { requestColor, freeColor } from './player-color-service';
 
 export class Player extends CommandReceiver {
   private character: CharacterPhysical;
@@ -42,10 +46,24 @@ export class Player extends CommandReceiver {
   }
 
   protected commandExecutors: CommandExecutors = {
-    [StepCommand.type]: this.sendObjects.bind(this),
     [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) =>
       (this.aspectRatio = v.aspectRatio),
-    [MoveActionCommand.type]: (c: MoveActionCommand) => this.character.sendCommand(c),
+    [MoveActionCommand.type]: (c: MoveActionCommand) =>
+      this.character.handleMovementAction(c),
+    [SecondaryActionCommand.type]: (c: SecondaryActionCommand) => {
+      const start = vec2.clone(this.character.center);
+      const direction = vec2.subtract(vec2.create(), c.position, start);
+      vec2.normalize(direction, direction);
+      vec2.add(
+        start,
+        start,
+        vec2.scale(vec2.create(), direction, settings.projectileStartOffset),
+      );
+      const velocity = vec2.scale(direction, direction, settings.projectileSpeed);
+      vec2.add(velocity, velocity, this.character.velocity);
+      const projectile = new ProjectilePhysical(start, 20, velocity, this.objects);
+      this.objects.addObject(projectile);
+    },
   };
 
   constructor(
@@ -53,7 +71,8 @@ export class Player extends CommandReceiver {
     private readonly socket: SocketIO.Socket,
   ) {
     super();
-    this.character = new CharacterPhysical(objects);
+    const colorIndex = requestColor();
+    this.character = new CharacterPhysical(colorIndex, objects);
     this.objectsPreviouslyInViewArea.push(this.character);
     this.objectsInViewArea.push(this.character);
 
@@ -70,7 +89,6 @@ export class Player extends CommandReceiver {
     );
 
     this.measureLatency();
-
     this.sendObjects();
   }
 
@@ -89,6 +107,7 @@ export class Player extends CommandReceiver {
     const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
       (o) => !this.objectsInViewArea.includes(o),
     );
+
     this.objectsPreviouslyInViewArea = this.objectsInViewArea;
 
     if (noLongerIntersecting.length > 0) {
@@ -113,7 +132,7 @@ export class Player extends CommandReceiver {
       );
     }
 
-    this.socket.emit(
+    this.socket.volatile.emit(
       TransportEvents.ServerToPlayer,
       serialize(
         new UpdateObjectsCommand([
@@ -127,6 +146,7 @@ export class Player extends CommandReceiver {
 
   public destroy() {
     this.isActive = false;
+    freeColor(this.character.colorIndex);
     this.character.destroy();
     this.objects.removeObject(this.character);
   }

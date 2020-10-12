@@ -1,15 +1,15 @@
 import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
-import { StaticPhysical } from './static-physical-object';
+import { StaticPhysical } from './static-physical';
 // source: https://github.com/ubilabs/kd-tree-javascript/blob/master/kdTree.js
 
 class Node {
-  public left?: Node = null;
-  public right?: Node = null;
-  constructor(public object: StaticPhysical, public parent: Node) {}
+  public left: Node | null = null;
+  public right: Node | null = null;
+  constructor(public object: StaticPhysical, public parent: Node | null) {}
 }
 
 export class BoundingBoxTree {
-  root?: Node;
+  root?: Node | null;
 
   constructor(objects: Array<StaticPhysical> = []) {
     this.build(objects);
@@ -22,8 +22,8 @@ export class BoundingBoxTree {
   private buildRecursive(
     objects: Array<StaticPhysical>,
     depth: number,
-    parent: Node,
-  ): Node {
+    parent: Node | null,
+  ): Node | null {
     if (objects.length === 0) {
       return null;
     }
@@ -34,7 +34,7 @@ export class BoundingBoxTree {
 
     const dimension = depth % 4;
 
-    objects.sort((a, b) => a.boundingBox[dimension] - b.boundingBox[dimension]);
+    objects.sort((a, b) => a.boundingBox[dimension]! - b.boundingBox[dimension]!);
 
     const median = Math.floor(objects.length / 2);
 
@@ -54,7 +54,9 @@ export class BoundingBoxTree {
       const node = new Node(object, insertPosition);
       const dimension = depth % 4;
 
-      if (object.boundingBox[dimension] < insertPosition.object.boundingBox[dimension]) {
+      if (
+        object.boundingBox[dimension]! < insertPosition.object.boundingBox[dimension]!
+      ) {
         insertPosition.left = node;
       } else {
         insertPosition.right = node;
@@ -63,14 +65,14 @@ export class BoundingBoxTree {
   }
 
   public findIntersecting(boundingBox: BoundingBoxBase): Array<StaticPhysical> {
-    const maybeResults = this.findMaybeIntersecting(boundingBox, this.root, 0);
+    const maybeResults = this.findMaybeIntersecting(boundingBox, this.root!, 0);
     const results = maybeResults.filter((b) => b.boundingBox.intersects(boundingBox));
     return results;
   }
 
   private findMaybeIntersecting(
     boundingBox: BoundingBoxBase,
-    node: Node,
+    node: Node | null,
     depth: number,
   ): Array<StaticPhysical> {
     if (node === null) {
@@ -102,17 +104,17 @@ export class BoundingBoxTree {
 
   private findParent(
     object: StaticPhysical,
-    node: Node,
+    node: Node | null | undefined,
     depth: number,
-    parent: Node,
-  ): [Node, number] {
-    if (node === null) {
+    parent: Node | null,
+  ): [Node | null, number] {
+    if (!node) {
       return [parent, depth - 1];
     }
 
     const dimension = depth % 4;
 
-    if (object.boundingBox[dimension] < node.object.boundingBox[dimension]) {
+    if (object.boundingBox[dimension]! < node.object.boundingBox[dimension]!) {
       return this.findParent(object, node.left, depth + 1, node);
     }
 

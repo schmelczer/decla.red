@@ -7,7 +7,6 @@ import {
   Random,
   TransportEvents,
   deserialize,
-  StepCommand,
   settings,
 } from 'shared';
 import './index.html';
@@ -24,9 +23,6 @@ applyArrayPlugins();
 Random.seed = 42;
 
 const objects = new PhysicalContainer();
-createDungeon(objects);
-createDungeon(objects);
-createDungeon(objects);
 createDungeon(objects);
 
 objects.initialize();
@@ -88,8 +84,7 @@ let deltas: Array<number> = [];
 const handlePhysics = () => {
   const delta = deltaTimeCalculator.getNextDeltaTimeInMilliseconds();
   deltas.push(delta);
-  const step = new StepCommand(delta);
-  if (deltas.length > 100) {
+  if (deltas.length > 1000) {
     deltas.sort((a, b) => a - b);
     console.log(`Median physics time: ${deltas[50].toFixed(2)} ms`);
     console.log(
@@ -99,17 +94,8 @@ const handlePhysics = () => {
     console.log(players.map((p) => p.latency));
   }
 
-  if (deltas.length > 100) {
-    deltas.sort((a, b) => a - b);
-    console.log(`Median physics time: ${deltas[50].toFixed(2)} ms`);
-    console.log(
-      `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
-    );
-    deltas = [];
-  }
-
-  objects.sendCommand(step);
-  players.forEach((p) => p.sendCommand(step));
+  objects.stepObjects(delta);
+  players.forEach((p) => p.sendObjects());
 
   const physicsDelta = deltaTimeCalculator.getDeltaTimeInMilliseconds();
   deltas.push(physicsDelta);

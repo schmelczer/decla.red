@@ -2,13 +2,11 @@ import { vec2, vec3 } from 'gl-matrix';
 import { LampBase, settings, id, serializesTo } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
-
-import { Physical } from '../physics/physical';
+import { StaticPhysical } from '../physics/containers/static-physical';
 
 @serializesTo(LampBase)
-export class LampPhysical extends LampBase implements Physical {
+export class LampPhysical extends LampBase implements StaticPhysical {
   public readonly canCollide = false;
-  public readonly isInverted = false;
   public readonly canMove = false;
 
   constructor(center: vec2, color: vec3, lightness: number) {
@@ -30,12 +28,11 @@ export class LampPhysical extends LampBase implements Physical {
     return this._boundingBox;
   }
 
-  public get gameObject(): LampPhysical {
+  public get gameObject(): this {
     return this;
   }
 
-  // todo
-  public distance(_: vec2): number {
-    return 0;
+  public distance(target: vec2): number {
+    return vec2.distance(this.center, target);
   }
 }

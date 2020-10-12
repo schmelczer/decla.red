@@ -11,6 +11,7 @@ export class BlobShape extends Drawable {
       uniform vec2 rightFootCenters[BLOB_COUNT];
       uniform float headRadii[BLOB_COUNT];
       uniform float footRadii[BLOB_COUNT];
+      uniform float blobColors[BLOB_COUNT];
 
       float blobSmoothMin(float a, float b)
       {
@@ -25,7 +26,6 @@ export class BlobShape extends Drawable {
 
       float blobMinDistance(vec2 target, out float colorIndex) {
         float minDistance = 1000.0;
-        colorIndex = 3.0;
 
         for (int i = 0; i < BLOB_COUNT; i++) {
           float headDistance = circleDistance(headCenters[i], headRadii[i], target);
@@ -61,6 +61,10 @@ export class BlobShape extends Drawable {
           );
 
           minDistance = min(minDistance, res);
+
+          if (res < 0.0) {
+            colorIndex = blobColors[i];
+          }
         }
 
         return minDistance;
@@ -74,17 +78,18 @@ export class BlobShape extends Drawable {
       rightFootCenter: 'rightFootCenters',
       leftFootCenter: 'leftFootCenters',
       headCenter: 'headCenters',
+      color: 'blobColors',
     },
     uniformCountMacroName: 'BLOB_COUNT',
-    shaderCombinationSteps: [0, 1, 10],
-    empty: new BlobShape(),
+    shaderCombinationSteps: [],
+    empty: new BlobShape(0),
   };
 
-  protected head: Circle;
-  protected leftFoot: Circle;
-  protected rightFoot: Circle;
+  protected head!: Circle;
+  protected leftFoot!: Circle;
+  protected rightFoot!: Circle;
 
-  public constructor() {
+  public constructor(private readonly color: number) {
     super();
 
     const circle = new Circle(vec2.create(), 200);
@@ -120,6 +125,7 @@ export class BlobShape extends Drawable {
       ),
       headRadius: this.head.radius * transform1d,
       footRadius: this.leftFoot.radius * transform1d,
+      color: this.color,
     };
   }
 }

@@ -2,25 +2,22 @@ import { vec2 } from 'gl-matrix';
 import {
   id,
   CharacterBase,
-  StepCommand,
   settings,
-  CommandExecutors,
   MoveActionCommand,
   serializesTo,
   clamp,
   last,
-  Circle,
 } from 'shared';
+import { DynamicPhysical } from '../physics/conatiners/dynamic-physical';
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { CirclePhysical } from './circle-physical';
-import { Physical } from '../physics/physical';
+
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { Spring } from './spring';
 
 @serializesTo(CharacterBase)
-export class CharacterPhysical extends CharacterBase implements Physical {
+export class CharacterPhysical extends CharacterBase implements DynamicPhysical {
   public readonly canCollide = true;
-  public readonly isInverted = false;
   public readonly canMove = true;
 
   private jumpEnergyLeft = settings.defaultJumpEnergy;
@@ -32,17 +29,19 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   private movementActions: Array<MoveActionCommand> = [];
   private lastMovementAction: MoveActionCommand = new MoveActionCommand(vec2.create());
 
-  protected commandExecutors: CommandExecutors = {
-    [StepCommand.type]: this.step.bind(this),
-    [MoveActionCommand.type]: (c: MoveActionCommand) => this.movementActions.push(c),
-  };
+  public handleMovementAction(c: MoveActionCommand) {
+    this.movementActions.push(c);
+  }
 
   private static readonly headOffset = vec2.fromValues(0, 40);
   private static readonly leftFootOffset = vec2.fromValues(-20, -35);
   private static readonly rightFootOffset = vec2.fromValues(20, -35);
 
-  constructor(private readonly container: PhysicalContainer) {
-    super(id());
+  constructor(
+    public readonly colorIndex: number,
+    private readonly container: PhysicalContainer,
+  ) {
+    super(id(), colorIndex);
     this.head = new CirclePhysical(
       vec2.clone(CharacterPhysical.headOffset),
       50,
@@ -76,12 +75,16 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     return this._boundingBox;
   }
 
-  public get gameObject(): CharacterPhysical {
+  public get gameObject(): this {
     return this;
   }
 
   public get center(): vec2 {
     return this.head.center;
+  }
+
+  public get velocity(): vec2 {
+    return this.head.velocity;
   }
 
   public distance(target: vec2): number {
@@ -113,11 +116,11 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     return direction;
   }
 
-  public step(c: StepCommand) {
-    const deltaTime = c.deltaTimeInMiliseconds / 1000;
-
+  public step(deltaTimeInMiliseconds: number) {
+    const deltaTime = deltaTimeInMiliseconds / 1000;
     const direction = this.sumAndResetMovementActions();
-    const isAirborne = this.leftFoot.isAirborne && this.rightFoot.isAirborne;
+    const feetAirborne = this.leftFoot.isAirborne && this.rightFoot.isAirborne;
+    const isAirborne = feetAirborne && this.head.isAirborne;
     this.jumpEnergyLeft += isAirborne ? -deltaTime : deltaTime;
     this.jumpEnergyLeft = clamp(this.jumpEnergyLeft, 0, settings.defaultJumpEnergy);
 
@@ -129,52 +132,80 @@ export class CharacterPhysical extends CharacterBase implements Physical {
       vec2.fromValues(xMax, yMax),
     );
 
-    const sumBody = vec2.add(vec2.create(), this.head.center, this.leftFoot.center);
-    vec2.add(sumBody, sumBody, this.rightFoot.center);
-    vec2.scale(sumBody, sumBody, 1 / 3);
-
-    const headPosition = vec2.add(vec2.create(), sumBody, CharacterPhysical.headOffset);
-
-    Spring.step(new Circle(headPosition, 0), this.head, 0, 30, deltaTime);
-
-    const footDistance = vec2.distance(
-      CharacterPhysical.headOffset,
-      CharacterPhysical.leftFootOffset,
-    );
-
-    Spring.step(
-      new Circle(this.head.center, this.head.radius),
-      this.leftFoot,
-      footDistance,
-      25,
-      deltaTime,
-    );
-    Spring.step(
-      new Circle(this.head.center, this.head.radius),
-      this.rightFoot,
-      footDistance,
-      25,
-      deltaTime,
-    );
     Spring.step(
       this.leftFoot,
       this.rightFoot,
       vec2.distance(CharacterPhysical.leftFootOffset, CharacterPhysical.rightFootOffset),
-      100,
+      300,
       deltaTime,
     );
 
-    this.head.applyForce(movementForce, deltaTime);
-    this.leftFoot.applyForce(movementForce, deltaTime);
-    this.rightFoot.applyForce(movementForce, deltaTime);
+    this.applyForce(this.head, movementForce, deltaTime);
+    this.applyForce(this.leftFoot, movementForce, deltaTime);
+    this.applyForce(this.rightFoot, movementForce, deltaTime);
 
-    this.head.applyForce(settings.gravitationalForce, deltaTime);
-    this.leftFoot.applyForce(settings.gravitationalForce, deltaTime);
-    this.rightFoot.applyForce(settings.gravitationalForce, deltaTime);
+    if (feetAirborne) {
+      this.applyForce(this.head, settings.gravitationalForce, deltaTime);
+    }
+    this.applyForce(this.leftFoot, settings.gravitationalForce, deltaTime);
+    this.applyForce(this.rightFoot, settings.gravitationalForce, deltaTime);
 
-    this.head.step(deltaTime);
-    this.leftFoot.step(deltaTime);
-    this.rightFoot.step(deltaTime);
+    this.head.step2(deltaTime);
+    this.leftFoot.step2(deltaTime);
+    this.rightFoot.step2(deltaTime);
+
+    let sumBody = vec2.add(vec2.create(), this.head.center, this.leftFoot.center);
+    vec2.add(sumBody, sumBody, this.rightFoot.center);
+    vec2.scale(sumBody, sumBody, 1 / 3);
+
+    const headPosition = vec2.add(vec2.create(), sumBody, CharacterPhysical.headOffset);
+    const headDelta = vec2.subtract(headPosition, headPosition, this.head.center);
+    vec2.scale(headDelta, headDelta, 0.5);
+    this.head.tryMove(headDelta);
+
+    sumBody = vec2.add(vec2.create(), this.head.center, this.leftFoot.center);
+    vec2.add(sumBody, sumBody, this.rightFoot.center);
+    vec2.scale(sumBody, sumBody, 1 / 3);
+
+    const leftFootPosition = vec2.add(
+      vec2.create(),
+      sumBody,
+      CharacterPhysical.leftFootOffset,
+    );
+    const leftFootDelta = vec2.subtract(
+      leftFootPosition,
+      leftFootPosition,
+      this.leftFoot.center,
+    );
+    vec2.scale(leftFootDelta, leftFootDelta, 1);
+    this.leftFoot.tryMove(leftFootDelta);
+
+    const rightFootPosition = vec2.add(
+      vec2.create(),
+      sumBody,
+      CharacterPhysical.rightFootOffset,
+    );
+    const rightFootDelta = vec2.subtract(
+      rightFootPosition,
+      rightFootPosition,
+      this.rightFoot.center,
+    );
+    vec2.scale(rightFootDelta, rightFootDelta, 1);
+    this.rightFoot.tryMove(rightFootDelta);
+  }
+
+  public applyForce(circle: CirclePhysical, force: vec2, timeInSeconds: number) {
+    vec2.add(
+      circle.velocity,
+      circle.velocity,
+      vec2.scale(vec2.create(), force, timeInSeconds),
+    );
+
+    vec2.set(
+      circle.velocity,
+      clamp(circle.velocity.x, -settings.maxVelocityX, settings.maxVelocityX),
+      clamp(circle.velocity.y, -settings.maxVelocityY, settings.maxVelocityY),
+    );
   }
 
   public destroy() {

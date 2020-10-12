@@ -8,6 +8,8 @@ export class BoundingBoxBase {
     protected _yMax: number = 0,
   ) {}
 
+  [key: number]: number | undefined;
+
   public get 0(): number {
     return this._xMin;
   }

@@ -1,19 +1,32 @@
 import { vec2 } from 'gl-matrix';
-import { CharacterBase, CommandExecutors } from 'shared';
-import { RenderCommand } from '../commands/types/render';
+import { Renderer } from 'sdf-2d';
+import { CharacterBase, Circle, Id } from 'shared';
+
 import { BlobShape } from '../shapes/blob-shape';
+import { ViewObject } from './view-object';
 
-export class CharacterView extends CharacterBase {
-  private shape = new BlobShape();
+export class CharacterView extends CharacterBase implements ViewObject {
+  private shape: BlobShape;
 
-  protected commandExecutors: CommandExecutors = {
-    [RenderCommand.type]: (c: RenderCommand) => {
-      this.shape.setCircles([this.head, this.leftFoot, this.rightFoot]);
-      c.renderer.addDrawable(this.shape);
-    },
-  };
+  constructor(
+    id: Id,
+    colorIndex: number,
+    head?: Circle,
+    leftFoot?: Circle,
+    rightFoot?: Circle,
+  ) {
+    super(id, colorIndex, head, leftFoot, rightFoot);
+    this.shape = new BlobShape(colorIndex);
+  }
 
   public get position(): vec2 {
-    return this.head.center;
+    return this.head!.center;
+  }
+
+  public step(deltaTimeInMilliseconds: number): void {}
+
+  public draw(renderer: Renderer): void {
+    this.shape.setCircles([this.head!, this.leftFoot!, this.rightFoot!]);
+    renderer.addDrawable(this.shape);
   }
 }

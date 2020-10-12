@@ -1,20 +1,20 @@
 import { vec2 } from 'gl-matrix';
-import { Circle, clamp, GameObject, serializesTo, settings } from 'shared';
+import { Circle, GameObject, serializesTo, settings } from 'shared';
 import { Physical } from '../physics/physical';
 
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
 import { moveCircle } from '../physics/move-circle';
 import { PhysicalContainer } from '../physics/containers/physical-container';
+import { DynamicPhysical } from '../physics/conatiners/dynamic-physical';
 
 @serializesTo(Circle)
-export class CirclePhysical implements Circle, Physical {
-  readonly isInverted = false;
+export class CirclePhysical implements Circle, DynamicPhysical {
   readonly canCollide = true;
   readonly canMove = true;
 
   private _isAirborne = true;
-  private velocity = vec2.create();
+  public velocity = vec2.create();
 
   public get isAirborne(): boolean {
     return this._isAirborne;
@@ -27,6 +27,7 @@ export class CirclePhysical implements Circle, Physical {
     private _radius: number,
     public owner: GameObject,
     private readonly container: PhysicalContainer,
+    private restitution = 0,
   ) {
     this._boundingBox = new BoundingBox();
     this.recalculateBoundingBox();
@@ -74,19 +75,6 @@ export class CirclePhysical implements Circle, Physical {
     return other.distance(this.center) < -this.radius;
   }
 
-  public getPerimeterPoints(count: number): Array<vec2> {
-    const result: Array<vec2> = [];
-    for (let i = 0; i < count; i++) {
-      result.push(
-        vec2.fromValues(
-          Math.cos((2 * Math.PI * i) / count) * this.radius + this.center.x,
-          Math.sin((2 * Math.PI * i) / count) * this.radius + this.center.y,
-        ),
-      );
-    }
-    return result;
-  }
-
   private recalculateBoundingBox() {
     this._boundingBox.xMin = this.center.x - this._radius;
     this._boundingBox.xMax = this.center.x + this._radius;
@@ -100,48 +88,75 @@ export class CirclePhysical implements Circle, Physical {
       this.velocity,
       vec2.scale(vec2.create(), force, timeInSeconds),
     );
-
-    vec2.set(
-      this.velocity,
-      clamp(this.velocity.x, -settings.maxVelocityX, settings.maxVelocityX),
-      clamp(this.velocity.y, -settings.maxVelocityY, settings.maxVelocityY),
-    );
   }
 
-  public resetVelocity() {
-    this.velocity = vec2.create();
-  }
+  public step(deltaTime: number) {}
 
-  public step(deltaTimeInSeconds: number): boolean {
+  public step2(deltaTimeInSeconds: number): boolean {
     vec2.scale(
       this.velocity,
       this.velocity,
       Math.pow(settings.velocityAttenuation, deltaTimeInSeconds),
     );
 
-    const distance = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
+    const delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
 
-    const distanceLength = vec2.length(distance);
-    const stepCount = Math.ceil(distanceLength / settings.physicsMaxStep);
-    vec2.scale(distance, distance, 1 / stepCount);
+    const stepCount = Math.ceil(vec2.length(delta) / settings.physicsMaxStep);
+    vec2.scale(delta, delta, 1 / stepCount);
 
     let wasHit = false;
 
     for (let i = 0; i < stepCount; i++) {
-      const { tangent, hitSurface } = moveCircle(
-        this,
-        vec2.clone(distance),
-        this.container.findIntersecting(this.boundingBox),
+      const distance = vec2.scale(
+        vec2.create(),
+        this.velocity,
+        deltaTimeInSeconds / stepCount,
       );
+      this.radius += vec2.length(distance);
+      const intersecting = this.container.findIntersecting(this.boundingBox);
+      this.radius -= vec2.length(distance);
+
+      const { normal, hitSurface } = moveCircle(this, vec2.clone(distance), intersecting);
 
       if (hitSurface) {
-        vec2.scale(this.velocity, tangent!, vec2.dot(tangent!, this.velocity));
-        if (
-          vec2.length(this.velocity) <
-          settings.frictionMinVelocity * deltaTimeInSeconds
-        ) {
-          this.velocity = vec2.create();
-        }
+        vec2.subtract(
+          this.velocity,
+          this.velocity,
+          vec2.scale(
+            normal!,
+            normal!,
+            (1 + this.restitution) * vec2.dot(normal!, this.velocity),
+          ),
+        );
+
+        wasHit = true;
+      }
+    }
+
+    this._isAirborne = !wasHit;
+    return wasHit;
+  }
+
+  public tryMove(delta: vec2) {
+    const stepCount = Math.ceil(vec2.length(delta) / settings.physicsMaxStep);
+    vec2.scale(delta, delta, 1 / stepCount);
+
+    let wasHit = false;
+
+    for (let i = 0; i < stepCount; i++) {
+      this.radius += vec2.length(delta);
+      const intersecting = this.container.findIntersecting(this.boundingBox);
+      this.radius -= vec2.length(delta);
+
+      const { normal, hitSurface } = moveCircle(this, vec2.clone(delta), intersecting);
+
+      if (hitSurface) {
+        vec2.subtract(
+          delta,
+          delta,
+          vec2.scale(normal!, normal!, vec2.dot(normal!, delta)),
+        );
+
         wasHit = true;
       }
     }
