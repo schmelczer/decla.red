@@ -74,7 +74,7 @@ export class Game {
   }
 
   private async setupRenderer(): Promise<void> {
-    const noiseTexture = await renderNoise([64, 1], 20, 1 / 10);
+    const noiseTexture = await renderNoise([256, 256], 2, 1 / 10);
 
     this.renderer = await compile(
       this.canvas,
@@ -123,6 +123,7 @@ export class Game {
           overrides: {
             maxFilter: FilteringOptions.LINEAR,
             wrapS: WrapOptions.MIRRORED_REPEAT,
+            wrapT: WrapOptions.MIRRORED_REPEAT,
           },
         },
       },
@@ -135,7 +136,7 @@ export class Game {
   }
 
   public displayToWorldCoordinates(p: vec2): vec2 {
-    return this.renderer.displayToWorldCoordinates(p);
+    return this.renderer?.displayToWorldCoordinates(p);
   }
 
   public aspectRatioChanged(aspectRatio: number) {

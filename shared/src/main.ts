@@ -24,7 +24,7 @@ export * from './helper/circle';
 export * from './helper/rectangle';
 export * from './helper/mix';
 export * from './helper/random';
-export * from './helper/unique';
+export * from './helper/id';
 export * from './helper/rotate-90-deg';
 export * from './objects/game-object';
 export * from './transport/serialization/deserialize';

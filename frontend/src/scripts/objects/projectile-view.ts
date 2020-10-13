@@ -10,7 +10,7 @@ export class ProjectileView extends ProjectileBase implements ViewObject {
   constructor(id: Id, center: vec2, radius: number) {
     super(id, center, radius);
     this.circle = new Circle(center, radius / 2);
-    this.light = new CircleLight(center, rgb(1, 0.5, 0), 0.35);
+    this.light = new CircleLight(center, rgb(1, 0.5, 0), 0.15);
   }
 
   public step(deltaTimeInMilliseconds: number): void {}

@@ -1,4 +1,4 @@
-import { PolygonFactory } from 'sdf-2d';
+import { NoisyPolygonFactory } from 'sdf-2d';
 import { settings } from 'shared';
 
-export const Polygon = PolygonFactory(settings.polygonEdgeCount);
+export const Polygon = NoisyPolygonFactory(settings.polygonEdgeCount, 1);

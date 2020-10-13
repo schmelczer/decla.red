@@ -160,6 +160,5 @@ export class Player extends CommandReceiver {
     this.isActive = false;
     freeColor(this.character.colorIndex);
     this.character.destroy();
-    this.objects.removeObject(this.character);
   }
 }

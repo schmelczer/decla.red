@@ -29,15 +29,15 @@ export const createDungeon = (objectContainer: PhysicalContainer) => {
         Random.getRandomInRange(0, height),
       );
     } while (
-      calculateDistanceField(position) < 600 ||
+      calculateDistanceField(position) < 800 ||
       calculateDistanceField(position) > 2000
     );
 
     objects.push(
       createBlob(
         position,
-        Random.getRandomInRange(200, 2000),
-        Random.getRandomInRange(100, 500),
+        Random.getRandomInRange(300, 800),
+        Random.getRandomInRange(300, 800),
         Random.getRandomInRange(10, 40),
       ),
     );
