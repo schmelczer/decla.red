@@ -1,20 +1,24 @@
 {
-  "name": "decla.red-server",
-  "private": true,
+  "name": "declared-server",
   "description": "Game server for decla.red",
   "keywords": [],
   "author": "András Schmelczer <andras@schmelczer.dev> (https://schmelczer.dev/)",
-  "main": "index.js",
+  "version": "0.0.1",
+  "main": "dist/main.js",
   "scripts": {
     "build": "npx webpack --mode production",
     "initialize": "npm install",
-    "start": "concurrently --kill-others \"npx webpack --mode development -w\" \"nodemon --legacy-watch dist/main.js\"",
-    "try-build": "npm run build && node dist/main.js"
+    "start": "concurrently --kill-others \"npx webpack --mode development -w\" \"cd dist && nodemon --legacy-watch main.js\"",
+    "try-build": "npm run build && cd dist && node main.js && cd -"
+  },
+  "bin": {
+    "declared-server": "./dist/main.js"
   },
   "dependencies": {
+    "@types/config": "0.0.36",
     "cors": "^2.8.5",
     "express": "^4.17.1",
-    "http": "0.0.1-security",
+    "minimist": "^1.2.5",
     "socket.io": "^2.3.0",
     "uws": "^10.148.1",
     "webpack-node-externals": "^2.5.2"

@@ -15,10 +15,33 @@
   </head>
 
   <body>
-    <!--h1>Decla.red</h1>
-    <section id="servers"></section-->
+    <article id="landing-ui">
+      <h1>decla.<span class="red">red</span></h1>
+      <form id="join-game-form">
+        <fieldset class="content">
+          <legend>Join a game</legend>
+
+          <div class="name-group">
+            <input
+              required
+              minlength="1"
+              maxlength="20"
+              placeholder=" "
+              id="playerName"
+              name="playerName"
+              type="text"
+            />
+            <label for="playerName">Choose a name</label>
+          </div>
+
+          <div id="server-container"></div>
+          <button id="join-game" type="submit">Join</button>
+        </fieldset>
+      </form>
+    </article>
+
     <noscript>Javascript is required for this website.</noscript>
     <div id="overlay"></div>
-    <canvas id="main"></canvas>
+    <canvas></canvas>
   </body>
 </html>

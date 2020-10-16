@@ -23,8 +23,8 @@ import { MouseListener } from './commands/generators/mouse-listener';
 import { TouchListener } from './commands/generators/touch-listener';
 import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
 
-import { Configuration } from './config/configuration';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
+import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
 import { BlobShape } from './shapes/blob-shape';
 import { Circle } from './shapes/circle';
@@ -32,18 +32,23 @@ import { Polygon } from './shapes/polygon';
 
 export class Game {
   public readonly gameObjects = new GameObjectContainer(this);
-  private readonly canvas: HTMLCanvasElement = document.querySelector(
-    'canvas#main',
-  ) as HTMLCanvasElement;
+  private readonly canvas = document.querySelector('canvas') as HTMLCanvasElement;
   private renderer!: Renderer;
   private socket!: SocketIOClient.Socket;
+  private promises: Promise<[void, void]>;
   private deltaTimeCalculator = new DeltaTimeCalculator();
   private overlay: HTMLElement = document.querySelector('#overlay') as HTMLDivElement;
 
-  private async setupCommunication(): Promise<void> {
-    await Configuration.initialize();
+  constructor(playerDecision: PlayerDecision) {
+    console.log(playerDecision.server);
+    this.promises = Promise.all([
+      this.setupCommunication(playerDecision.server),
+      this.setupRenderer(),
+    ]);
+  }
 
-    this.socket = io(Configuration.servers[1], {
+  private async setupCommunication(serverUrl: string): Promise<void> {
+    this.socket = io(serverUrl, {
       reconnectionDelayMax: 10000,
       transports: ['websocket'],
     });
@@ -81,7 +86,7 @@ export class Game {
       [
         {
           ...Polygon.descriptor,
-          shaderCombinationSteps: [0, 2, 6, 16],
+          shaderCombinationSteps: [0, 1, 2, 3],
         },
         {
           ...BlobShape.descriptor,
@@ -93,11 +98,11 @@ export class Game {
         },
         {
           ...CircleLight.descriptor,
-          shaderCombinationSteps: [0, 1, 2, 4, 8],
+          shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
         },
         {
           ...Flashlight.descriptor,
-          shaderCombinationSteps: [0, 1],
+          shaderCombinationSteps: [0],
         },
       ],
       {
@@ -131,7 +136,7 @@ export class Game {
   }
 
   public async start(): Promise<void> {
-    await Promise.all([this.setupCommunication(), this.setupRenderer()]);
+    await this.promises;
     requestAnimationFrame(this.gameLoop.bind(this));
   }
 

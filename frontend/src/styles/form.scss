@@ -1,0 +1,124 @@
+@import './vars.scss';
+
+form {
+  backdrop-filter: blur(24px);
+  background-color: rgba(0, 0, 0, 0.15);
+  padding: $small-padding / 2 $small-padding $small-padding $small-padding;
+
+  input,
+  label {
+    font-size: 1.5rem;
+  }
+
+  fieldset {
+    border: $border;
+    padding: 0 $medium-padding $medium-padding $medium-padding;
+    border-radius: $border-radius;
+
+    div {
+      // disable margin collapse
+      overflow: auto;
+    }
+
+    legend {
+      font-family: 'Comfortaa', sans-serif;
+      font-size: 2rem;
+    }
+
+    .name-group {
+      position: relative;
+      padding: 15px 0 0;
+      margin-top: 10px;
+      margin: 10px 0 $small-padding 0;
+
+      input {
+        font-family: inherit;
+        border: none;
+        border-bottom: $border;
+        color: white;
+        padding: 10px 0 0px 0;
+        background: transparent;
+        margin-bottom: $border-width-focused - $border-width;
+
+        &::placeholder {
+          color: transparent;
+        }
+
+        &:placeholder-shown ~ label {
+          font-size: 1.3rem;
+          cursor: text;
+          top: 20px;
+        }
+      }
+
+      label {
+        position: absolute;
+        top: 0;
+        display: block;
+        transition: $animation-time;
+        color: $gray;
+      }
+
+      input:focus,
+      input:not(:placeholder-shown) {
+        outline: none;
+        margin-bottom: 0;
+        border-width: $border-width-focused;
+        border-color: $accent;
+
+        ~ label {
+          position: absolute;
+          top: 0;
+          display: block;
+          transition: $animation-time;
+        }
+      }
+    }
+
+    input[type='radio'] {
+      width: 0;
+      height: 0;
+
+      + label {
+        display: block;
+        border-radius: $border-radius;
+        padding: $small-padding;
+        border: $border;
+        cursor: pointer;
+        margin: $border-width-focused - $border-width;
+      }
+
+      &:focus {
+        outline: none;
+      }
+
+      &:focus + label,
+      &:checked + label {
+        border-color: $accent;
+        border-width: $border-width-focused;
+        margin: 0;
+      }
+    }
+  }
+
+  button {
+    border: none;
+    background: none;
+    font-size: 2rem;
+    font-family: 'Comfortaa', sans-serif;
+    cursor: pointer;
+    display: block;
+    margin: auto;
+    padding-top: $medium-padding;
+    transition: transform $animation-time;
+
+    &:hover,
+    &:focus {
+      outline: none;
+      color: $accent;
+      transform: translateY(-8px);
+    }
+  }
+
+  border-radius: $border-radius;
+}

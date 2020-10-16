@@ -25,6 +25,8 @@ export * from './helper/rectangle';
 export * from './helper/mix';
 export * from './helper/random';
 export * from './helper/id';
+export * from './communication/server-information';
+export * from './communication/player-information';
 export * from './helper/rotate-90-deg';
 export * from './helper/rotate-minus-90-deg';
 export * from './objects/game-object';

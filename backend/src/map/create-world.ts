@@ -1,12 +1,12 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { Random, settings } from 'shared';
+import { Random, settings, PlanetBase } from 'shared';
 import { LampPhysical } from '../objects/lamp-physical';
 import { PlanetPhysical } from '../objects/planet-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { evaluateSdf } from '../physics/functions/evaluate-sdf';
 import { Physical } from '../physics/physicals/physical';
 
-export const createDungeon = (objectContainer: PhysicalContainer) => {
+export const createWorld = (objectContainer: PhysicalContainer) => {
   const objects: Array<Physical> = [];
   const lights: Array<Physical> = [];
 
@@ -33,11 +33,13 @@ export const createDungeon = (objectContainer: PhysicalContainer) => {
     );
 
     objects.push(
-      createBlob(
-        position,
-        Random.getRandomInRange(300, 800),
-        Random.getRandomInRange(300, 800),
-        Random.getRandomInRange(20, 40),
+      new PlanetPhysical(
+        PlanetBase.createPlanetVertices(
+          position,
+          Random.getRandomInRange(300, 800),
+          Random.getRandomInRange(300, 800),
+          Random.getRandomInRange(20, 40),
+        ),
       ),
     );
   }
@@ -71,27 +73,4 @@ export const createDungeon = (objectContainer: PhysicalContainer) => {
   }
 
   [...objects, ...lights].forEach((o) => objectContainer.addObject(o));
-};
-
-const createBlob = (
-  center: vec2,
-  width: number,
-  height: number,
-  randomness: number,
-): PlanetPhysical => {
-  const vertices = [];
-
-  for (let i = 0; i < settings.polygonEdgeCount; i++) {
-    vertices.push(
-      vec2.fromValues(
-        center.x +
-          (width / 2) * Math.cos((i / settings.polygonEdgeCount) * -Math.PI * 2) +
-          Random.getRandomInRange(-randomness, randomness),
-        center.y +
-          (height / 2) * Math.sin((i / settings.polygonEdgeCount) * -Math.PI * 2) +
-          Random.getRandomInRange(-randomness, randomness),
-      ),
-    );
-  }
-  return new PlanetPhysical(vertices);
 };
