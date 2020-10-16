@@ -13,6 +13,7 @@ import {
   calculateViewArea,
   SecondaryActionCommand,
   settings,
+  Circle,
 } from 'shared';
 import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
 import { CharacterPhysical } from '../objects/character-physical';
@@ -20,7 +21,9 @@ import { ProjectilePhysical } from '../objects/projectile-physical';
 
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
-import { Physical } from '../physics/physical';
+import { PhysicalBase } from '../physics/physicals/physical-base';
+import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
+import { isCircleIntersecting } from '../physics/functions/is-circle-intersecting';
 import { requestColor, freeColor } from './player-color-service';
 
 export class Player extends CommandReceiver {
@@ -30,8 +33,8 @@ export class Player extends CommandReceiver {
 
   private timeSinceLastProjectile = 0;
 
-  private objectsPreviouslyInViewArea: Array<Physical> = [];
-  private objectsInViewArea: Array<Physical> = [];
+  private objectsPreviouslyInViewArea: Array<PhysicalBase> = [];
+  private objectsInViewArea: Array<PhysicalBase> = [];
 
   private pingTime?: number;
   private _latency?: number;
@@ -74,13 +77,44 @@ export class Player extends CommandReceiver {
     },
   };
 
+  private findEmptyPositionForPlayer(): vec2 {
+    let rotation = 0;
+    let radius = 0;
+    for (;;) {
+      const playerPosition = vec2.fromValues(
+        radius * Math.cos(rotation),
+        radius * Math.sin(rotation),
+      );
+
+      const playerBoundingCircle = new Circle(
+        playerPosition,
+        CharacterPhysical.boundRadius,
+      );
+
+      const playerBoundingBox = getBoundingBoxOfCircle(playerBoundingCircle);
+      const possibleIntersectors = this.objects.findIntersecting(playerBoundingBox);
+      if (!isCircleIntersecting(playerBoundingCircle, possibleIntersectors)) {
+        return playerPosition;
+      }
+
+      rotation += Math.PI / 12;
+      radius += 10;
+    }
+  }
+
   constructor(
     private readonly objects: PhysicalContainer,
     private readonly socket: SocketIO.Socket,
   ) {
     super();
     const colorIndex = requestColor();
-    this.character = new CharacterPhysical(colorIndex, objects);
+
+    this.character = new CharacterPhysical(
+      colorIndex,
+      objects,
+      this.findEmptyPositionForPlayer(),
+    );
+
     this.objectsPreviouslyInViewArea.push(this.character);
     this.objectsInViewArea.push(this.character);
 
@@ -100,9 +134,9 @@ export class Player extends CommandReceiver {
     this.sendObjects();
   }
 
-  public step(deltaTimeInMilliseconds: number) {
+  public step(deltaTime: number) {
     this.sendObjects();
-    this.timeSinceLastProjectile += deltaTimeInMilliseconds;
+    this.timeSinceLastProjectile += deltaTime;
   }
   public sendObjects() {
     const viewArea = calculateViewArea(this.character.center, this.aspectRatio, 1.5);
