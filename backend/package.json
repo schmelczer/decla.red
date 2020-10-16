@@ -3,7 +3,7 @@
   "description": "Game server for decla.red",
   "keywords": [],
   "author": "András Schmelczer <andras@schmelczer.dev> (https://schmelczer.dev/)",
-  "version": "0.0.1",
+  "version": "0.0.1-try2",
   "main": "dist/main.js",
   "scripts": {
     "build": "npx webpack --mode production",
