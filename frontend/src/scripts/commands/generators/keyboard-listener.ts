@@ -34,7 +34,7 @@ export class KeyboardListener extends CommandGenerator {
     if (vec2.squaredLength(movement) > 0) {
       vec2.normalize(movement, movement);
     }
-    this.sendCommandToSubcribers(new MoveActionCommand(movement));
+    this.sendCommandToSubcribers(new MoveActionCommand(movement, true));
   }
 
   private normalize(key: string): string {

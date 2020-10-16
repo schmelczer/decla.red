@@ -11,7 +11,7 @@ export class BlobShape extends Drawable {
       uniform vec2 rightFootCenters[BLOB_COUNT];
       uniform float headRadii[BLOB_COUNT];
       uniform float footRadii[BLOB_COUNT];
-      uniform float blobColors[BLOB_COUNT];
+      uniform int blobColors[BLOB_COUNT];
 
       float blobSmoothMin(float a, float b)
       {
@@ -24,7 +24,7 @@ export class BlobShape extends Drawable {
         return distance(target, circleCenter) - radius;
       }
 
-      float blobMinDistance(vec2 target, out float colorIndex) {
+      float blobMinDistance(vec2 target, out vec4 color) {
         float minDistance = 1000.0;
 
         for (int i = 0; i < BLOB_COUNT; i++) {
@@ -40,30 +40,24 @@ export class BlobShape extends Drawable {
           vec2 leftEyeOffset = vec2(-headRadii[i] * 0.35, headRadii[i] * 0.2);
           vec2 rightEyeOffset = vec2(headRadii[i] * 0.35, headRadii[i] * 0.2);
 
-          res = max(
-            res,
-            -circleDistance(headCenters[i] + leftEyeOffset, headRadii[i] * 0.25, target)
+          float eyeDistance = min(
+            circleDistance(headCenters[i] + rightEyeOffset, headRadii[i] * 0.25, target),
+            circleDistance(headCenters[i] + leftEyeOffset, headRadii[i] * 0.25, target)
           );
 
-          res = max(
-            res,
-            -circleDistance(headCenters[i] + rightEyeOffset, headRadii[i] * 0.25, target)
-          );
-
-          res = min(
-            res,
-            circleDistance(headCenters[i] + leftEyeOffset + vec2(0, -headRadii[i] * 0.175), headRadii[i] * 0.25, target)
+          eyeDistance = max(
+            eyeDistance,
+            -circleDistance(headCenters[i] + leftEyeOffset + vec2(0, -headRadii[i] * 0.175), headRadii[i] * 0.2, target)
           );
           
-          res = min(
-            res,
-            circleDistance(headCenters[i] + rightEyeOffset + vec2(0, -headRadii[i] * 0.175), headRadii[i] * 0.25, target)
+          eyeDistance = max(
+            eyeDistance,
+            -circleDistance(headCenters[i] + rightEyeOffset + vec2(0, -headRadii[i] * 0.175), headRadii[i] * 0.2, target)
           );
 
-          minDistance = min(minDistance, res);
-
-          if (res < 0.0) {
-            colorIndex = blobColors[i];
+          if (res < minDistance) {
+            minDistance = res;
+            color = eyeDistance < 0.0 ? vec4(1.0) : readFromPalette(blobColors[i]);
           }
         }
 

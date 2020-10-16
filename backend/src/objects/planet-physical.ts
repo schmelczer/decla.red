@@ -1,18 +1,31 @@
 import { vec2 } from 'gl-matrix';
-import { clamp01, id, serializesTo, StoneBase } from 'shared';
+
+import {
+  clamp,
+  clamp01,
+  id,
+  rotate90Deg,
+  rotateMinus90Deg,
+  serializesTo,
+  settings,
+  PlanetBase,
+} from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
-import { StaticPhysical } from '../physics/containers/static-physical';
+import { StaticPhysical } from '../physics/physicals/static-physical';
 
-@serializesTo(StoneBase)
-export class StonePhysical extends StoneBase implements StaticPhysical {
+@serializesTo(PlanetBase)
+export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   public readonly canCollide = true;
   public readonly canMove = false;
+  private center: vec2;
 
   private _boundingBox?: ImmutableBoundingBox;
 
   constructor(vertices: Array<vec2>) {
     super(id(), vertices);
+    this.center = vertices.reduce((sum, v) => vec2.add(sum, sum, v), vec2.create());
+    vec2.scale(this.center, this.center, 1 / vertices.length);
   }
 
   public distance(target: vec2): number {
@@ -70,6 +83,46 @@ export class StonePhysical extends StoneBase implements StaticPhysical {
     }
 
     return this._boundingBox;
+  }
+
+  public getForce(position: vec2): vec2 {
+    const height = this.distance(position);
+
+    let closestIndex = 0;
+    this.vertices.forEach((v, i) => {
+      if (
+        vec2.distance(position, v) < vec2.distance(position, this.vertices[closestIndex])
+      ) {
+        closestIndex = i;
+      }
+    });
+
+    const afterClosest = this.vertices[(closestIndex + 1) % this.vertices.length];
+    const closest = this.vertices[closestIndex];
+    const beforeClosest = this.vertices[
+      (closestIndex - 1 + this.vertices.length) % this.vertices.length
+    ];
+
+    const diff = vec2.subtract(vec2.create(), position, closest);
+    const edge1 = vec2.subtract(vec2.create(), afterClosest, closest);
+    const edge2 = vec2.subtract(vec2.create(), closest, beforeClosest);
+    const normalizedDiff = vec2.normalize(vec2.create(), diff);
+
+    const currentEdge =
+      vec2.dot(vec2.normalize(vec2.create(), rotate90Deg(edge1)), normalizedDiff) >
+      vec2.dot(vec2.normalize(vec2.create(), rotate90Deg(edge2)), normalizedDiff)
+        ? edge1
+        : edge2;
+
+    vec2.normalize(currentEdge, currentEdge);
+    const normal = rotateMinus90Deg(currentEdge);
+
+    const scale = clamp(
+      settings.maxGravityQ * ((settings.maxGravityDistance / height) ** 3 - 1),
+      0,
+      settings.maxGravityStrength,
+    );
+    return vec2.scale(normal, normal, scale);
   }
 
   public get gameObject(): this {

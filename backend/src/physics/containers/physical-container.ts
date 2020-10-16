@@ -3,9 +3,9 @@ import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
 import { BoundingBoxList } from './bounding-box-list';
 import { BoundingBoxTree } from './bounding-box-tree';
 
-import { Physical } from '../physical';
-import { StaticPhysical } from './static-physical';
-import { DynamicPhysical } from './dynamic-physical';
+import { Physical } from '../physicals/physical';
+import { StaticPhysical } from '../physicals/static-physical';
+import { DynamicPhysical } from '../physicals/dynamic-physical';
 
 export class PhysicalContainer {
   private isTreeInitialized = false;
@@ -34,8 +34,8 @@ export class PhysicalContainer {
     this.dynamicBoundingBoxes.remove(object);
   }
 
-  public stepObjects(deltaTimeInMilliseconds: number) {
-    this.dynamicBoundingBoxes.forEach((o) => o.step(deltaTimeInMilliseconds));
+  public stepObjects(deltaTime: number) {
+    this.dynamicBoundingBoxes.forEach((o) => o.step(deltaTime));
   }
 
   public findIntersecting(box: BoundingBoxBase): Array<Physical> {

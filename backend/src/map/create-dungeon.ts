@@ -1,36 +1,35 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { last, Random, settings } from 'shared';
+import { Random, settings } from 'shared';
 import { LampPhysical } from '../objects/lamp-physical';
-import { StonePhysical } from '../objects/stone-physical';
+import { PlanetPhysical } from '../objects/planet-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
-import { Physical } from '../physics/physical';
+import { evaluateSdf } from '../physics/functions/evaluate-sdf';
+import { Physical } from '../physics/physicals/physical';
 
 export const createDungeon = (objectContainer: PhysicalContainer) => {
-  const width = 100000;
-  const height = 10000;
   const objects: Array<Physical> = [];
   const lights: Array<Physical> = [];
 
-  let previousEnd = vec2.fromValues(-width / 2, 0);
-  while (previousEnd.x < width / 2) {
-    const { stone, end } = createFloorElement(previousEnd);
-    objects.push(stone);
-    previousEnd = end;
-  }
-  const calculateDistanceField = (target: vec2): number =>
-    objects.reduce((min, i) => (min = Math.min(min, i.distance(target))), 1000);
+  const worldSize = vec2.length(
+    vec2.fromValues(
+      settings.worldTopEdge - settings.worldBottomEdge,
+      settings.worldRightEdge - settings.worldLeftEdge,
+    ),
+  );
 
-  for (let i = 0; i < 400; i++) {
+  for (let i = 0; i < worldSize / 400; i++) {
+    console.log('planet', i);
+
     let position: vec2;
 
     do {
       position = vec2.fromValues(
-        Random.getRandomInRange(-width / 2, width / 2),
-        Random.getRandomInRange(0, height),
+        Random.getRandomInRange(settings.worldLeftEdge, settings.worldRightEdge),
+        Random.getRandomInRange(settings.worldBottomEdge, settings.worldTopEdge),
       );
     } while (
-      calculateDistanceField(position) < 800 ||
-      calculateDistanceField(position) > 2000
+      evaluateSdf(position, objects) < 800 ||
+      evaluateSdf(position, objects) > 2500
     );
 
     objects.push(
@@ -38,27 +37,22 @@ export const createDungeon = (objectContainer: PhysicalContainer) => {
         position,
         Random.getRandomInRange(300, 800),
         Random.getRandomInRange(300, 800),
-        Random.getRandomInRange(10, 40),
+        Random.getRandomInRange(20, 40),
       ),
     );
   }
 
-  let tryCount = 0;
-  lightGeneration: for (let i = 0; i < 300; i++) {
-    console.log(i);
+  for (let i = 0; i < worldSize / 350; i++) {
+    console.log('light', i);
     let position: vec2;
     do {
       position = vec2.fromValues(
-        Random.getRandomInRange(-width / 2, width / 2),
-        Random.getRandomInRange(-1000, height),
+        Random.getRandomInRange(settings.worldLeftEdge, settings.worldRightEdge),
+        Random.getRandomInRange(settings.worldBottomEdge, settings.worldTopEdge),
       );
-
-      if (tryCount++ > 1e4) {
-        break lightGeneration;
-      }
     } while (
-      calculateDistanceField(position) < 200 ||
-      lights.find((l) => l.distance(position) < 1200)
+      evaluateSdf(position, objects) < 200 ||
+      lights.find((l) => l.distance(position) < 1800)
     );
     lights.push(
       new LampPhysical(
@@ -84,7 +78,7 @@ const createBlob = (
   width: number,
   height: number,
   randomness: number,
-): StonePhysical => {
+): PlanetPhysical => {
   const vertices = [];
 
   for (let i = 0; i < settings.polygonEdgeCount; i++) {
@@ -99,29 +93,5 @@ const createBlob = (
       ),
     );
   }
-  return new StonePhysical(vertices);
-};
-
-const createFloorElement = (
-  start: vec2,
-): {
-  stone: StonePhysical;
-  end: vec2;
-} => {
-  const vertices: Array<vec2> = [vec2.fromValues(start.x, -10000), start];
-
-  let previousX = start.x;
-  let previousY = start.y;
-  for (let i = 0; i < settings.polygonEdgeCount - 3; i++) {
-    previousX += Random.getRandomInRange(200, 800);
-    previousY += Random.getRandomInRange(-100, 100);
-    vertices.push(vec2.fromValues(previousX, previousY));
-  }
-
-  const end = last(vertices)!;
-  vertices.push(vec2.fromValues(end.x, -10000));
-  return {
-    stone: new StonePhysical(vertices),
-    end,
-  };
+  return new PlanetPhysical(vertices);
 };

@@ -4,7 +4,7 @@ import { serializable } from '../../transport/serialization/serializable';
 import { GameObject } from '../game-object';
 
 @serializable
-export class StoneBase extends GameObject {
+export class PlanetBase extends GameObject {
   constructor(id: Id, public readonly vertices: Array<vec2>) {
     super(id);
   }

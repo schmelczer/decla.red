@@ -20,7 +20,7 @@ glMatrix.setMatrixArrayType(Array);
 
 applyArrayPlugins();
 
-Random.seed = 42;
+Random.seed = 44;
 
 const objects = new PhysicalContainer();
 createDungeon(objects);
@@ -94,8 +94,8 @@ const handlePhysics = () => {
     console.log(players.map((p) => p.latency));
   }
 
-  objects.stepObjects(delta);
-  players.forEach((p) => p.step(delta));
+  objects.stepObjects(delta / 1000);
+  players.forEach((p) => p.step(delta / 1000));
 
   const physicsDelta = deltaTimeCalculator.getDeltaTimeInMilliseconds();
   deltas.push(physicsDelta);

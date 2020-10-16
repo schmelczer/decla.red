@@ -1,31 +1,28 @@
 import { vec2 } from 'gl-matrix';
 import { Circle, GameObject, serializesTo, settings } from 'shared';
-import { Physical } from '../physics/physical';
-
+import { PhysicalBase } from '../physics/physicals/physical-base';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
-import { moveCircle } from '../physics/move-circle';
+import { moveCircle } from '../physics/functions/move-circle';
 import { PhysicalContainer } from '../physics/containers/physical-container';
-import { DynamicPhysical } from '../physics/containers/dynamic-physical';
+import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
+import {
+  ReactsToCollision,
+  reactsToCollision,
+} from '../physics/physicals/reacts-to-collision';
 
 @serializesTo(Circle)
-export class CirclePhysical implements Circle, DynamicPhysical {
+export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollision {
   readonly canCollide = true;
   readonly canMove = true;
 
-  private _isAirborne = true;
   public velocity = vec2.create();
-
-  public get isAirborne(): boolean {
-    return this._isAirborne;
-  }
-
   private _boundingBox: BoundingBox;
 
   constructor(
     private _center: vec2,
     private _radius: number,
-    public owner: DynamicPhysical,
+    public owner: GameObject,
     private readonly container: PhysicalContainer,
     private restitution = 0,
   ) {
@@ -47,7 +44,9 @@ export class CirclePhysical implements Circle, DynamicPhysical {
   }
 
   public onCollision(other: GameObject) {
-    this.owner.onCollision(other);
+    if (reactsToCollision(this.owner)) {
+      this.owner.onCollision(other);
+    }
   }
 
   public get gameObject(): GameObject {
@@ -71,11 +70,11 @@ export class CirclePhysical implements Circle, DynamicPhysical {
     return vec2.distance(target.center, this.center) - this.radius - target.radius;
   }
 
-  public areIntersecting(other: Physical): boolean {
+  public areIntersecting(other: PhysicalBase): boolean {
     return other.distance(this.center) < this.radius;
   }
 
-  public isInside(other: Physical): boolean {
+  public isInside(other: PhysicalBase): boolean {
     return other.distance(this.center) < -this.radius;
   }
 
@@ -94,9 +93,9 @@ export class CirclePhysical implements Circle, DynamicPhysical {
     );
   }
 
-  public step(deltaTime: number) {}
+  public step(_: number) {}
 
-  public step2(deltaTimeInSeconds: number): boolean {
+  public step2(deltaTimeInSeconds: number): GameObject | undefined {
     vec2.scale(
       this.velocity,
       this.velocity,
@@ -108,7 +107,7 @@ export class CirclePhysical implements Circle, DynamicPhysical {
     const stepCount = Math.ceil(vec2.length(delta) / settings.physicsMaxStep);
     vec2.scale(delta, delta, 1 / stepCount);
 
-    let wasHit = false;
+    let lastHit: GameObject | undefined;
 
     for (let i = 0; i < stepCount; i++) {
       const distance = vec2.scale(
@@ -120,7 +119,11 @@ export class CirclePhysical implements Circle, DynamicPhysical {
       const intersecting = this.container.findIntersecting(this.boundingBox);
       this.radius -= vec2.length(distance);
 
-      const { normal, hitSurface } = moveCircle(this, vec2.clone(distance), intersecting);
+      const { normal, hitSurface, hitObject } = moveCircle(
+        this,
+        vec2.clone(distance),
+        intersecting,
+      );
 
       if (hitSurface) {
         vec2.subtract(
@@ -133,40 +136,37 @@ export class CirclePhysical implements Circle, DynamicPhysical {
           ),
         );
 
-        wasHit = true;
+        lastHit = hitObject;
       }
     }
 
-    this._isAirborne = !wasHit;
-    return wasHit;
+    return lastHit;
   }
 
-  public tryMove(delta: vec2) {
+  public tryMove(delta: vec2): GameObject | undefined {
     const stepCount = Math.ceil(vec2.length(delta) / settings.physicsMaxStep);
     vec2.scale(delta, delta, 1 / stepCount);
 
-    let wasHit = false;
+    let lastHit: GameObject | undefined;
 
     for (let i = 0; i < stepCount; i++) {
       this.radius += vec2.length(delta);
       const intersecting = this.container.findIntersecting(this.boundingBox);
       this.radius -= vec2.length(delta);
 
-      const { normal, hitSurface } = moveCircle(this, vec2.clone(delta), intersecting);
+      const { tangent, hitSurface, hitObject } = moveCircle(
+        this,
+        vec2.clone(delta),
+        intersecting,
+      );
 
       if (hitSurface) {
-        vec2.subtract(
-          delta,
-          delta,
-          vec2.scale(normal!, normal!, vec2.dot(normal!, delta)),
-        );
-
-        wasHit = true;
+        delta = vec2.scale(delta, tangent!, vec2.length(delta));
+        lastHit = hitObject;
       }
     }
 
-    this._isAirborne = !wasHit;
-    return wasHit;
+    return lastHit;
   }
 
   public toArray(): Array<any> {

@@ -1,6 +1,5 @@
 import { vec2 } from 'gl-matrix';
 import {
-  Circle,
   CircleLight,
   compile,
   FilteringOptions,
@@ -28,6 +27,7 @@ import { Configuration } from './config/configuration';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { GameObjectContainer } from './objects/game-object-container';
 import { BlobShape } from './shapes/blob-shape';
+import { Circle } from './shapes/circle';
 import { Polygon } from './shapes/polygon';
 
 export class Game {
@@ -74,14 +74,14 @@ export class Game {
   }
 
   private async setupRenderer(): Promise<void> {
-    const noiseTexture = await renderNoise([256, 256], 2, 1 / 10);
+    const noiseTexture = await renderNoise([256, 256], 2, 1);
 
     this.renderer = await compile(
       this.canvas,
       [
         {
           ...Polygon.descriptor,
-          shaderCombinationSteps: [0, 2, 6, 16, 32],
+          shaderCombinationSteps: [0, 2, 6, 16],
         },
         {
           ...BlobShape.descriptor,
@@ -89,7 +89,7 @@ export class Game {
         },
         {
           ...Circle.descriptor,
-          shaderCombinationSteps: [0, 2, 16, 32],
+          shaderCombinationSteps: [0, 2, 16],
         },
         {
           ...CircleLight.descriptor,
@@ -115,7 +115,7 @@ export class Game {
         rgb(1, 1, 1),
         ...settings.playerColors,
       ],
-      enableHighDpiRendering: false,
+      enableHighDpiRendering: true,
       lightCutoffDistance: settings.lightCutoffDistance,
       textures: {
         noiseTexture: {

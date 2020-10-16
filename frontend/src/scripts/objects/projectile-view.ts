@@ -1,10 +1,11 @@
 import { vec2 } from 'gl-matrix';
-import { Circle, CircleLight, Renderer } from 'sdf-2d';
+import { CircleLight, Renderer } from 'sdf-2d';
 import { Id, ProjectileBase, rgb } from 'shared';
 import { ViewObject } from './view-object';
+import { Circle } from '../shapes/circle';
 
 export class ProjectileView extends ProjectileBase implements ViewObject {
-  private circle: Circle;
+  private circle: InstanceType<typeof Circle>;
   private light: CircleLight;
 
   constructor(id: Id, center: vec2, radius: number) {

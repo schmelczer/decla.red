@@ -2,11 +2,15 @@ import { vec2 } from 'gl-matrix';
 import { id, settings, serializesTo, ProjectileBase, GameObject } from 'shared';
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { CirclePhysical } from './circle-physical';
-import { DynamicPhysical } from '../physics/conatiners/dynamic-physical';
+import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
+import { PlanetPhysical } from './planet-physical';
+import { ReactsToCollision } from '../physics/physicals/reacts-to-collision';
 
 @serializesTo(ProjectileBase)
-export class ProjectilePhysical extends ProjectileBase implements DynamicPhysical {
+export class ProjectilePhysical
+  extends ProjectileBase
+  implements DynamicPhysical, ReactsToCollision {
   public readonly canCollide = true;
   public readonly canMove = true;
   private isDestroyed = false;
@@ -55,14 +59,16 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
     }
   }
 
-  public step(deltaTimeInMiliseconds: number) {
-    const deltaTime = deltaTimeInMiliseconds / 1000;
+  public step(deltaTime: number) {
+    const gravity = vec2.create();
+    const intersecting = this.container.findIntersecting(this.boundingBox);
+    intersecting.forEach((i) => {
+      if (i instanceof PlanetPhysical) {
+        vec2.add(gravity, gravity, i.getForce(this.center));
+      }
+    });
 
-    vec2.add(
-      this.velocity,
-      this.velocity,
-      vec2.scale(vec2.create(), settings.gravitationalForce, deltaTime),
-    );
+    vec2.add(this.velocity, this.velocity, vec2.scale(vec2.create(), gravity, deltaTime));
 
     this.object.velocity = this.velocity;
     this.object.step2(deltaTime);

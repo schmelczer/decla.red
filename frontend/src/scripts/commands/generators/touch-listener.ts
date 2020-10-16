@@ -38,7 +38,7 @@ export class TouchListener extends CommandGenerator {
 
       if (vec2.squaredLength(movement) > 0) {
         vec2.normalize(movement, movement);
-        this.sendCommandToSubcribers(new MoveActionCommand(movement));
+        this.sendCommandToSubcribers(new MoveActionCommand(movement, false));
       }
 
       this.previousPosition = position;
@@ -46,7 +46,7 @@ export class TouchListener extends CommandGenerator {
 
     target.addEventListener('touchend', (event: TouchEvent) => {
       event.preventDefault();
-      this.sendCommandToSubcribers(new MoveActionCommand(vec2.create()));
+      this.sendCommandToSubcribers(new MoveActionCommand(vec2.create(), false));
     });
   }
 

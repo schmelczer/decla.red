@@ -2,7 +2,7 @@ import { vec2, vec3 } from 'gl-matrix';
 import { LampBase, settings, id, serializesTo } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
-import { StaticPhysical } from '../physics/containers/static-physical';
+import { StaticPhysical } from '../physics/physicals/static-physical';
 
 @serializesTo(LampBase)
 export class LampPhysical extends LampBase implements StaticPhysical {
@@ -30,6 +30,10 @@ export class LampPhysical extends LampBase implements StaticPhysical {
 
   public get gameObject(): this {
     return this;
+  }
+
+  public getForce(_: vec2): vec2 {
+    return vec2.create();
   }
 
   public distance(target: vec2): number {

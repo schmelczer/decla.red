@@ -27,7 +27,7 @@ export class Camera extends GameObject implements ViewObject {
     renderer.setViewArea(viewArea.topLeft, viewArea.size);
 
     renderer.setRuntimeSettings({
-      backgroundColor: mixRgb(
+      ambientLight: mixRgb(
         settings.backgroundGradient[0],
         settings.backgroundGradient[1],
         (this.center.x - settings.worldLeftEdge) /
