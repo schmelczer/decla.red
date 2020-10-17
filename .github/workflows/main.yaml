@@ -5,7 +5,6 @@ on:
       - main
 env:
   CONTAINER_REGISTRY: schmelczera
-  DOMAIN: '174.138.103.56'
 
 jobs:
   build-project:
@@ -38,17 +37,6 @@ jobs:
       - name: Build and push server image
         run: |
           docker buildx build \
-          --tag $CONTAINER_REGISTRY/decla-red-server:latest \
+          --tag $CONTAINER_REGISTRY/declared-server:latest \
           --platform linux/amd64,linux/arm/v7,linux/arm64 . --push
-        working-directory: backend
-      - name: Setup auth tokens
-        run: |
-          mkdir ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 400 ~/.ssh/id_ed25519
-          ssh -o StrictHostKeyChecking=no root@$DOMAIN uptime
-      - name: Stack deploy
-        run: |
-          DOCKER_HOST=ssh://root@$DOMAIN docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_HOST=ssh://root@$DOMAIN docker stack deploy decla-red-server -c docker-compose.yml --with-registry-auth
         working-directory: backend

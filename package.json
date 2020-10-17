@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "decla.red-frontend": "file:frontend",
-    "decla.red-server": "file:backend",
     "shared": "file:shared"
   },
   "devDependencies": {
