@@ -1,7 +1,13 @@
 import { PhysicalContainer } from './physics/containers/physical-container';
 import { Player } from './players/player';
 import ioserver from 'socket.io';
-import { TransportEvents, deserialize, settings, ServerInformation } from 'shared';
+import {
+  TransportEvents,
+  deserialize,
+  settings,
+  ServerInformation,
+  PlayerInformation,
+} from 'shared';
 import { createWorld } from './map/create-world';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { Options } from './options';
@@ -22,8 +28,8 @@ export class GameServer {
     this.objects.initialize();
 
     io.on('connection', (socket: SocketIO.Socket) => {
-      socket.on(TransportEvents.PlayerJoining, () => {
-        const player = new Player(this.objects, socket);
+      socket.on(TransportEvents.PlayerJoining, (playerInfo: PlayerInformation) => {
+        const player = new Player(playerInfo, this.objects, socket);
         this.players.push(player);
         socket.on(TransportEvents.PlayerToServer, (json: string) => {
           const command = deserialize(json);

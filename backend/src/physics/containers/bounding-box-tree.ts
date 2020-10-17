@@ -1,5 +1,5 @@
 import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
-import { StaticPhysical } from './static-physical';
+import { StaticPhysical } from '../physicals/static-physical';
 // source: https://github.com/ubilabs/kd-tree-javascript/blob/master/kdTree.js
 
 class Node {

@@ -1,21 +1,22 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import { CharacterBase, Circle, Id, UpdateMessage } from 'shared';
+import { Circle, Id, PlayerCharacterBase, UpdateMessage } from 'shared';
 
 import { BlobShape } from '../shapes/blob-shape';
 import { ViewObject } from './view-object';
 
-export class CharacterView extends CharacterBase implements ViewObject {
+export class PlayerCharacterView extends PlayerCharacterBase implements ViewObject {
   private shape: BlobShape;
 
   constructor(
     id: Id,
+    name: string,
     colorIndex: number,
     head?: Circle,
     leftFoot?: Circle,
     rightFoot?: Circle,
   ) {
-    super(id, colorIndex, head, leftFoot, rightFoot);
+    super(id, name, colorIndex, head, leftFoot, rightFoot);
     this.shape = new BlobShape(colorIndex);
   }
 

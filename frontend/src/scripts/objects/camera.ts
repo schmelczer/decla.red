@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import { calculateViewArea, GameObject, mixRgb, settings } from 'shared';
+import { calculateViewArea, GameObject, mixRgb, settings, UpdateMessage } from 'shared';
 
 import { Game } from '../game';
 import { ViewObject } from './view-object';
@@ -12,6 +12,10 @@ export class Camera extends GameObject implements ViewObject {
 
   constructor(private game: Game) {
     super(null);
+  }
+
+  public update(updates: Array<UpdateMessage>) {
+    throw new Error();
   }
 
   public step(deltaTimeInMilliseconds: number): void {}

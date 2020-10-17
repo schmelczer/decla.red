@@ -1,6 +1,6 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { CircleLight, Renderer } from 'sdf-2d';
-import { CommandExecutors, Id, LampBase } from 'shared';
+import { CommandExecutors, Id, LampBase, UpdateMessage } from 'shared';
 import { RenderCommand } from '../commands/types/render';
 import { ViewObject } from './view-object';
 
@@ -14,6 +14,10 @@ export class LampView extends LampBase implements ViewObject {
   constructor(id: Id, center: vec2, color: vec3, lightness: number) {
     super(id, center, color, lightness);
     this.light = new CircleLight(center, color, lightness);
+  }
+
+  public update(message: Array<UpdateMessage>): void {
+    throw new Error('Method not implemented.');
   }
 
   public step(deltaTimeInMilliseconds: number): void {}

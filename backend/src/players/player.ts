@@ -14,27 +14,28 @@ import {
   SecondaryActionCommand,
   settings,
   Circle,
+  PlayerInformation,
 } from 'shared';
 import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
-import { CharacterPhysical } from '../objects/character-physical';
 import { ProjectilePhysical } from '../objects/projectile-physical';
-
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
-import { PhysicalBase } from '../physics/physicals/physical-base';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { isCircleIntersecting } from '../physics/functions/is-circle-intersecting';
 import { requestColor, freeColor } from './player-color-service';
+import { PlayerCharacterPhysical } from '../objects/player-character-physical';
+import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
+import { Physical } from '../physics/physicals/physical';
 
 export class Player extends CommandReceiver {
-  private character: CharacterPhysical;
+  private character: PlayerCharacterPhysical;
   private aspectRatio: number = 16 / 9;
   private isActive = true;
 
   private timeSinceLastProjectile = 0;
 
-  private objectsPreviouslyInViewArea: Array<PhysicalBase> = [];
-  private objectsInViewArea: Array<PhysicalBase> = [];
+  private objectsPreviouslyInViewArea: Array<Physical> = [];
+  private objectsInViewArea: Array<Physical> = [];
 
   private pingTime?: number;
   private _latency?: number;
@@ -56,7 +57,10 @@ export class Player extends CommandReceiver {
     [MoveActionCommand.type]: (c: MoveActionCommand) =>
       this.character.handleMovementAction(c),
     [SecondaryActionCommand.type]: (c: SecondaryActionCommand) => {
-      if (this.timeSinceLastProjectile < settings.projectileCreationInterval) {
+      if (
+        !this.character.isAlive ||
+        this.timeSinceLastProjectile < settings.projectileCreationInterval
+      ) {
         return;
       }
 
@@ -88,7 +92,7 @@ export class Player extends CommandReceiver {
 
       const playerBoundingCircle = new Circle(
         playerPosition,
-        CharacterPhysical.boundRadius,
+        PlayerCharacterPhysical.boundRadius,
       );
 
       const playerBoundingBox = getBoundingBoxOfCircle(playerBoundingCircle);
@@ -97,26 +101,25 @@ export class Player extends CommandReceiver {
         return playerPosition;
       }
 
-      rotation += Math.PI / 12;
-      radius += 10;
+      rotation += Math.PI / 8;
+      radius += 30;
     }
   }
 
   constructor(
+    playerInfo: PlayerInformation,
     private readonly objects: PhysicalContainer,
     private readonly socket: SocketIO.Socket,
   ) {
     super();
     const colorIndex = requestColor();
 
-    this.character = new CharacterPhysical(
+    this.character = new PlayerCharacterPhysical(
+      playerInfo.name,
       colorIndex,
       objects,
       this.findEmptyPositionForPlayer(),
     );
-
-    this.objectsPreviouslyInViewArea.push(this.character);
-    this.objectsInViewArea.push(this.character);
 
     this.objects.addObject(this.character);
 
@@ -138,6 +141,7 @@ export class Player extends CommandReceiver {
     this.sendObjects();
     this.timeSinceLastProjectile += deltaTime;
   }
+
   public sendObjects() {
     const viewArea = calculateViewArea(this.character.center, this.aspectRatio, 1.5);
     const bb = new BoundingBox();
@@ -161,7 +165,11 @@ export class Player extends CommandReceiver {
         TransportEvents.ServerToPlayer,
         serialize(
           new DeleteObjectsCommand([
-            ...new Set(noLongerIntersecting.map((p) => p.gameObject.id)),
+            ...new Set(
+              noLongerIntersecting
+                .filter((p) => p.gameObject !== this.character)
+                .map((p) => p.gameObject.id),
+            ),
           ]),
         ),
       );
@@ -172,20 +180,25 @@ export class Player extends CommandReceiver {
         TransportEvents.ServerToPlayer,
         serialize(
           new CreateObjectsCommand([
-            ...new Set(newlyIntersecting.map((p) => p.gameObject)),
+            ...new Set(
+              newlyIntersecting
+                .map((p) => p.gameObject)
+                .filter((g) => g !== this.character),
+            ),
           ]),
         ),
       );
     }
 
-    this.socket.volatile.emit(
+    this.socket.emit(
       TransportEvents.ServerToPlayer,
       serialize(
-        new UpdateObjectsCommand([
-          ...new Set(
-            this.objectsInViewArea.filter((p) => p.canMove).map((p) => p.gameObject),
-          ),
-        ]),
+        new UpdateObjectsCommand(
+          Array.from(new Set(this.objectsInViewArea))
+            .filter((p) => p.canMove)
+            .map((p) => (p as DynamicPhysical).calculateUpdates())
+            .filter((p) => p !== null) as any,
+        ),
       ),
     );
   }

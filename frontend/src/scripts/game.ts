@@ -16,6 +16,7 @@ import {
   TransportEvents,
   SetAspectRatioActionCommand,
   rgb,
+  PlayerInformation,
 } from 'shared';
 import io from 'socket.io-client';
 import { KeyboardListener } from './commands/generators/keyboard-listener';
@@ -32,15 +33,16 @@ import { Polygon } from './shapes/polygon';
 
 export class Game {
   public readonly gameObjects = new GameObjectContainer(this);
-  private readonly canvas = document.querySelector('canvas') as HTMLCanvasElement;
   private renderer!: Renderer;
   private socket!: SocketIOClient.Socket;
   private promises: Promise<[void, void]>;
   private deltaTimeCalculator = new DeltaTimeCalculator();
-  private overlay: HTMLElement = document.querySelector('#overlay') as HTMLDivElement;
 
-  constructor(playerDecision: PlayerDecision) {
-    console.log(playerDecision.server);
+  constructor(
+    private readonly playerDecision: PlayerDecision,
+    private readonly canvas: HTMLCanvasElement,
+    private readonly overlay: HTMLElement,
+  ) {
     this.promises = Promise.all([
       this.setupCommunication(playerDecision.server),
       this.setupRenderer(),
@@ -66,7 +68,9 @@ export class Game {
       this.socket.emit(TransportEvents.Pong);
     });
 
-    this.socket.emit(TransportEvents.PlayerJoining, null);
+    this.socket.emit(TransportEvents.PlayerJoining, {
+      name: this.playerDecision.playerName,
+    } as PlayerInformation);
 
     broadcastCommands(
       [
@@ -98,7 +102,7 @@ export class Game {
         },
         {
           ...CircleLight.descriptor,
-          shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
+          shaderCombinationSteps: [0, 1, 2, 4, 8],
         },
         {
           ...Flashlight.descriptor,

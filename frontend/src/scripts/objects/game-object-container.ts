@@ -5,22 +5,23 @@ import {
   CreateObjectsCommand,
   CreatePlayerCommand,
   DeleteObjectsCommand,
+  GameObject,
   Id,
   UpdateObjectsCommand,
 } from 'shared';
 import { Game } from '../game';
 import { Camera } from './camera';
-import { CharacterView } from './character-view';
+import { PlayerCharacterView } from './player-character-view';
 import { ViewObject } from './view-object';
 
 export class GameObjectContainer extends CommandReceiver {
   protected objects: Map<Id, ViewObject> = new Map();
-  public player!: CharacterView;
+  public player!: PlayerCharacterView;
   public camera!: Camera;
 
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
-      this.player = c.character as CharacterView;
+      this.player = c.character as PlayerCharacterView;
       this.camera = new Camera(this.game);
       this.addObject(this.player);
       this.addObject(this.camera);
@@ -33,13 +34,7 @@ export class GameObjectContainer extends CommandReceiver {
       c.ids.forEach((id: Id) => this.objects.delete(id)),
 
     [UpdateObjectsCommand.type]: (c: UpdateObjectsCommand) => {
-      c.objects.forEach((o) => {
-        this.objects.delete(o.id);
-        this.addObject(o as ViewObject);
-        if (o.id === this.player.id) {
-          this.player = o as CharacterView;
-        }
-      });
+      c.updates.forEach((u) => this.objects.get(u.id)?.update(u.updates));
     },
   };
 

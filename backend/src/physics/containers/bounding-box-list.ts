@@ -1,4 +1,4 @@
-import { DynamicPhysical } from '../dynamic-physical';
+import { DynamicPhysical } from '../physicals/dynamic-physical';
 import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
 
 export class BoundingBoxList {

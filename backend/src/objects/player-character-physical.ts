@@ -1,7 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import {
   id,
-  CharacterBase,
   settings,
   MoveActionCommand,
   serializesTo,
@@ -9,6 +8,7 @@ import {
   last,
   GameObject,
   Circle,
+  PlayerCharacterBase,
 } from 'shared';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { CirclePhysical } from './circle-physical';
@@ -20,10 +20,12 @@ import { forceAtPosition } from '../physics/functions/force-at-position';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { PlanetPhysical } from './planet-physical';
 import { ReactsToCollision } from '../physics/physicals/reacts-to-collision';
+import { UpdateObjectMessage } from 'shared/lib/src/objects/update-object-message';
+import { UpdateGameObjectMessage } from '../update-game-object-message';
 
-@serializesTo(CharacterBase)
-export class CharacterPhysical
-  extends CharacterBase
+@serializesTo(PlayerCharacterBase)
+export class PlayerCharacterPhysical
+  extends PlayerCharacterBase
   implements DynamicPhysical, ReactsToCollision {
   public readonly canCollide = true;
   public readonly canMove = true;
@@ -40,32 +42,32 @@ export class CharacterPhysical
       vec2.create(),
       vec2.add(
         vec2.create(),
-        CharacterPhysical.desiredHeadOffset,
-        CharacterPhysical.desiredLeftFootOffset,
+        PlayerCharacterPhysical.desiredHeadOffset,
+        PlayerCharacterPhysical.desiredLeftFootOffset,
       ),
-      CharacterPhysical.desiredRightFootOffset,
+      PlayerCharacterPhysical.desiredRightFootOffset,
     ),
     1 / 3,
   );
 
   private static readonly headOffset = vec2.subtract(
     vec2.create(),
-    CharacterPhysical.desiredHeadOffset,
-    CharacterPhysical.centerOfMass,
+    PlayerCharacterPhysical.desiredHeadOffset,
+    PlayerCharacterPhysical.centerOfMass,
   );
   private static readonly leftFootOffset = vec2.subtract(
     vec2.create(),
-    CharacterPhysical.desiredLeftFootOffset,
-    CharacterPhysical.centerOfMass,
+    PlayerCharacterPhysical.desiredLeftFootOffset,
+    PlayerCharacterPhysical.centerOfMass,
   );
   private static readonly rightFootOffset = vec2.subtract(
     vec2.create(),
-    CharacterPhysical.desiredRightFootOffset,
-    CharacterPhysical.centerOfMass,
+    PlayerCharacterPhysical.desiredRightFootOffset,
+    PlayerCharacterPhysical.centerOfMass,
   );
 
   public static readonly boundRadius =
-    (CharacterPhysical.headRadius + CharacterPhysical.feetRadius * 2) * 2;
+    (PlayerCharacterPhysical.headRadius + PlayerCharacterPhysical.feetRadius * 2) * 2;
 
   private isDestroyed = false;
   private direction = 0;
@@ -78,6 +80,10 @@ export class CharacterPhysical
   public rightFoot: CirclePhysical;
   public bound: CirclePhysical;
 
+  public get isAlive(): boolean {
+    return !this.isDestroyed;
+  }
+
   private movementActions: Array<MoveActionCommand> = [];
   private lastMovementAction: MoveActionCommand = new MoveActionCommand(
     vec2.create(),
@@ -85,26 +91,28 @@ export class CharacterPhysical
   );
 
   constructor(
+    name: string,
     public readonly colorIndex: number,
     private readonly container: PhysicalContainer,
     startPosition: vec2,
   ) {
-    super(id(), colorIndex);
+    super(id(), name, colorIndex);
+
     this.head = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, CharacterPhysical.headOffset),
-      CharacterPhysical.headRadius,
+      vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.headOffset),
+      PlayerCharacterPhysical.headRadius,
       this,
       container,
     );
     this.leftFoot = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, CharacterPhysical.leftFootOffset),
-      CharacterPhysical.feetRadius,
+      vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.leftFootOffset),
+      PlayerCharacterPhysical.feetRadius,
       this,
       container,
     );
     this.rightFoot = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, CharacterPhysical.rightFootOffset),
-      CharacterPhysical.feetRadius,
+      vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.rightFootOffset),
+      PlayerCharacterPhysical.feetRadius,
       this,
       container,
     );
@@ -114,10 +122,14 @@ export class CharacterPhysical
 
     this.bound = new CirclePhysical(
       vec2.create(),
-      CharacterPhysical.boundRadius,
+      PlayerCharacterPhysical.boundRadius,
       this,
       container,
     );
+  }
+
+  public calculateUpdates(): UpdateObjectMessage {
+    return new UpdateGameObjectMessage(this, ['head', 'leftFoot', 'rightFoot']);
   }
 
   public handleMovementAction(c: MoveActionCommand) {
@@ -189,7 +201,7 @@ export class CharacterPhysical
       getBoundingBoxOfCircle(
         new Circle(
           this.center,
-          CharacterPhysical.boundRadius + settings.maxGravityDistance,
+          PlayerCharacterPhysical.boundRadius + settings.maxGravityDistance,
         ),
       ),
     );
@@ -250,9 +262,9 @@ export class CharacterPhysical
     const bodyCenter = vec2.add(vec2.create(), this.head.center, this.leftFoot.center);
     vec2.add(bodyCenter, bodyCenter, this.rightFoot.center);
     vec2.scale(bodyCenter, bodyCenter, 1 / 3);
-    this.springMove(this.leftFoot, bodyCenter, CharacterPhysical.leftFootOffset);
-    this.springMove(this.rightFoot, bodyCenter, CharacterPhysical.rightFootOffset);
-    this.springMove(this.head, bodyCenter, CharacterPhysical.headOffset);
+    this.springMove(this.leftFoot, bodyCenter, PlayerCharacterPhysical.leftFootOffset);
+    this.springMove(this.rightFoot, bodyCenter, PlayerCharacterPhysical.rightFootOffset);
+    this.springMove(this.head, bodyCenter, PlayerCharacterPhysical.headOffset);
   }
 
   private springMove(object: CirclePhysical, center: vec2, offset: vec2) {

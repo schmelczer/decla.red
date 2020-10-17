@@ -6,6 +6,8 @@ import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { PlanetPhysical } from './planet-physical';
 import { ReactsToCollision } from '../physics/physicals/reacts-to-collision';
+import { UpdateObjectMessage } from 'shared/lib/src/objects/update-object-message';
+import { UpdateGameObjectMessage } from '../update-game-object-message';
 
 @serializesTo(ProjectileBase)
 export class ProjectilePhysical
@@ -15,6 +17,7 @@ export class ProjectilePhysical
   public readonly canMove = true;
   private isDestroyed = false;
   private bounceCount = 0;
+  private _boundingBox?: ImmutableBoundingBox;
 
   public object: CirclePhysical;
 
@@ -28,7 +31,9 @@ export class ProjectilePhysical
     this.object = new CirclePhysical(center, radius, this, container, 0.9);
   }
 
-  private _boundingBox?: ImmutableBoundingBox;
+  public calculateUpdates(): UpdateObjectMessage {
+    return new UpdateGameObjectMessage(this, ['center']);
+  }
 
   public get boundingBox(): ImmutableBoundingBox {
     if (!this._boundingBox) {

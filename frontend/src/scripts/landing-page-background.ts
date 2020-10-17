@@ -18,10 +18,9 @@ const LangindPagePolygon = NoisyPolygonFactory(
 );
 
 export class LandingPageBackground {
-  private readonly canvas = document.querySelector('canvas') as HTMLCanvasElement;
   private renderer!: Renderer;
 
-  constructor() {
+  constructor(private readonly canvas: HTMLCanvasElement) {
     this.start();
   }
 
