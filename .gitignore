@@ -1,6 +1,6 @@
 dist
 lib
 node_modules
-package-lock.json
 .firebase
-lerna-debug.log
+yarm-error.log
+yarn.lock

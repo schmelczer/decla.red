@@ -1,7 +1,6 @@
 const path = require('path');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const nodeExternals = require('webpack-node-externals');
-const { ESBuildPlugin } = require('esbuild-loader');
 const TerserJSPlugin = require('terser-webpack-plugin');
 const webpack = require('webpack');
 
@@ -43,7 +42,6 @@ module.exports = (env, argv) => ({
   },
   plugins: [
     new webpack.BannerPlugin({ banner: '#!/usr/bin/env node', raw: true }),
-    new ESBuildPlugin(),
     new CleanWebpackPlugin({
       protectWebpackAssets: false,
       cleanAfterEveryBuildPatterns: [],
@@ -63,10 +61,8 @@ module.exports = (env, argv) => ({
       },
       {
         test: /\.ts$/,
-        loader: 'esbuild-loader',
-        options: {
-          loader: 'ts',
-          target: 'es2015',
+        use: {
+          loader: 'ts-loader',
         },
         exclude: /node_modules/,
       },

@@ -10,7 +10,7 @@
     "terminal.integrated.shell.linux": "/bin/zsh",
     "files.exclude": {
       "**/node_modules": true,
-      "**/package-lock.json": true,
+      "**/yarn.lock": true,
       "**/dist": true,
       "**/lib": true,
       "**/.firebase": true
@@ -19,7 +19,6 @@
     "editor.detectIndentation": false,
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "eslint.enable": true,
     "editor.codeActionsOnSave": {
       "source.fixAll.eslint": true
     },
@@ -43,11 +42,11 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "workspaceFolder": "/workspace",
   "mounts": [
-    "source=decla-red-root-node_modules-volume2,target=/workspace/node_modules,type=volume",
-    "source=decla-red-frontend-node_modules-volume2,target=/workspace/frontend/node_modules,type=volume",
-    "source=decla-red-backend-node_modules-volume2,target=/workspace/backend/node_modules,type=volume",
-    "source=decla-red-shared-node_modules-volume2,target=/workspace/shared/node_modules,type=volume"
+    "source=decla-red-root-node_modules-volume3,target=/workspace/node_modules,type=volume",
+    "source=decla-red-frontend-node_modules-volume3,target=/workspace/frontend/node_modules,type=volume",
+    "source=decla-red-backend-node_modules-volume3,target=/workspace/backend/node_modules,type=volume",
+    "source=decla-red-shared-node_modules-volume3,target=/workspace/shared/node_modules,type=volume"
   ],
   "forwardPorts": [3000, 8080],
-  "postCreateCommand": "chown node:node ./**/node_modules && npm install && npm run initialize && npm run build"
+  "postCreateCommand": "chown node:node ./**/node_modules && yarn"
 }

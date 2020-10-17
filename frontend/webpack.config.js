@@ -6,7 +6,6 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 const Sass = require('sass');
 const TerserJSPlugin = require('terser-webpack-plugin');
-const { ESBuildPlugin } = require('esbuild-loader');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 
 const PATHS = {
@@ -46,7 +45,6 @@ module.exports = (env, argv) => ({
     ],
   },
   plugins: [
-    new ESBuildPlugin(),
     new HtmlWebpackPlugin({
       xhtml: true,
       template: './src/index.html',
@@ -105,10 +103,8 @@ module.exports = (env, argv) => ({
       },
       {
         test: /\.ts$/,
-        loader: 'esbuild-loader',
-        options: {
-          loader: 'ts',
-          target: 'es2015',
+        use: {
+          loader: 'ts-loader',
         },
         exclude: /node_modules/,
       },

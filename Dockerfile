@@ -1,7 +1,8 @@
 FROM node:14.13.0-alpine3.10 as build
 
 COPY . .
-RUN npm install && npm run initialize && npm run build
+RUN npm i -g concurrently
+RUN yarn && yarn run build
 
 
 FROM node:14.13.0-alpine3.10

@@ -7,6 +7,8 @@ RUN apt update && export DEBIAN_FRONTEND=noninteractive \
 
 RUN git lfs install
 
+RUN npm i -g yarn concurrently
+
 ENV ZSH_CUSTOM /root/.oh-my-zsh/
 RUN git clone https://github.com/reobin/typewritten.git $ZSH_CUSTOM/themes/typewritten
 RUN ln -s "$ZSH_CUSTOM/themes/typewritten/typewritten.zsh-theme" "$ZSH_CUSTOM/themes/typewritten.zsh-theme"
