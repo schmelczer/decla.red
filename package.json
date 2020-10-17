@@ -11,8 +11,11 @@
       "**"
     ]
   },
+  "devDependencies": {
+    "concurrently": "^5.3.0"
+  },
   "scripts": {
-    "build": "yarn workspaces shared run build && yarn workspaces frontend run build && yarn workspaces backend run build",
+    "build": "yarn workspace shared run build && yarn workspace decla.red-frontend run build && yarn workspace declared-server run build",
     "lint": "eslint './**/src/**/*.{js,ts,json}' --fix",
     "frontend": "yarn workspace decla.red-frontend start",
     "shared": "yarn workspace shared start",
