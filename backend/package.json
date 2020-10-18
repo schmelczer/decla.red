@@ -23,6 +23,7 @@
     "webpack-node-externals": "^2.5.2"
   },
   "devDependencies": {
+    "@types/minimist": "^1.2.0",
     "@types/cors": "^2.8.7",
     "@types/express": "^4.17.8",
     "@types/node": "^14.11.2",
