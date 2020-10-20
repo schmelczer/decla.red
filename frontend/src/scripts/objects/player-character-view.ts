@@ -24,8 +24,6 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     super(id, name, colorIndex, team, health, head, leftFoot, rightFoot);
     this.shape = new BlobShape(colorIndex);
 
-    console.log(this.id, 'created');
-
     this.nameElement = document.createElement('div');
     this.nameElement.className = 'player-tag';
     this.nameElement.innerText = this.name;
@@ -43,15 +41,11 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   }
 
   public beforeDestroy(): void {
-    console.log(this.id, 'destroyes');
     this.nameElement.parentElement?.removeChild(this.nameElement);
   }
 
-  private elementAdded = false;
   public draw(renderer: Renderer, overlay: HTMLElement): void {
-    if (!this.elementAdded) {
-      this.elementAdded = true;
-      console.log(this.id, 'add', this.nameElement, this.nameElement.parentElement);
+    if (!this.nameElement.parentElement) {
       overlay.appendChild(this.nameElement);
     }
 

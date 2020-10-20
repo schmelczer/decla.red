@@ -22,7 +22,6 @@ export class GameObjectContainer extends CommandReceiver {
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
       this.player = c.character as PlayerCharacterView;
-      console.log(c.character);
       this.camera = new Camera(this.game);
       this.addObject(this.player);
       this.addObject(this.camera);
