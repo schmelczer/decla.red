@@ -18,6 +18,10 @@ import { handleFullScreen } from './scripts/handle-full-screen';
 import { Game } from './scripts/game';
 import { PlayerCharacterView } from './scripts/objects/player-character-view';
 
+import '../static/settings.svg';
+import '../static/minimize.svg';
+import '../static/maximize.svg';
+
 glMatrix.setMatrixArrayType(Array);
 
 overrideDeserialization(CharacterBase, CharacterView);
