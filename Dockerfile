@@ -7,8 +7,9 @@ RUN yarn && yarn run build
 
 FROM node:14.13.0-alpine3.10
 
+ENV NODE_ENV=production
 COPY backend/package.json .
-RUN yarn
+RUN npm i --production
 
 COPY --from=build backend/dist/main.js main.js 
 
