@@ -7,6 +7,7 @@ import {
   NoisyPolygonFactory,
   Renderer,
   renderNoise,
+  runAnimation,
   WrapOptions,
 } from 'sdf-2d';
 import { settings, rgb, PlanetBase, Random } from 'shared';
@@ -18,17 +19,17 @@ const LangindPagePolygon = NoisyPolygonFactory(
 );
 
 export class LandingPageBackground {
-  private renderer!: Renderer;
+  private isActive = true;
 
-  constructor(private readonly canvas: HTMLCanvasElement) {
-    this.start();
+  constructor(canvas: HTMLCanvasElement) {
+    this.start(canvas);
   }
 
-  private async start(): Promise<void> {
+  private async start(canvas: HTMLCanvasElement): Promise<void> {
     const noiseTexture = await renderNoise([256, 256], 1.2, 2);
 
-    this.renderer = await compile(
-      this.canvas,
+    runAnimation(
+      canvas,
       [
         {
           ...LangindPagePolygon.descriptor,
@@ -39,45 +40,36 @@ export class LandingPageBackground {
           shaderCombinationSteps: [0, 2],
         },
       ],
+      this.gameLoop.bind(this),
       {
         shadowTraceCount: 16,
         paletteSize: 1,
       },
-    );
-
-    this.renderer.setRuntimeSettings({
-      ambientLight: rgb(0, 0, 0),
-      lightCutoffDistance: settings.lightCutoffDistance,
-      textures: {
-        noiseTexture: {
-          source: noiseTexture,
-          overrides: {
-            maxFilter: FilteringOptions.LINEAR,
-            wrapS: WrapOptions.MIRRORED_REPEAT,
-            wrapT: WrapOptions.MIRRORED_REPEAT,
+      {
+        ambientLight: rgb(0, 0, 0),
+        lightCutoffDistance: settings.lightCutoffDistance,
+        textures: {
+          noiseTexture: {
+            source: noiseTexture,
+            overrides: {
+              maxFilter: FilteringOptions.LINEAR,
+              wrapS: WrapOptions.MIRRORED_REPEAT,
+              wrapT: WrapOptions.MIRRORED_REPEAT,
+            },
           },
         },
       },
-    });
-
-    requestAnimationFrame(this.gameLoop.bind(this));
+    );
   }
 
-  public destroy() {
-    this.renderer.destroy();
-  }
-
-  private gameLoop(time: DOMHighResTimeStamp) {
+  private gameLoop(renderer: Renderer, time: DOMHighResTimeStamp, _: number): boolean {
     Random.seed = 42;
 
-    this.renderer.setViewArea(
-      vec2.fromValues(0, this.renderer.canvasSize.y),
-      this.renderer.canvasSize,
-    );
+    renderer.setViewArea(vec2.fromValues(0, renderer.canvasSize.y), renderer.canvasSize);
 
     const topPlanetPosition = vec2.fromValues(
-      0.7 * this.renderer.canvasSize.x,
-      0.7 * this.renderer.canvasSize.y,
+      0.7 * renderer.canvasSize.x,
+      0.7 * renderer.canvasSize.y,
     );
 
     const topPlanet = new LangindPagePolygon(
@@ -93,8 +85,8 @@ export class LandingPageBackground {
     (topPlanet as any).randomOffset = 0.5 + time / 3500;
 
     const bottomPlanetPosition = vec2.fromValues(
-      0.3 * this.renderer.canvasSize.x,
-      0.3 * this.renderer.canvasSize.y,
+      0.3 * renderer.canvasSize.x,
+      0.3 * renderer.canvasSize.y,
     );
 
     const bottomPlanet = new LangindPagePolygon(
@@ -118,11 +110,12 @@ export class LandingPageBackground {
     const planetDirection = vec2.normalize(planetDistance, planetDistance);
     const planetAngle = Math.atan2(planetDirection.y, planetDirection.x);
 
-    this.renderer.addDrawable(topPlanet);
-    this.renderer.addDrawable(bottomPlanet);
-    this.renderer.addDrawable(
+    renderer.addDrawable(topPlanet);
+    renderer.addDrawable(bottomPlanet);
+    renderer.addDrawable(
       new CircleLight(
         this.calculateLightPosition(
+          renderer,
           planetAngle,
           planetDistanceLength * 1.2,
           -time / 3000,
@@ -132,9 +125,10 @@ export class LandingPageBackground {
       ),
     );
 
-    this.renderer.addDrawable(
+    renderer.addDrawable(
       new CircleLight(
         this.calculateLightPosition(
+          renderer,
           planetAngle,
           planetDistanceLength * 1.2,
           time / 2000 + Math.PI,
@@ -144,21 +138,28 @@ export class LandingPageBackground {
       ),
     );
 
-    this.renderer.renderDrawables();
-
-    requestAnimationFrame(this.gameLoop.bind(this));
+    return this.isActive;
   }
 
-  private calculateLightPosition(angle: number, length: number, t: number): vec2 {
+  private calculateLightPosition(
+    renderer: Renderer,
+    angle: number,
+    length: number,
+    t: number,
+  ): vec2 {
     const lightPosition = vec2.fromValues(
       length * Math.sin(t),
       length * Math.sin(t) * Math.cos(t),
     );
 
-    const canvasCenter = vec2.scale(vec2.create(), this.renderer.canvasSize, 0.5);
+    const canvasCenter = vec2.scale(vec2.create(), renderer.canvasSize, 0.5);
 
     vec2.add(lightPosition, lightPosition, canvasCenter);
     vec2.rotate(lightPosition, lightPosition, canvasCenter, angle);
     return lightPosition;
+  }
+
+  public destroy() {
+    this.isActive = false;
   }
 }

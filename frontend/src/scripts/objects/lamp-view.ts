@@ -16,13 +16,11 @@ export class LampView extends LampBase implements ViewObject {
     this.light = new CircleLight(center, color, lightness);
   }
 
-  public update(message: Array<UpdateMessage>): void {
-    throw new Error('Method not implemented.');
-  }
-
   public step(deltaTimeInMilliseconds: number): void {}
 
-  public draw(renderer: Renderer): void {
+  public beforeDestroy(): void {}
+
+  public draw(renderer: Renderer, overlay: HTMLElement): void {
     renderer.addDrawable(this.light);
   }
 }

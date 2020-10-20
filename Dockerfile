@@ -13,4 +13,6 @@ RUN npm install --production
 COPY --from=build backend/dist/main.js main.js 
 
 EXPOSE 3000
-CMD [ "node", "main.js" ]
+
+CMD ["--port=3000", "--name=Docker server", "--seed=500"]
+ENTRYPOINT [ "node", "main.js" ]

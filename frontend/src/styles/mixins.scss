@@ -1,0 +1,11 @@
+@mixin square($size) {
+  width: $size;
+  height: $size;
+}
+
+@mixin background {
+  backdrop-filter: blur(24px);
+  @supports not (backdrop-filter: blur(24px)) {
+    background-color: rgba(0, 0, 0, 0.15);
+  }
+}

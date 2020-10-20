@@ -29,7 +29,7 @@ export class GameServer {
 
     io.on('connection', (socket: SocketIO.Socket) => {
       socket.on(TransportEvents.PlayerJoining, (playerInfo: PlayerInformation) => {
-        const player = new Player(playerInfo, this.objects, socket);
+        const player = new Player(playerInfo, this.players, this.objects, socket);
         this.players.push(player);
         socket.on(TransportEvents.PlayerToServer, (json: string) => {
           const command = deserialize(json);
@@ -61,7 +61,7 @@ export class GameServer {
       this.deltaTimes.sort((a, b) => a - b);
       console.log(
         `Median physics time: ${this.deltaTimes[
-          framesBetweenDeltaTimeCalculation
+          Math.floor(framesBetweenDeltaTimeCalculation / 2)
         ].toFixed(2)} ms`,
       );
       console.log(

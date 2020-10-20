@@ -22,6 +22,7 @@ export class GameObjectContainer extends CommandReceiver {
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
       this.player = c.character as PlayerCharacterView;
+      console.log(c.character);
       this.camera = new Camera(this.game);
       this.addObject(this.player);
       this.addObject(this.camera);
@@ -31,7 +32,7 @@ export class GameObjectContainer extends CommandReceiver {
       c.objects.forEach((o) => this.addObject(o as ViewObject)),
 
     [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
-      c.ids.forEach((id: Id) => this.objects.delete(id)),
+      c.ids.forEach((id: Id) => this.deleteObject(id)),
 
     [UpdateObjectsCommand.type]: (c: UpdateObjectsCommand) => {
       c.updates.forEach((u) => this.objects.get(u.id)?.update(u.updates));
@@ -50,11 +51,17 @@ export class GameObjectContainer extends CommandReceiver {
     this.objects.forEach((o) => o.step(delta));
   }
 
-  public drawObjects(renderer: Renderer) {
-    this.objects.forEach((o) => o.draw(renderer));
+  public drawObjects(renderer: Renderer, overlay: HTMLElement) {
+    this.objects.forEach((o) => o.draw(renderer, overlay));
   }
 
   private addObject(object: ViewObject) {
     this.objects.set(object.id, object);
+  }
+
+  private deleteObject(id: Id) {
+    const object = this.objects.get(id);
+    object?.beforeDestroy();
+    this.objects.delete(id);
   }
 }

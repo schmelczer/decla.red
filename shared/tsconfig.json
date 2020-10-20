@@ -13,5 +13,6 @@
     "module": "commonjs",
     "composite": true,
     "lib": ["dom", "es2017"]
-  }
+  },
+  "include": ["src/**/*.ts", "src/*.ts"]
 }

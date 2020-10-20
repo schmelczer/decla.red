@@ -1,9 +1,18 @@
 @import './vars.scss';
+@import './mixins.scss';
 
 form {
-  backdrop-filter: blur(24px);
-  background-color: rgba(0, 0, 0, 0.15);
+  @include background;
+
   padding: $small-padding / 2 $small-padding $small-padding $small-padding;
+  border-radius: $border-radius;
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: white;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 
   input,
   label {
@@ -57,6 +66,7 @@ form {
         display: block;
         transition: $animation-time;
         color: $gray;
+        font-size: 1.1rem;
       }
 
       input:focus,
@@ -78,6 +88,7 @@ form {
     input[type='radio'] {
       width: 0;
       height: 0;
+      appearance: none;
 
       + label {
         display: block;
@@ -100,25 +111,23 @@ form {
       }
     }
   }
+}
 
-  button {
-    border: none;
-    background: none;
-    font-size: 2rem;
-    font-family: 'Comfortaa', sans-serif;
-    cursor: pointer;
-    display: block;
-    margin: auto;
-    padding-top: $medium-padding;
-    transition: transform $animation-time;
+button {
+  border: none;
+  background: none;
+  font-size: 2rem;
+  font-family: 'Comfortaa', sans-serif;
+  cursor: pointer;
+  display: block;
+  margin: auto;
+  padding-top: $medium-padding;
+  transition: transform $animation-time;
 
-    &:hover,
-    &:focus {
-      outline: none;
-      color: $accent;
-      transform: translateY(-8px);
-    }
+  &:hover,
+  &:focus {
+    outline: none;
+    color: $accent;
+    transform: translateY(-8px);
   }
-
-  border-radius: $border-radius;
 }

@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import { CharacterBase, Circle, Id, UpdateMessage } from 'shared';
+import { CharacterBase, CharacterTeam, Circle, Id, UpdateMessage } from 'shared';
 
 import { BlobShape } from '../shapes/blob-shape';
 import { ViewObject } from './view-object';
@@ -11,25 +11,25 @@ export class CharacterView extends CharacterBase implements ViewObject {
   constructor(
     id: Id,
     colorIndex: number,
+    team: CharacterTeam,
+    health: number,
     head?: Circle,
     leftFoot?: Circle,
     rightFoot?: Circle,
   ) {
-    super(id, colorIndex, head, leftFoot, rightFoot);
+    super(id, colorIndex, team, health, head, leftFoot, rightFoot);
     this.shape = new BlobShape(colorIndex);
-  }
-
-  public update(updates: Array<UpdateMessage>) {
-    updates.forEach((u) => ((this as any)[u.key] = u.value));
   }
 
   public get position(): vec2 {
     return this.head!.center;
   }
 
+  public beforeDestroy(): void {}
+
   public step(deltaTimeInMilliseconds: number): void {}
 
-  public draw(renderer: Renderer): void {
+  public draw(renderer: Renderer, overlay: HTMLElement): void {
     this.shape.setCircles([this.head!, this.leftFoot!, this.rightFoot!]);
     renderer.addDrawable(this.shape);
   }

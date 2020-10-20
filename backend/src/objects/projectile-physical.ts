@@ -1,5 +1,12 @@
 import { vec2 } from 'gl-matrix';
-import { id, settings, serializesTo, ProjectileBase, GameObject } from 'shared';
+import {
+  id,
+  settings,
+  serializesTo,
+  ProjectileBase,
+  GameObject,
+  CharacterTeam,
+} from 'shared';
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { CirclePhysical } from './circle-physical';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
@@ -8,6 +15,7 @@ import { PlanetPhysical } from './planet-physical';
 import { ReactsToCollision } from '../physics/physicals/reacts-to-collision';
 import { UpdateObjectMessage } from 'shared/lib/src/objects/update-object-message';
 import { UpdateGameObjectMessage } from '../update-game-object-message';
+import { PlayerCharacterPhysical } from './player-character-physical';
 
 @serializesTo(ProjectileBase)
 export class ProjectilePhysical
@@ -15,6 +23,7 @@ export class ProjectilePhysical
   implements DynamicPhysical, ReactsToCollision {
   public readonly canCollide = true;
   public readonly canMove = true;
+
   private isDestroyed = false;
   private bounceCount = 0;
   private _boundingBox?: ImmutableBoundingBox;
@@ -24,15 +33,18 @@ export class ProjectilePhysical
   constructor(
     center: vec2,
     radius: number,
+    colorIndex: number,
+    public strength: number,
+    public team: CharacterTeam,
     private velocity: vec2,
     readonly container: PhysicalContainer,
   ) {
-    super(id(), center, radius);
+    super(id(), center, radius, colorIndex, strength);
     this.object = new CirclePhysical(center, radius, this, container, 0.9);
   }
 
   public calculateUpdates(): UpdateObjectMessage {
-    return new UpdateGameObjectMessage(this, ['center']);
+    return new UpdateGameObjectMessage(this, ['center', 'strength']);
   }
 
   public get boundingBox(): ImmutableBoundingBox {
@@ -59,12 +71,20 @@ export class ProjectilePhysical
   }
 
   public onCollision(other: GameObject) {
-    if (this.bounceCount++ === settings.projectileMaxBounceCount) {
+    if (
+      !(other instanceof PlayerCharacterPhysical && other.team === this.team) &&
+      this.bounceCount++ === settings.projectileMaxBounceCount
+    ) {
       this.destroy();
     }
   }
 
   public step(deltaTime: number) {
+    if ((this.strength -= settings.projectileFadeSpeed * deltaTime) < 0) {
+      this.destroy();
+      return;
+    }
+
     const gravity = vec2.create();
     const intersecting = this.container.findIntersecting(this.boundingBox);
     intersecting.forEach((i) => {

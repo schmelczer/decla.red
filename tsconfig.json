@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "outDir": "dist",
     "target": "es6",
     "esModuleInterop": true,
     "strict": true,
@@ -10,6 +9,5 @@
     "module": "commonjs",
     "composite": true,
     "lib": ["dom", "es2017"]
-  },
-  "include": ["src/**/*.ts", "src/*.ts"]
+  }
 }

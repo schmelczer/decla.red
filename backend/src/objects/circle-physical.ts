@@ -30,10 +30,6 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
     this.recalculateBoundingBox();
   }
 
-  public calculateUpdates(): UpdateObjectMessage | null {
-    return null;
-  }
-
   public get boundingBox(): BoundingBoxBase {
     return this._boundingBox;
   }

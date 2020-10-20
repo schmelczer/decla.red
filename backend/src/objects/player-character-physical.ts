@@ -9,6 +9,7 @@ import {
   GameObject,
   Circle,
   PlayerCharacterBase,
+  CharacterTeam,
 } from 'shared';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { CirclePhysical } from './circle-physical';
@@ -32,6 +33,8 @@ export class PlayerCharacterPhysical
 
   private static readonly headRadius = 50;
   private static readonly feetRadius = 20;
+  private projectileStrength = settings.playerMaxStrength;
+
   // offsets are meassured from (0, 0)
   private static readonly desiredHeadOffset = vec2.fromValues(0, 65);
   private static readonly desiredLeftFootOffset = vec2.fromValues(-20, 0);
@@ -93,10 +96,11 @@ export class PlayerCharacterPhysical
   constructor(
     name: string,
     public readonly colorIndex: number,
+    team: CharacterTeam,
     private readonly container: PhysicalContainer,
     startPosition: vec2,
   ) {
-    super(id(), name, colorIndex);
+    super(id(), name, colorIndex, team, settings.playerMaxHealth);
 
     this.head = new CirclePhysical(
       vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.headOffset),
@@ -129,7 +133,7 @@ export class PlayerCharacterPhysical
   }
 
   public calculateUpdates(): UpdateObjectMessage {
-    return new UpdateGameObjectMessage(this, ['head', 'leftFoot', 'rightFoot']);
+    return new UpdateGameObjectMessage(this, ['head', 'leftFoot', 'rightFoot', 'health']);
   }
 
   public handleMovementAction(c: MoveActionCommand) {
@@ -137,10 +141,42 @@ export class PlayerCharacterPhysical
   }
 
   public onCollision(other: GameObject) {
-    if (other instanceof ProjectilePhysical) {
+    if (other instanceof ProjectilePhysical && other.team !== this.team) {
       other.destroy();
-      this.destroy();
+      this.health -= other.strength;
+      if (this.health <= 0) {
+        this.destroy();
+      }
     }
+  }
+
+  public shootTowards(position: vec2) {
+    if (!this.isAlive) {
+      return;
+    }
+
+    const start = vec2.clone(this.center);
+    const direction = vec2.subtract(vec2.create(), position, start);
+    vec2.normalize(direction, direction);
+    vec2.add(
+      start,
+      start,
+      vec2.scale(vec2.create(), direction, settings.projectileStartOffset),
+    );
+    const velocity = vec2.scale(direction, direction, settings.projectileSpeed);
+    vec2.add(velocity, velocity, this.velocity);
+    const strength = this.projectileStrength / 2;
+    this.projectileStrength -= strength;
+    const projectile = new ProjectilePhysical(
+      start,
+      20,
+      this.colorIndex,
+      strength,
+      this.team,
+      velocity,
+      this.container,
+    );
+    this.container.addObject(projectile);
   }
 
   public get boundingBox(): BoundingBoxBase {
@@ -197,6 +233,13 @@ export class PlayerCharacterPhysical
       this.currentPlanet = undefined;
     }
 
+    this.projectileStrength = Math.min(
+      settings.playerMaxStrength,
+      this.projectileStrength + settings.playerStrengthRegenerationPerSeconds * deltaTime,
+    );
+
+    this.currentPlanet?.takeControl(this.team, deltaTime);
+
     const intersectingWithForcefield = this.container.findIntersecting(
       getBoundingBoxOfCircle(
         new Circle(
@@ -205,7 +248,13 @@ export class PlayerCharacterPhysical
         ),
       ),
     );
-    const actualGravity = forceAtPosition(this.center, intersectingWithForcefield);
+    const feetCenter = vec2.add(
+      vec2.create(),
+      this.leftFoot.center,
+      this.rightFoot.center,
+    );
+    vec2.scale(feetCenter, feetCenter, 0.5);
+    const actualGravity = forceAtPosition(feetCenter, intersectingWithForcefield);
 
     const direction = this.averageAndResetMovementActions();
     const movementForce = vec2.scale(direction, direction, settings.maxAcceleration);
@@ -269,7 +318,7 @@ export class PlayerCharacterPhysical
 
   private springMove(object: CirclePhysical, center: vec2, offset: vec2) {
     // todo: make time-independent
-    const springConstant = 0.35;
+    const springConstant = 0.55;
 
     const desiredPosition = vec2.add(vec2.create(), center, offset);
     vec2.rotate(desiredPosition, desiredPosition, center, this.direction);

@@ -9,23 +9,28 @@ import {
   serializesTo,
   settings,
   PlanetBase,
+  CharacterTeam,
+  UpdateObjectMessage,
 } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { StaticPhysical } from '../physics/physicals/static-physical';
+import { UpdateGameObjectMessage } from '../update-game-object-message';
 
 @serializesTo(PlanetBase)
 export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   public readonly canCollide = true;
   public readonly canMove = false;
-  private center: vec2;
+
+  public static neutralPlanetCount = 0;
+  public static declaPlanetCount = 0;
+  public static redPlanetCount = 0;
 
   private _boundingBox?: ImmutableBoundingBox;
 
   constructor(vertices: Array<vec2>) {
     super(id(), vertices);
-    this.center = vertices.reduce((sum, v) => vec2.add(sum, sum, v), vec2.create());
-    vec2.scale(this.center, this.center, 1 / vertices.length);
+    PlanetPhysical.neutralPlanetCount++;
   }
 
   public distance(target: vec2): number {
@@ -60,6 +65,47 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
     }
 
     return sign * d;
+  }
+
+  public calculateUpdates(): UpdateObjectMessage {
+    return new UpdateGameObjectMessage(this, ['ownership']);
+  }
+
+  public takeControl(team: CharacterTeam, deltaTime: number) {
+    const previousOwnership = this.ownership;
+    if (team === CharacterTeam.decla) {
+      this.ownership -= (0.5 / settings.takeControlTimeInSeconds) * deltaTime;
+      if (
+        previousOwnership >= 0.5 - settings.planetControlThreshold &&
+        this.ownership < 0.5 - settings.planetControlThreshold
+      ) {
+        PlanetPhysical.declaPlanetCount++;
+        PlanetPhysical.neutralPlanetCount--;
+      } else if (
+        previousOwnership > 0.5 + settings.planetControlThreshold &&
+        previousOwnership <= 0.5 + settings.planetControlThreshold
+      ) {
+        PlanetPhysical.redPlanetCount--;
+        PlanetPhysical.neutralPlanetCount++;
+      }
+    } else {
+      this.ownership += (0.5 / settings.takeControlTimeInSeconds) * deltaTime;
+      if (
+        previousOwnership < 0.5 + settings.planetControlThreshold &&
+        this.ownership >= 0.5 + settings.planetControlThreshold
+      ) {
+        PlanetPhysical.redPlanetCount++;
+        PlanetPhysical.neutralPlanetCount--;
+      } else if (
+        previousOwnership <= 0.5 - settings.planetControlThreshold &&
+        previousOwnership > 0.5 + settings.planetControlThreshold
+      ) {
+        PlanetPhysical.declaPlanetCount--;
+        PlanetPhysical.neutralPlanetCount++;
+      }
+    }
+
+    this.ownership = clamp01(this.ownership);
   }
 
   public get boundingBox(): ImmutableBoundingBox {

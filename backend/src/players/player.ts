@@ -12,30 +12,32 @@ import {
   SetAspectRatioActionCommand,
   calculateViewArea,
   SecondaryActionCommand,
+  PlayerDiedCommand,
   settings,
   Circle,
   PlayerInformation,
+  CharacterTeam,
+  UpdatePlanetOwnershipCommand,
+  GameObject,
+  Command,
+  UpdateObjectMessage,
 } from 'shared';
 import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
-import { ProjectilePhysical } from '../objects/projectile-physical';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { isCircleIntersecting } from '../physics/functions/is-circle-intersecting';
-import { requestColor, freeColor } from './player-color-service';
 import { PlayerCharacterPhysical } from '../objects/player-character-physical';
-import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { Physical } from '../physics/physicals/physical';
+import { freeTeam, requestTeam } from './player-team-service';
+import { PlanetPhysical } from '../objects/planet-physical';
 
 export class Player extends CommandReceiver {
-  private character: PlayerCharacterPhysical;
+  private character?: PlayerCharacterPhysical | null;
   private aspectRatio: number = 16 / 9;
   private isActive = true;
 
-  private timeSinceLastProjectile = 0;
-
-  private objectsPreviouslyInViewArea: Array<Physical> = [];
-  private objectsInViewArea: Array<Physical> = [];
+  private objectsPreviouslyInViewArea: Array<GameObject> = [];
 
   private pingTime?: number;
   private _latency?: number;
@@ -55,35 +57,20 @@ export class Player extends CommandReceiver {
     [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) =>
       (this.aspectRatio = v.aspectRatio),
     [MoveActionCommand.type]: (c: MoveActionCommand) =>
-      this.character.handleMovementAction(c),
+      this.character?.handleMovementAction(c),
     [SecondaryActionCommand.type]: (c: SecondaryActionCommand) => {
-      if (
-        !this.character.isAlive ||
-        this.timeSinceLastProjectile < settings.projectileCreationInterval
-      ) {
-        return;
-      }
-
-      const start = vec2.clone(this.character.center);
-      const direction = vec2.subtract(vec2.create(), c.position, start);
-      vec2.normalize(direction, direction);
-      vec2.add(
-        start,
-        start,
-        vec2.scale(vec2.create(), direction, settings.projectileStartOffset),
-      );
-      const velocity = vec2.scale(direction, direction, settings.projectileSpeed);
-      vec2.add(velocity, velocity, this.character.velocity);
-      const projectile = new ProjectilePhysical(start, 20, velocity, this.objects);
-      this.objects.addObject(projectile);
-
-      this.timeSinceLastProjectile = 0;
+      this.character?.shootTowards(c.position);
     },
   };
 
   private findEmptyPositionForPlayer(): vec2 {
-    let rotation = 0;
-    let radius = 0;
+    let possibleCenter = this.players.find((p) => p.team === this.team)?.center;
+    if (!possibleCenter) {
+      possibleCenter = vec2.create();
+    }
+
+    let rotation = Math.atan2(possibleCenter.y, possibleCenter.x);
+    let radius = vec2.length(possibleCenter);
     for (;;) {
       const playerPosition = vec2.fromValues(
         radius * Math.cos(rotation),
@@ -106,27 +93,21 @@ export class Player extends CommandReceiver {
     }
   }
 
+  public readonly team: CharacterTeam;
+  private colorIndex: number;
+
   constructor(
-    playerInfo: PlayerInformation,
+    private readonly playerInfo: PlayerInformation,
+    private readonly players: Array<Player>,
     private readonly objects: PhysicalContainer,
     private readonly socket: SocketIO.Socket,
   ) {
     super();
-    const colorIndex = requestColor();
+    const { team, colorIndex } = requestTeam();
+    this.team = team;
+    this.colorIndex = colorIndex;
 
-    this.character = new PlayerCharacterPhysical(
-      playerInfo.name,
-      colorIndex,
-      objects,
-      this.findEmptyPositionForPlayer(),
-    );
-
-    this.objects.addObject(this.character);
-
-    socket.emit(
-      TransportEvents.ServerToPlayer,
-      serialize(new CreatePlayerCommand(this.character)),
-    );
+    this.createCharacter();
 
     socket.on(
       TransportEvents.Pong,
@@ -134,78 +115,99 @@ export class Player extends CommandReceiver {
     );
 
     this.measureLatency();
-    this.sendObjects();
+    this.step(0);
   }
 
+  private createCharacter() {
+    this.character = new PlayerCharacterPhysical(
+      this.playerInfo.name.slice(0, 20),
+      this.colorIndex,
+      this.team,
+      this.objects,
+      this.findEmptyPositionForPlayer(),
+    );
+
+    this.objects.addObject(this.character);
+    this.objectsPreviouslyInViewArea.push(this.character);
+
+    this.socket.emit(
+      TransportEvents.ServerToPlayer,
+      serialize(new CreatePlayerCommand(this.character)),
+    );
+  }
+
+  private center: vec2 = vec2.create();
+  private timeUntilRespawn = 0;
   public step(deltaTime: number) {
-    this.sendObjects();
-    this.timeSinceLastProjectile += deltaTime;
-  }
+    if (this.character) {
+      this.center = this.character?.center;
 
-  public sendObjects() {
-    const viewArea = calculateViewArea(this.character.center, this.aspectRatio, 1.5);
+      if (!this.character.isAlive) {
+        this.socket.emit(
+          TransportEvents.ServerToPlayer,
+          serialize(new PlayerDiedCommand(settings.playerDiedTimeout)),
+        );
+        this.character = null;
+        this.timeUntilRespawn = settings.playerDiedTimeout;
+      }
+    } else if ((this.timeUntilRespawn -= deltaTime) < 0) {
+      this.createCharacter();
+    }
+
+    const viewArea = calculateViewArea(this.center, this.aspectRatio, 1.5);
     const bb = new BoundingBox();
     bb.topLeft = viewArea.topLeft;
     bb.size = viewArea.size;
 
-    this.objectsInViewArea = this.objects.findIntersecting(bb);
+    const objectsInViewArea = Array.from(
+      new Set(this.objects.findIntersecting(bb).map((o) => o.gameObject)),
+    );
 
-    const newlyIntersecting = this.objectsInViewArea.filter(
+    const newlyIntersecting = objectsInViewArea.filter(
       (o) => !this.objectsPreviouslyInViewArea.includes(o),
     );
 
     const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
-      (o) => !this.objectsInViewArea.includes(o),
+      (o) => !objectsInViewArea.includes(o),
     );
 
-    this.objectsPreviouslyInViewArea = this.objectsInViewArea;
+    this.objectsPreviouslyInViewArea = objectsInViewArea;
 
     if (noLongerIntersecting.length > 0) {
-      this.socket.emit(
-        TransportEvents.ServerToPlayer,
-        serialize(
-          new DeleteObjectsCommand([
-            ...new Set(
-              noLongerIntersecting
-                .filter((p) => p.gameObject !== this.character)
-                .map((p) => p.gameObject.id),
-            ),
-          ]),
-        ),
-      );
+      this.sendToPlayer(new DeleteObjectsCommand(noLongerIntersecting.map((g) => g.id)));
     }
 
     if (newlyIntersecting.length > 0) {
-      this.socket.emit(
-        TransportEvents.ServerToPlayer,
-        serialize(
-          new CreateObjectsCommand([
-            ...new Set(
-              newlyIntersecting
-                .map((p) => p.gameObject)
-                .filter((g) => g !== this.character),
-            ),
-          ]),
-        ),
-      );
+      this.sendToPlayer(new CreateObjectsCommand(newlyIntersecting));
     }
 
-    this.socket.emit(
-      TransportEvents.ServerToPlayer,
-      serialize(
-        new UpdateObjectsCommand(
-          Array.from(new Set(this.objectsInViewArea))
-            .filter((p) => p.canMove)
-            .map((p) => (p as DynamicPhysical).calculateUpdates())
-            .filter((p) => p !== null) as any,
-        ),
+    this.sendToPlayer(
+      new UpdateObjectsCommand(
+        this.objectsPreviouslyInViewArea
+          .map((g) => g.calculateUpdates())
+          .filter((u) => u) as Array<UpdateObjectMessage>,
+      ),
+    );
+
+    this.sendToPlayer(
+      new UpdatePlanetOwnershipCommand(
+        PlanetPhysical.declaPlanetCount,
+        PlanetPhysical.redPlanetCount,
+        PlanetPhysical.neutralPlanetCount,
       ),
     );
   }
 
+  private sendToPlayer(command: Command) {
+    this.socket.emit(TransportEvents.ServerToPlayer, serialize(command));
+  }
+
   public destroy() {
     this.isActive = false;
-    freeColor(this.character.colorIndex);
-    this.character.destroy();
+    freeTeam(this.team);
+
+    if (this.character) {
+      this.character.destroy();
+    }
   }
 }

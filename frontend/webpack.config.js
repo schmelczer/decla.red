@@ -81,6 +81,16 @@ module.exports = (env, argv) => ({
         },
       },
       {
+        test: /\.svg$/,
+        use: {
+          loader: 'file-loader',
+          query: {
+            outputPath: '/static',
+            name: '[name].[ext]',
+          },
+        },
+      },
+      {
         test: /\.scss$/,
         use: [
           MiniCssExtractPlugin.loader,

@@ -7,8 +7,16 @@ import { GameObject } from '../game-object';
 
 @serializable
 export class PlanetBase extends GameObject {
-  constructor(id: Id, public readonly vertices: Array<vec2>) {
+  public readonly center: vec2;
+
+  constructor(
+    id: Id,
+    public readonly vertices: Array<vec2>,
+    public ownership: number = 0.5,
+  ) {
     super(id);
+    this.center = vertices.reduce((sum, v) => vec2.add(sum, sum, v), vec2.create());
+    vec2.scale(this.center, this.center, 1 / vertices.length);
   }
 
   public static createPlanetVertices(
@@ -16,7 +24,7 @@ export class PlanetBase extends GameObject {
     width: number,
     height: number,
     randomness: number,
-    vertexCount = settings.polygonEdgeCount,
+    vertexCount = settings.planetEdgeCount,
   ): Array<vec2> {
     const vertices = [];
 

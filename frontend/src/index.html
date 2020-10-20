@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width,initial-scale=1,viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, 
+      user-scalable=0"
     />
     <meta name="theme-color" content="#b7455e" />
 
@@ -15,10 +16,12 @@
   </head>
 
   <body>
+    <noscript>Javascript is required for this website.</noscript>
+
     <canvas></canvas>
     <div id="overlay"></div>
 
-    <article id="landing-ui">
+    <section id="landing-ui">
       <h1>decla.<span class="red">red</span></h1>
       <form id="join-game-form">
         <fieldset class="content">
@@ -41,8 +44,28 @@
           <button id="join-game" type="submit">Join</button>
         </fieldset>
       </form>
-    </article>
+    </section>
 
-    <noscript>Javascript is required for this website.</noscript>
+    <img id="open-settings" class="icon" alt="open-settings" src="static/settings.svg" />
+
+    <section id="settings">
+      <h2>Settings</h2>
+      <input id="enable-relative-movement" checked type="checkbox" />
+      <label for="enable-relative-movement">Enable relative movement</label>
+      <button id="close-settings">Back</button>
+    </section>
+
+    <img
+      class="full-screen-controllers icon"
+      id="minimize"
+      alt="minimize-application"
+      src="static/minimize.svg"
+    />
+    <img
+      class="full-screen-controllers icon"
+      id="maximize"
+      alt="maximize-application"
+      src="static/maximize.svg"
+    />
   </body>
 </html>

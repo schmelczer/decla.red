@@ -1,5 +1,5 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { Random, settings, PlanetBase } from 'shared';
+import { Random, settings, PlanetBase, hsl } from 'shared';
 import { LampPhysical } from '../objects/lamp-physical';
 import { PlanetPhysical } from '../objects/planet-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
@@ -17,7 +17,7 @@ export const createWorld = (objectContainer: PhysicalContainer) => {
     ),
   );
 
-  for (let i = 0; i < worldSize / 400; i++) {
+  for (let i = 0; i < 15; i++) {
     console.log('planet', i);
 
     let position: vec2;
@@ -44,7 +44,7 @@ export const createWorld = (objectContainer: PhysicalContainer) => {
     );
   }
 
-  for (let i = 0; i < worldSize / 350; i++) {
+  for (let i = 0; i < 15; i++) {
     console.log('light', i);
     let position: vec2;
     do {
@@ -54,20 +54,17 @@ export const createWorld = (objectContainer: PhysicalContainer) => {
       );
     } while (
       evaluateSdf(position, objects) < 200 ||
-      lights.find((l) => l.distance(position) < 1800)
+      lights.find((l) => l.distance(position) < 1500)
     );
     lights.push(
       new LampPhysical(
         position,
-        vec3.normalize(
-          vec3.create(),
-          vec3.fromValues(
-            Random.getRandomInRange(0.5, 1),
-            0,
-            Random.getRandomInRange(0.5, 1),
-          ),
+        hsl(
+          Random.getRandomInRange(0, 360),
+          Random.getRandomInRange(50, 100),
+          Random.getRandomInRange(25, 50),
         ),
-        Random.getRandomInRange(0.25, 1),
+        Random.getRandomInRange(0.5, 2),
       ),
     );
   }

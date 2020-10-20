@@ -45,7 +45,7 @@
     "ts-loader": "^8.0.3",
     "sass": "^1.26.3",
     "sass-loader": "^9.0.2",
-    "sdf-2d": "^0.5.3",
+    "sdf-2d": "^0.6.0",
     "shared": "0.0.0",
     "socket.io-client": "^2.3.1",
     "source-map-loader": "^1.1.0",

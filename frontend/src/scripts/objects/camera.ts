@@ -14,13 +14,11 @@ export class Camera extends GameObject implements ViewObject {
     super(null);
   }
 
-  public update(updates: Array<UpdateMessage>) {
-    throw new Error();
-  }
+  public beforeDestroy(): void {}
 
   public step(deltaTimeInMilliseconds: number): void {}
 
-  public draw(renderer: Renderer) {
+  public draw(renderer: Renderer, overlay: HTMLElement) {
     const canvasAspectRatio = renderer.canvasSize.x / renderer.canvasSize.y;
     if (canvasAspectRatio !== this.aspectRatio) {
       this.aspectRatio = canvasAspectRatio;

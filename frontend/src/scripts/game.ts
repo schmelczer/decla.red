@@ -1,11 +1,13 @@
 import { vec2 } from 'gl-matrix';
 import {
   CircleLight,
+  ColorfulCircle,
   compile,
   FilteringOptions,
   Flashlight,
   Renderer,
   renderNoise,
+  runAnimation,
   WrapOptions,
 } from 'sdf-2d';
 import {
@@ -17,36 +19,41 @@ import {
   SetAspectRatioActionCommand,
   rgb,
   PlayerInformation,
+  PlayerDiedCommand,
+  UpdatePlanetOwnershipCommand,
 } from 'shared';
 import io from 'socket.io-client';
 import { KeyboardListener } from './commands/generators/keyboard-listener';
 import { MouseListener } from './commands/generators/mouse-listener';
 import { TouchListener } from './commands/generators/touch-listener';
 import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
-
-import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
 import { BlobShape } from './shapes/blob-shape';
-import { Circle } from './shapes/circle';
-import { Polygon } from './shapes/polygon';
+import { PlanetShape } from './shapes/planet-shape';
 
 export class Game {
   public readonly gameObjects = new GameObjectContainer(this);
-  private renderer!: Renderer;
+  private renderer?: Renderer;
   private socket!: SocketIOClient.Socket;
-  private promises: Promise<[void, void]>;
-  private deltaTimeCalculator = new DeltaTimeCalculator();
+  private deadTimeout = 0;
+
+  private declaPlanetCountElement = document.createElement('div');
+  private redPlanetCountElement = document.createElement('div');
+  private neutralPlanetCountElement = document.createElement('div');
 
   constructor(
     private readonly playerDecision: PlayerDecision,
     private readonly canvas: HTMLCanvasElement,
     private readonly overlay: HTMLElement,
   ) {
-    this.promises = Promise.all([
-      this.setupCommunication(playerDecision.server),
-      this.setupRenderer(),
-    ]);
+    this.start();
+    const progressBar = document.createElement('div');
+    progressBar.className = 'planet-progress';
+    overlay.appendChild(progressBar);
+    progressBar.appendChild(this.declaPlanetCountElement);
+    progressBar.appendChild(this.neutralPlanetCountElement);
+    progressBar.appendChild(this.redPlanetCountElement);
   }
 
   private async setupCommunication(serverUrl: string): Promise<void> {
@@ -61,7 +68,26 @@ export class Game {
 
     this.socket.on(TransportEvents.ServerToPlayer, (serialized: string) => {
       const command = deserialize(serialized);
-      this.gameObjects.sendCommand(command);
+      if (command instanceof PlayerDiedCommand) {
+        this.deadTimeout = command.timeout;
+        this.overlay.appendChild(this.announcmentText);
+      } else if (command instanceof UpdatePlanetOwnershipCommand) {
+        const all = command.declaCount + command.redCount + command.neutralCount;
+        this.declaPlanetCountElement.style.width = (command.declaCount / all) * 100 + '%';
+        this.neutralPlanetCountElement.style.width =
+          (command.neutralCount / all) * 100 + '%';
+        this.redPlanetCountElement.style.width = (command.redCount / all) * 100 + '%';
+
+        if (command.declaCount > all * 0.5) {
+          this.overlay.appendChild(this.announcmentText);
+          this.announcmentText.innerText = 'Decla team won 🎉';
+        }
+
+        if (command.redCount > all * 0.5) {
+          this.overlay.appendChild(this.announcmentText);
+          this.announcmentText.innerText = 'Red team won 🎉';
+        }
+      } else this.gameObjects.sendCommand(command);
     });
 
     this.socket.on(TransportEvents.Ping, () => {
@@ -82,14 +108,14 @@ export class Game {
     );
   }
 
-  private async setupRenderer(): Promise<void> {
+  private async start(): Promise<void> {
     const noiseTexture = await renderNoise([256, 256], 2, 1);
-
-    this.renderer = await compile(
+    this.setupCommunication(this.playerDecision.server);
+    runAnimation(
       this.canvas,
       [
         {
-          ...Polygon.descriptor,
+          ...PlanetShape.descriptor,
           shaderCombinationSteps: [0, 1, 2, 3],
         },
         {
@@ -97,55 +123,49 @@ export class Game {
           shaderCombinationSteps: [0, 1, 2, 8],
         },
         {
-          ...Circle.descriptor,
+          ...ColorfulCircle.descriptor,
           shaderCombinationSteps: [0, 2, 16],
         },
         {
           ...CircleLight.descriptor,
-          shaderCombinationSteps: [0, 1, 2, 4, 8],
+          shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
         },
         {
           ...Flashlight.descriptor,
           shaderCombinationSteps: [0],
         },
       ],
+      this.gameLoop.bind(this),
       {
         shadowTraceCount: 16,
-        paletteSize: 10,
+        paletteSize: settings.palette.length,
         //enableStopwatch: true,
       },
-    );
-
-    this.renderer.setRuntimeSettings({
-      ambientLight: rgb(0.45, 0.4, 0.45),
-      colorPalette: [
-        rgb(1, 1, 1),
-        rgb(0.4, 0.4, 0.4),
-        rgb(1, 1, 1),
-        ...settings.playerColors,
-      ],
-      enableHighDpiRendering: true,
-      lightCutoffDistance: settings.lightCutoffDistance,
-      textures: {
-        noiseTexture: {
-          source: noiseTexture,
-          overrides: {
-            maxFilter: FilteringOptions.LINEAR,
-            wrapS: WrapOptions.MIRRORED_REPEAT,
-            wrapT: WrapOptions.MIRRORED_REPEAT,
+      {
+        ambientLight: rgb(0.45, 0.4, 0.45),
+        colorPalette: settings.palette,
+        enableHighDpiRendering: true,
+        lightCutoffDistance: settings.lightCutoffDistance,
+        textures: {
+          noiseTexture: {
+            source: noiseTexture,
+            overrides: {
+              maxFilter: FilteringOptions.LINEAR,
+              wrapS: WrapOptions.MIRRORED_REPEAT,
+              wrapT: WrapOptions.MIRRORED_REPEAT,
+            },
           },
         },
       },
-    });
-  }
-
-  public async start(): Promise<void> {
-    await this.promises;
-    requestAnimationFrame(this.gameLoop.bind(this));
+    );
   }
 
   public displayToWorldCoordinates(p: vec2): vec2 {
-    return this.renderer?.displayToWorldCoordinates(p);
+    const result = this.renderer?.displayToWorldCoordinates(p);
+    if (!result) {
+      return vec2.create();
+    }
+    return result;
   }
 
   public aspectRatioChanged(aspectRatio: number) {
@@ -155,14 +175,23 @@ export class Game {
     );
   }
 
-  private gameLoop(time: DOMHighResTimeStamp) {
-    const deltaTime = this.deltaTimeCalculator.getNextDeltaTimeInMilliseconds(time);
+  private announcmentText = document.createElement('h2');
+  private gameLoop(
+    renderer: Renderer,
+    currentTime: DOMHighResTimeStamp,
+    deltaTime: DOMHighResTimeStamp,
+  ): boolean {
+    this.renderer = renderer;
+
+    if ((this.deadTimeout -= deltaTime / 1000) > 0) {
+      this.announcmentText.innerText = `Respawning in ${Math.floor(this.deadTimeout)} …`;
+    } else {
+      this.announcmentText.parentElement?.removeChild(this.announcmentText);
+    }
 
     this.gameObjects.stepObjects(deltaTime);
-    this.gameObjects.drawObjects(this.renderer);
-    this.renderer.renderDrawables();
+    this.gameObjects.drawObjects(this.renderer, this.overlay);
 
-    // this.overlay.innerText = prettyPrint(this.renderer.insights);
-    requestAnimationFrame(this.gameLoop.bind(this));
+    return true;
   }
 }
