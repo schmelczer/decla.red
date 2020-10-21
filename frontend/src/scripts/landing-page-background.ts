@@ -20,9 +20,12 @@ const LangindPagePolygon = NoisyPolygonFactory(
 
 export class LandingPageBackground {
   private isActive = true;
+  public renderer: Promise<Renderer>;
+  private resolveRenderer!: (r: Renderer) => unknown;
 
   constructor(canvas: HTMLCanvasElement) {
     this.start(canvas);
+    this.renderer = new Promise((r) => (this.resolveRenderer = r));
   }
 
   private async start(canvas: HTMLCanvasElement): Promise<void> {
@@ -64,6 +67,8 @@ export class LandingPageBackground {
 
   private gameLoop(renderer: Renderer, time: DOMHighResTimeStamp, _: number): boolean {
     Random.seed = 42;
+
+    this.resolveRenderer(renderer);
 
     renderer.setViewArea(vec2.fromValues(0, renderer.canvasSize.y), renderer.canvasSize);
 

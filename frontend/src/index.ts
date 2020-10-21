@@ -21,6 +21,8 @@ import { PlayerCharacterView } from './scripts/objects/player-character-view';
 import '../static/settings.svg';
 import '../static/minimize.svg';
 import '../static/maximize.svg';
+import { handleInsights } from './scripts/handle-insights';
+import { getInsightsFromRenderer } from './scripts/get-insights-from-renderer';
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -51,14 +53,48 @@ const main = async () => {
 
     const background = new LandingPageBackground(canvas);
     const joinHandler = new JoinFormHandler(joinGameForm, serverContainer);
-
     handleFullScreen(minimize, maximize);
+
+    let backgroundRenderer = await background.renderer;
+    let isInGame = false;
+    let game: Game;
+    const getFrameData = () => {
+      const {
+        fps,
+        renderScale,
+        lightScale,
+        canvasWidth,
+        canvasHeight,
+      } = getInsightsFromRenderer(isInGame ? game.renderer : backgroundRenderer);
+
+      return {
+        isInGame,
+        fps,
+        renderScale,
+        lightScale,
+        canvasWidth,
+        canvasHeight,
+      };
+    };
+    const { vendor, renderer } = getInsightsFromRenderer(backgroundRenderer);
+    handleInsights(
+      {
+        vendor,
+        renderer,
+        referrer: document.referrer,
+        connection: (navigator as any)?.connection.effectiveType,
+        devicePixelRatio: devicePixelRatio,
+      },
+      getFrameData,
+    );
+
     const playerDecision = await joinHandler.getPlayerDecision();
     landingUI.style.display = 'none';
 
     background.destroy();
 
-    new Game(playerDecision, canvas, overlay);
+    game = new Game(playerDecision, canvas, overlay);
+    isInGame = true;
   } catch (e) {
     console.error(e);
     alert(e);
