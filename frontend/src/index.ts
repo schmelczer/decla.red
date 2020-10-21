@@ -82,7 +82,7 @@ const main = async () => {
         vendor,
         renderer,
         referrer: document.referrer,
-        connection: (navigator as any)?.connection.effectiveType,
+        connection: (navigator as any)?.connection?.effectiveType,
         devicePixelRatio: devicePixelRatio,
       },
       getFrameData,
