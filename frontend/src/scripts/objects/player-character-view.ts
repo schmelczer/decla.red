@@ -1,6 +1,14 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import { Circle, Id, PlayerCharacterBase, UpdateMessage, CharacterTeam } from 'shared';
+import {
+  Circle,
+  Id,
+  PlayerCharacterBase,
+  UpdateMessage,
+  CharacterTeam,
+  settings,
+} from 'shared';
+import { options } from '../options';
 
 import { BlobShape } from '../shapes/blob-shape';
 import { ViewObject } from './view-object';
@@ -10,6 +18,7 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   private nameElement: HTMLElement;
   private healthElement: HTMLElement;
   private timeSinceLastNameElementUpdate = 0;
+  private previousHealth;
 
   constructor(
     id: Id,
@@ -24,6 +33,7 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     super(id, name, colorIndex, team, health, head, leftFoot, rightFoot);
     this.shape = new BlobShape(colorIndex);
 
+    this.previousHealth = this.health;
     this.nameElement = document.createElement('div');
     this.nameElement.className = 'player-tag';
     this.nameElement.innerText = this.name;
@@ -38,6 +48,13 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   public step(deltaTimeInMilliseconds: number): void {
     this.timeSinceLastNameElementUpdate += deltaTimeInMilliseconds;
     this.healthElement.style.width = this.health + '%';
+    if (this.previousHealth > this.health) {
+      this.previousHealth = this.health;
+      if (options.vibrationEnabled) {
+        navigator.vibrate(50);
+      }
+    }
+    this.previousHealth = this.health;
   }
 
   public beforeDestroy(): void {

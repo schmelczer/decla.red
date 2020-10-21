@@ -29,12 +29,13 @@ import { TouchListener } from './commands/generators/touch-listener';
 import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
+import { options } from './options';
 import { BlobShape } from './shapes/blob-shape';
 import { PlanetShape } from './shapes/planet-shape';
 
 export class Game {
   public readonly gameObjects = new GameObjectContainer(this);
-  private renderer?: Renderer;
+  public renderer?: Renderer;
   private socket!: SocketIOClient.Socket;
   private deadTimeout = 0;
 
@@ -70,6 +71,9 @@ export class Game {
       const command = deserialize(serialized);
       if (command instanceof PlayerDiedCommand) {
         this.deadTimeout = command.timeout;
+        if (options.vibrationEnabled) {
+          navigator.vibrate(150);
+        }
         this.overlay.appendChild(this.announcmentText);
       } else if (command instanceof UpdatePlanetOwnershipCommand) {
         const all = command.declaCount + command.redCount + command.neutralCount;
