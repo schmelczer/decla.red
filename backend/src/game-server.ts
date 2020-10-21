@@ -12,6 +12,8 @@ import { createWorld } from './map/create-world';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { Options } from './options';
 
+const playerCountSubscribedRoom = 'playerCountUpdates';
+
 export class GameServer {
   private objects = new PhysicalContainer();
   private players: Array<Player> = [];
@@ -20,7 +22,7 @@ export class GameServer {
 
   private serverName: string;
   private playerLimit: number;
-  constructor(io: ioserver.Server, options: Options) {
+  constructor(private readonly io: ioserver.Server, options: Options) {
     this.serverName = options.name;
     this.playerLimit = options.playerLimit;
 
@@ -36,16 +38,25 @@ export class GameServer {
           player.sendCommand(command);
         });
 
+        this.sendPlayerCountUpdate();
+
         socket.on('disconnect', () => {
           player.destroy();
           this.players = this.players.filter((p) => p !== player);
+          this.sendPlayerCountUpdate();
         });
       });
 
-      socket.on('join', (room_name: string) => {
-        socket.join(room_name);
+      socket.on(TransportEvents.SubscribeForPlayerCount, () => {
+        socket.join(playerCountSubscribedRoom);
       });
     });
+  }
+
+  public sendPlayerCountUpdate() {
+    this.io
+      .to(playerCountSubscribedRoom)
+      .emit(TransportEvents.PlayerCountUpdate, this.players.length);
   }
 
   public start() {

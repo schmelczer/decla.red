@@ -6,6 +6,10 @@ export abstract class Configuration {
   private static initialized = false;
 
   public static async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
     const firebaseConfig = {
       apiKey: 'AIzaSyBG85dp-AhaCW-qi_6mu77wDPSipzipIF4',
       authDomain: 'decla-red.firebaseapp.com',
