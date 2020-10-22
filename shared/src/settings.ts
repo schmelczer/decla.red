@@ -1,10 +1,10 @@
-import { rgb } from './helper/rgb';
 import { rgb255 } from './helper/rgb255';
 
-const declaColor = rgb255(181, 138, 255);
-const redColor = rgb255(255, 138, 138);
-const declaPlanetColor = rgb(0, 0, 3);
-const redPlanetColor = rgb(3, 0, 0);
+const q = 2.5;
+const declaColor = rgb255(64 * q, 105 * q, 165 * q);
+const redColor = rgb255(209 * q, 86 * q, 82 * q);
+const declaPlanetColor = declaColor;
+const redPlanetColor = redColor;
 
 export const settings = {
   lightCutoffDistance: 600,
@@ -12,6 +12,7 @@ export const settings = {
   maxVelocityX: 1000,
   maxVelocityY: 1000,
   radiusSteps: 500,
+  worldRadius: 10000,
   objectsOnCircleLength: 0.002,
   planetEdgeCount: 7,
   takeControlTimeInSeconds: 4,
@@ -31,7 +32,6 @@ export const settings = {
   projectileFadeSpeed: 20,
   projectileCreationInterval: 0.1,
   playerColorIndexOffset: 3,
-  worldRadius: 10000,
   backgroundGradient: [rgb255(90, 38, 43), rgb255(43, 39, 73)],
   declaColor,
   declaPlanetColor,
