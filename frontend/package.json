@@ -47,6 +47,7 @@
     "sass-loader": "^9.0.2",
     "sdf-2d": "^0.6.0",
     "shared": "0.0.0",
+    "resize-observer-polyfill": "^1.5.1",
     "socket.io-client": "^2.3.1",
     "source-map-loader": "^1.1.0",
     "svg-url-loader": "^6.0.0",

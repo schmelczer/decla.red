@@ -29,7 +29,7 @@ import { TouchListener } from './commands/generators/touch-listener';
 import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
-import { options } from './options';
+import { OptionsHandler } from './options-handler';
 import { BlobShape } from './shapes/blob-shape';
 import { PlanetShape } from './shapes/planet-shape';
 
@@ -48,7 +48,6 @@ export class Game {
     private readonly canvas: HTMLCanvasElement,
     private readonly overlay: HTMLElement,
   ) {
-    this.start();
     const progressBar = document.createElement('div');
     progressBar.className = 'planet-progress';
     overlay.appendChild(progressBar);
@@ -71,7 +70,7 @@ export class Game {
       const command = deserialize(serialized);
       if (command instanceof PlayerDiedCommand) {
         this.deadTimeout = command.timeout;
-        if (options.vibrationEnabled) {
+        if (OptionsHandler.options.vibrationEnabled) {
           navigator.vibrate(150);
         }
         this.overlay.appendChild(this.announcmentText);
@@ -112,10 +111,10 @@ export class Game {
     );
   }
 
-  private async start(): Promise<void> {
+  public async start(): Promise<void> {
     const noiseTexture = await renderNoise([256, 256], 2, 1);
     this.setupCommunication(this.playerDecision.server);
-    runAnimation(
+    await runAnimation(
       this.canvas,
       [
         {
@@ -162,6 +161,8 @@ export class Game {
         },
       },
     );
+    this.socket.close();
+    this.overlay.innerHTML = '';
   }
 
   public displayToWorldCoordinates(p: vec2): vec2 {
@@ -177,6 +178,11 @@ export class Game {
       TransportEvents.PlayerToServer,
       serialize(new SetAspectRatioActionCommand(aspectRatio)),
     );
+  }
+
+  private isActive = true;
+  public destroy() {
+    this.isActive = false;
   }
 
   private announcmentText = document.createElement('h2');
@@ -196,6 +202,6 @@ export class Game {
     this.gameObjects.stepObjects(deltaTime);
     this.gameObjects.drawObjects(this.renderer, this.overlay);
 
-    return true;
+    return this.isActive;
   }
 }

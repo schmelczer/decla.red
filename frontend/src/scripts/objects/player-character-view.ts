@@ -8,7 +8,7 @@ import {
   CharacterTeam,
   settings,
 } from 'shared';
-import { options } from '../options';
+import { OptionsHandler } from '../options-handler';
 
 import { BlobShape } from '../shapes/blob-shape';
 import { ViewObject } from './view-object';
@@ -50,7 +50,7 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     this.healthElement.style.width = this.health + '%';
     if (this.previousHealth > this.health) {
       this.previousHealth = this.health;
-      if (options.vibrationEnabled) {
+      if (OptionsHandler.options.vibrationEnabled) {
         navigator.vibrate(50);
       }
     }

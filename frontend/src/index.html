@@ -46,23 +46,44 @@
       </form>
     </section>
 
-    <img id="open-settings" class="icon" alt="open-settings" src="static/settings.svg" />
+    <div id="settings-container">
+      <section id="settings">
+        <label for="enable-relative-movement">
+          <input id="enable-relative-movement" type="checkbox" />
+          <img alt="a dashed circle" src="static/circle.svg" />
+        </label>
 
-    <section id="settings">
-      <h2>Settings</h2>
-      <input id="enable-relative-movement" checked type="checkbox" />
-      <label for="enable-relative-movement">Enable relative movement</label>
-      <button id="close-settings">Back</button>
-    </section>
+        <label for="enable-vibration">
+          <input id="enable-vibration" type="checkbox" />
+          <img alt="vibrating mobile" src="static/vibrate.svg" />
+        </label>
+
+        <label for="enable-sounds">
+          <input id="enable-sounds" type="checkbox" />
+          <img alt="speaker with sound waves" src="static/volume.svg" />
+        </label>
+
+        <img id="logout" alt="logout" src="static/logout.svg" />
+      </section>
+    </div>
+
+    <div id="toggle-settings-container">
+      <img
+        id="toggle-settings"
+        class="icon"
+        alt="toggle-settings"
+        src="static/settings.svg"
+      />
+    </div>
 
     <img
-      class="full-screen-controllers icon"
+      class="full-screen-controllers"
       id="minimize"
       alt="minimize-application"
       src="static/minimize.svg"
     />
     <img
-      class="full-screen-controllers icon"
+      class="full-screen-controllers"
       id="maximize"
       alt="maximize-application"
       src="static/maximize.svg"

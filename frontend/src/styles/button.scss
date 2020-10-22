@@ -1,0 +1,26 @@
+@import './vars.scss';
+
+button {
+  border: none;
+  background: none;
+  font-size: 2rem;
+  font-family: 'Comfortaa', sans-serif;
+  cursor: pointer;
+  display: block;
+  margin: auto;
+
+  $ascend: 6px;
+  padding: $medium-padding 0 0 0;
+  margin-bottom: $ascend;
+  transition: transform $animation-time, padding-bottom $animation-time,
+    margin-bottom $animation-time;
+
+  &:hover,
+  &:focus {
+    outline: none;
+    color: $accent;
+    transform: translateY(-$ascend);
+    padding-bottom: $ascend;
+    margin-bottom: 0;
+  }
+}

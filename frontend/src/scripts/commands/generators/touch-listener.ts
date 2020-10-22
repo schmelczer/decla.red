@@ -7,6 +7,7 @@ import {
   MoveActionCommand,
 } from 'shared';
 import { Game } from '../../game';
+import { OptionsHandler } from '../../options-handler';
 
 export class TouchListener extends CommandGenerator {
   private previousPosition = vec2.create();
@@ -38,7 +39,9 @@ export class TouchListener extends CommandGenerator {
 
       if (vec2.squaredLength(movement) > 0) {
         vec2.normalize(movement, movement);
-        this.sendCommandToSubcribers(new MoveActionCommand(movement, false));
+        this.sendCommandToSubcribers(
+          new MoveActionCommand(movement, OptionsHandler.options.relativeMovementEnabled),
+        );
       }
 
       this.previousPosition = position;
@@ -46,7 +49,12 @@ export class TouchListener extends CommandGenerator {
 
     target.addEventListener('touchend', (event: TouchEvent) => {
       event.preventDefault();
-      this.sendCommandToSubcribers(new MoveActionCommand(vec2.create(), false));
+      this.sendCommandToSubcribers(
+        new MoveActionCommand(
+          vec2.create(),
+          OptionsHandler.options.relativeMovementEnabled,
+        ),
+      );
     });
   }
 

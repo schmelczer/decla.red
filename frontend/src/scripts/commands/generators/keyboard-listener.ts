@@ -1,5 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { CommandGenerator, MoveActionCommand } from 'shared';
+import { OptionsHandler } from '../../options-handler';
 
 export class KeyboardListener extends CommandGenerator {
   private keysDown: Set<string> = new Set();
@@ -34,7 +35,9 @@ export class KeyboardListener extends CommandGenerator {
     if (vec2.squaredLength(movement) > 0) {
       vec2.normalize(movement, movement);
     }
-    this.sendCommandToSubcribers(new MoveActionCommand(movement, true));
+    this.sendCommandToSubcribers(
+      new MoveActionCommand(movement, OptionsHandler.options.relativeMovementEnabled),
+    );
   }
 
   private normalize(key: string): string {

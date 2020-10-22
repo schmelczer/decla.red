@@ -1,0 +1,122 @@
+@import './vars.scss';
+@import './mixins.scss';
+
+#toggle-settings-container,
+#settings-container {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+
+  top: 0;
+  right: 0;
+}
+
+#toggle-settings-container {
+  padding: $medium-padding;
+  cursor: pointer;
+
+  #toggle-settings {
+    @include square($large-icon);
+    @media (max-width: $breakpoint) {
+      @include square($small-icon);
+    }
+
+    animation: spin 32s linear infinite;
+    @keyframes spin {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  }
+}
+
+#settings-container {
+  top: $medium-padding + $large-icon + $small-padding;
+  @media (max-width: $breakpoint) {
+    top: 0;
+    right: $medium-padding + $small-icon + $small-padding;
+  }
+  overflow: hidden;
+}
+
+#settings {
+  display: flex;
+  flex-direction: column;
+  padding: 0 $medium-padding $medium-padding $medium-padding;
+
+  transform: translateY(-100%);
+  @media (max-width: $breakpoint) {
+    flex-direction: row-reverse;
+    transform: translateX(100%);
+    padding: $medium-padding 0 $medium-padding $medium-padding;
+  }
+
+  opacity: 0;
+  transition: transform $animation-time, opacity $animation-time;
+
+  &.open {
+    transform: none;
+    opacity: 1;
+  }
+
+  img {
+    cursor: pointer;
+    transition: opacity $animation-time;
+    margin-bottom: $small-padding;
+    @include square($large-icon);
+    @media (max-width: $breakpoint) {
+      @include square($small-icon);
+      margin-bottom: 0;
+      margin-left: $small-padding;
+    }
+  }
+
+  label {
+    position: relative;
+  }
+
+  input[type='checkbox'] {
+    width: 0;
+    height: 0;
+    appearance: none;
+    cursor: pointer;
+
+    &:not(:checked) + img {
+      opacity: 0.4;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:after {
+      content: ' ';
+      background: white;
+      position: absolute;
+
+      $height: 4px;
+      width: $height;
+      top: $height / 2;
+
+      right: 0;
+      transform-origin: top right;
+      border-radius: 100px;
+      height: 0;
+      transform: rotate(45deg) translateY(17%);
+      transition: height $animation-time;
+
+      @media (max-width: $breakpoint) {
+        $height: 2px;
+        width: $height;
+        top: $height / 2;
+      }
+    }
+
+    &:not(:checked):after {
+      height: $large-icon;
+      @media (max-width: $breakpoint) {
+        height: $small-icon;
+      }
+    }
+  }
+}
