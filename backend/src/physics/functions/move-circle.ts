@@ -9,6 +9,7 @@ export const moveCircle = (
   circle: CirclePhysical,
   delta: vec2,
   possibleIntersectors: Array<Physical>,
+  ignoreCollision = false,
 ): {
   realDelta: vec2;
   hitSurface: boolean;
@@ -38,12 +39,16 @@ export const moveCircle = (
     (i) => i.distance(nextCircle.center) <= circle.radius,
   )!;
 
-  if (reactsToCollision(intersecting)) {
-    intersecting.onCollision(circle.gameObject);
-  }
+  if (ignoreCollision) {
+    circle.center = vec2.add(circle.center, circle.center, delta);
+  } else {
+    if (reactsToCollision(intersecting)) {
+      intersecting.onCollision(circle.gameObject);
+    }
 
-  if (reactsToCollision(circle)) {
-    circle.onCollision(intersecting.gameObject);
+    if (reactsToCollision(circle)) {
+      circle.onCollision(intersecting.gameObject);
+    }
   }
 
   const dx =

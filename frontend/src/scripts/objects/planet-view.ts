@@ -1,13 +1,6 @@
 import { vec2 } from 'gl-matrix';
-import { Drawable, Renderer } from 'sdf-2d';
-import {
-  CommandExecutors,
-  Id,
-  Random,
-  PlanetBase,
-  UpdateMessage,
-  settings,
-} from 'shared';
+import { Renderer } from 'sdf-2d';
+import { CommandExecutors, Id, Random, PlanetBase } from 'shared';
 import { RenderCommand } from '../commands/types/render';
 import { PlanetShape } from '../shapes/planet-shape';
 import { ViewObject } from './view-object';
@@ -32,18 +25,19 @@ export class PlanetView extends PlanetBase implements ViewObject {
   public step(deltaTimeInMilliseconds: number): void {
     this.shape.randomOffset += deltaTimeInMilliseconds / 4000;
     this.shape.colorMixQ = this.ownership;
-    let teamName = 'Neutral';
-    if (this.ownership < 0.5 - settings.planetControlThreshold) {
-      teamName = 'Decla';
-    } else if (this.ownership > 0.5 + settings.planetControlThreshold) {
-      teamName = 'Red';
-    }
-
-    this.ownershipProgess.innerText = `${teamName} ${Math.round(
-      (Math.abs(this.ownership - 0.5) / 0.5) * 100,
-    )}%`;
   }
 
+  private getGradient(): string {
+    const sideDecla = this.ownership < 0.5;
+    const sidePercent = (Math.abs(this.ownership - 0.5) / 0.5) * 100;
+    const color = sideDecla ? 'var(--bright-decla)' : 'var(--bright-red)';
+    return `conic-gradient(
+      ${color} ${sidePercent}%,
+      ${color} ${sidePercent}%,
+      var(--bright-neutral) ${sidePercent}%,
+      var(--bright-neutral) 100%
+    )`;
+  }
   public beforeDestroy(): void {
     this.ownershipProgess.parentElement?.removeChild(this.ownershipProgess);
   }
@@ -56,6 +50,7 @@ export class PlanetView extends PlanetBase implements ViewObject {
     const screenPosition = renderer.worldToDisplayCoordinates(this.center);
     this.ownershipProgess.style.left = screenPosition.x + 'px';
     this.ownershipProgess.style.top = screenPosition.y + 'px';
+    this.ownershipProgess.style.background = this.getGradient();
 
     renderer.addDrawable(this.shape);
   }

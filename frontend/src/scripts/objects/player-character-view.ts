@@ -1,13 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import {
-  Circle,
-  Id,
-  PlayerCharacterBase,
-  UpdateMessage,
-  CharacterTeam,
-  settings,
-} from 'shared';
+import { Circle, Id, PlayerCharacterBase, CharacterTeam, settings } from 'shared';
 import { OptionsHandler } from '../options-handler';
 
 import { BlobShape } from '../shapes/blob-shape';
@@ -35,7 +28,7 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
 
     this.previousHealth = this.health;
     this.nameElement = document.createElement('div');
-    this.nameElement.className = 'player-tag';
+    this.nameElement.className = 'player-tag ' + this.team;
     this.nameElement.innerText = this.name;
     this.healthElement = document.createElement('div');
     this.nameElement.appendChild(this.healthElement);
@@ -47,7 +40,7 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
 
   public step(deltaTimeInMilliseconds: number): void {
     this.timeSinceLastNameElementUpdate += deltaTimeInMilliseconds;
-    this.healthElement.style.width = this.health + '%';
+    this.healthElement.style.width = (50 * this.health) / settings.playerMaxHealth + 'px';
     if (this.previousHealth > this.health) {
       this.previousHealth = this.health;
       if (OptionsHandler.options.vibrationEnabled) {
@@ -89,7 +82,7 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
 
     const headFeetDelta = vec2.subtract(footAverage, this.head!.center, footAverage);
     vec2.normalize(headFeetDelta, headFeetDelta);
-    const textOffset = vec2.scale(headFeetDelta, headFeetDelta, this.head!.radius + 50);
+    const textOffset = vec2.scale(headFeetDelta, headFeetDelta, this.head!.radius + 60);
     return vec2.add(textOffset, this.head!.center, textOffset);
   }
 }

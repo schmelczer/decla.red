@@ -2,7 +2,6 @@ import { vec2 } from 'gl-matrix';
 import {
   CircleLight,
   ColorfulCircle,
-  compile,
   FilteringOptions,
   Flashlight,
   Renderer,
@@ -17,7 +16,6 @@ import {
   settings,
   TransportEvents,
   SetAspectRatioActionCommand,
-  rgb,
   PlayerInformation,
   PlayerDiedCommand,
   UpdatePlanetOwnershipCommand,
@@ -65,6 +63,8 @@ export class Game {
     this.socket.on('reconnect_attempt', () => {
       this.socket.io.opts.transports = ['polling', 'websocket'];
     });
+
+    this.socket.on('disconnect', this.destroy.bind(this));
 
     this.socket.on(TransportEvents.ServerToPlayer, (serialized: string) => {
       const command = deserialize(serialized);
@@ -145,7 +145,6 @@ export class Game {
         //enableStopwatch: true,
       },
       {
-        ambientLight: rgb(0.45, 0.4, 0.45),
         colorPalette: settings.palette,
         enableHighDpiRendering: true,
         lightCutoffDistance: settings.lightCutoffDistance,

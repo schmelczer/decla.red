@@ -94,21 +94,58 @@ body {
     }
 
     .player-tag {
-      font-size: 1.3rem;
       position: absolute;
       transform: translateX(-50%) translateY(-50%) rotate(-15deg);
       transition: left 200ms, top 200ms;
+      border-radius: 1000px;
+
+      &.decla {
+        color: $bright-decla;
+
+        div {
+          background-color: $bright-decla;
+          &:before {
+            background-color: $bright-decla;
+            opacity: 0.3;
+          }
+        }
+      }
+
+      &.red {
+        color: $bright-red;
+        div {
+          background-color: $bright-red;
+          &:before {
+            background-color: $bright-red;
+            opacity: 0.4;
+          }
+        }
+      }
 
       div {
-        height: 3px;
-        background-color: rebeccapurple;
+        position: relative;
+        height: 5px;
+        border-radius: 1000px;
+
+        &:before {
+          content: '';
+          position: absolute;
+          height: 5px;
+          width: 50px;
+          box-sizing: border-box;
+          border-radius: 1000px;
+        }
       }
     }
 
     .ownership {
-      font-size: 1.3rem;
       position: absolute;
+      font-size: 0;
       transform: translateX(-50%) translateY(-50%);
+
+      @include square(50px);
+      border-radius: 1000px;
+      mask: url('../static/mask.svg');
     }
 
     .planet-progress {
@@ -122,21 +159,24 @@ body {
       height: $height;
 
       border-radius: 4px;
+      z-index: 100;
 
       div {
         height: $height;
       }
 
       div:nth-child(1) {
-        background: rebeccapurple;
+        border-radius: 100px 0 0 100px;
+        background: $bright-decla;
       }
 
       div:nth-child(2) {
-        background: gray;
+        background: $bright-neutral;
       }
 
       div:nth-child(3) {
-        background: red;
+        border-radius: 0 100px 100px 0;
+        background: $bright-red;
       }
     }
   }

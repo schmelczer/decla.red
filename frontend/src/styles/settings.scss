@@ -8,14 +8,22 @@
   justify-content: center;
   top: 0;
   right: 0;
+  font-size: 0;
 }
 
 #toggle-settings-container {
   padding: $medium-padding;
+
   cursor: pointer;
+
+  padding: $medium-padding $medium-padding 0 $medium-padding;
+  @media (max-width: $breakpoint) {
+    padding: $medium-padding $medium-padding $medium-padding 0;
+  }
 
   #toggle-settings {
     animation: spin 32s linear infinite;
+
     @keyframes spin {
       100% {
         transform: rotate(360deg);
@@ -53,9 +61,11 @@
   opacity: 0;
   transition: transform $animation-time, opacity $animation-time;
 
+  pointer-events: none;
   &.open {
     transform: none;
     opacity: 1;
+    pointer-events: inherit;
   }
 
   img,

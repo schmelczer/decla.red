@@ -96,7 +96,8 @@ form {
         padding: $small-padding;
         border: $border;
         cursor: pointer;
-        margin: $border-width-focused - $border-width $small-padding / 2;
+        margin: $border-width-focused - $border-width $border-width-focused -
+          $border-width + $small-padding / 2;
       }
 
       &:focus {
@@ -107,7 +108,7 @@ form {
       &:checked + label {
         border-color: $accent;
         border-width: $border-width-focused;
-        margin-right: 0 $small-padding / 2;
+        margin: 0 $small-padding / 2;
       }
     }
   }

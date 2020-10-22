@@ -155,20 +155,13 @@ export class PlayerCharacterPhysical
       return;
     }
 
-    const start = vec2.clone(this.center);
-    const direction = vec2.subtract(vec2.create(), position, start);
+    const direction = vec2.subtract(vec2.create(), position, this.center);
     vec2.normalize(direction, direction);
-    vec2.add(
-      start,
-      start,
-      vec2.scale(vec2.create(), direction, settings.projectileStartOffset),
-    );
     const velocity = vec2.scale(direction, direction, settings.projectileSpeed);
-    vec2.add(velocity, velocity, this.velocity);
     const strength = this.projectileStrength / 2;
     this.projectileStrength -= strength;
     const projectile = new ProjectilePhysical(
-      start,
+      vec2.clone(this.center),
       20,
       this.colorIndex,
       strength,
@@ -190,10 +183,6 @@ export class PlayerCharacterPhysical
 
   public get center(): vec2 {
     return this.head.center;
-  }
-
-  public get velocity(): vec2 {
-    return this.head.velocity;
   }
 
   public distance(target: vec2): number {
@@ -272,16 +261,17 @@ export class PlayerCharacterPhysical
     } else {
       const leftFootGravity = this.currentPlanet!.getForce(this.leftFoot.center);
       const rightFootGravity = this.currentPlanet!.getForce(this.rightFoot.center);
-      if (movementForce.y > settings.maxAcceleration / 4) {
+
+      if (this.lastMovementWasRelative) {
+        vec2.rotate(movementForce, movementForce, vec2.create(), this.direction);
+      }
+
+      if (vec2.dot(movementForce, actualGravity) < -vec2.length(movementForce) * 0.8) {
         vec2.scale(leftFootGravity, leftFootGravity, 0.35);
         vec2.scale(rightFootGravity, rightFootGravity, 0.35);
       }
       this.applyForce(this.leftFoot, leftFootGravity, deltaTime);
       this.applyForce(this.rightFoot, rightFootGravity, deltaTime);
-
-      if (this.lastMovementWasRelative) {
-        vec2.rotate(movementForce, movementForce, vec2.create(), this.direction);
-      }
 
       const headGravity = this.currentPlanet!.getForce(this.head.center);
 

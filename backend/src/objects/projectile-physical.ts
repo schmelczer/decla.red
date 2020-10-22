@@ -16,6 +16,7 @@ import { ReactsToCollision } from '../physics/physicals/reacts-to-collision';
 import { UpdateObjectMessage } from 'shared/lib/src/objects/update-object-message';
 import { UpdateGameObjectMessage } from '../update-game-object-message';
 import { PlayerCharacterPhysical } from './player-character-physical';
+import { moveCircle } from '../physics/functions/move-circle';
 
 @serializesTo(ProjectileBase)
 export class ProjectilePhysical
@@ -41,6 +42,26 @@ export class ProjectilePhysical
   ) {
     super(id(), center, radius, colorIndex, strength);
     this.object = new CirclePhysical(center, radius, this, container, 0.9);
+
+    this.moveOutsideOfObject();
+  }
+
+  private moveOutsideOfObject() {
+    let wasCollision = true;
+    const delta = vec2.scale(
+      vec2.create(),
+      vec2.normalize(vec2.create(), this.velocity),
+      10,
+    );
+    while (wasCollision) {
+      const intersecting = this.container
+        .findIntersecting(this.boundingBox)
+        .filter((g) => g instanceof PlayerCharacterPhysical && g.team === this.team);
+      const { hitSurface } = moveCircle(this.object, delta, intersecting, true);
+      wasCollision = hitSurface;
+    }
+    vec2.add(this.center, this.center, delta);
+    vec2.add(this.center, this.center, delta);
   }
 
   public calculateUpdates(): UpdateObjectMessage {

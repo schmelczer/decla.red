@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import { calculateViewArea, GameObject, mixRgb, settings, UpdateMessage } from 'shared';
+import { calculateViewArea, GameObject, mixRgb, settings } from 'shared';
 
 import { Game } from '../game';
 import { ViewObject } from './view-object';
@@ -32,8 +32,7 @@ export class Camera extends GameObject implements ViewObject {
       ambientLight: mixRgb(
         settings.backgroundGradient[0],
         settings.backgroundGradient[1],
-        (this.center.x - settings.worldLeftEdge) /
-          (Math.abs(settings.worldLeftEdge) + Math.abs(settings.worldRightEdge)),
+        vec2.length(this.center) / settings.worldRadius,
       ),
     });
   }

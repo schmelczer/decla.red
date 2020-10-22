@@ -13,3 +13,12 @@ $breakpoint: 700px;
 $height-breakpoint: 500px;
 $large-icon: 48px;
 $small-icon: 32px;
+$bright-decla: #4069a5;
+$bright-red: #d15652;
+$bright-neutral: #88888877;
+
+:root {
+  --bright-decla: #{$bright-decla};
+  --bright-red: #{$bright-red};
+  --bright-neutral: #{$bright-neutral};
+}

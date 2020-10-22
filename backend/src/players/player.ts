@@ -28,7 +28,6 @@ import { PhysicalContainer } from '../physics/containers/physical-container';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { isCircleIntersecting } from '../physics/functions/is-circle-intersecting';
 import { PlayerCharacterPhysical } from '../objects/player-character-physical';
-import { Physical } from '../physics/physicals/physical';
 import { freeTeam, requestTeam } from './player-team-service';
 import { PlanetPhysical } from '../objects/planet-physical';
 
