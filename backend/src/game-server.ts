@@ -26,7 +26,7 @@ export class GameServer {
     this.serverName = options.name;
     this.playerLimit = options.playerLimit;
 
-    createWorld(this.objects);
+    createWorld(this.objects, options.worldSize);
     this.objects.initialize();
 
     io.on('connection', (socket: SocketIO.Socket) => {

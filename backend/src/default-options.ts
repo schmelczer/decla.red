@@ -5,4 +5,5 @@ export const defaultOptions: Options = {
   name: 'Localhost',
   playerLimit: 16,
   seed: 51,
+  worldSize: 10000,
 };

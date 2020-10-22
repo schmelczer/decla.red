@@ -3,4 +3,5 @@ export interface Options {
   name: string;
   playerLimit: number;
   seed: number;
+  worldSize: number;
 }
