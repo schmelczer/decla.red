@@ -3,6 +3,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ScssConfigWebpackPlugin = require('scss-config-webpack-plugin');
 const TsConfigWebpackPlugin = require('ts-config-webpack-plugin');
 const HtmlWebpackInlineSVGPlugin = require('html-webpack-inline-svg-plugin');
+const TerserJSPlugin = require('terser-webpack-plugin');
 
 module.exports = {
   devServer: {
@@ -34,6 +35,17 @@ module.exports = {
     // see https://github.com/namics/webpack-config-plugins/tree/master/packages/ts-config-webpack-plugin/config
     new TsConfigWebpackPlugin(),
   ],
+  optimization: {
+    minimizer: [
+      new TerserJSPlugin({
+        test: /\.js$/,
+        exclude: /node_modules/,
+        terserOptions: {
+          keep_classnames: true,
+        },
+      }),
+    ],
+  },
   module: {
     rules: [
       {
