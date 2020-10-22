@@ -6,7 +6,6 @@
   position: absolute;
   display: flex;
   justify-content: center;
-
   top: 0;
   right: 0;
 }
@@ -16,16 +15,16 @@
   cursor: pointer;
 
   #toggle-settings {
-    @include square($large-icon);
-    @media (max-width: $breakpoint) {
-      @include square($small-icon);
-    }
-
     animation: spin 32s linear infinite;
     @keyframes spin {
       100% {
         transform: rotate(360deg);
       }
+    }
+
+    @include square($large-icon);
+    @media (max-width: $breakpoint) {
+      @include square($small-icon);
     }
   }
 }
@@ -59,10 +58,12 @@
     opacity: 1;
   }
 
-  img {
+  img,
+  svg {
     cursor: pointer;
     transition: opacity $animation-time;
     margin-bottom: $small-padding;
+    margin-left: 0;
     @include square($large-icon);
     @media (max-width: $breakpoint) {
       @include square($small-icon);
@@ -73,49 +74,49 @@
 
   label {
     position: relative;
-  }
 
-  input[type='checkbox'] {
-    width: 0;
-    height: 0;
-    appearance: none;
-    cursor: pointer;
-
-    &:not(:checked) + img {
-      opacity: 0.4;
-    }
-
-    &:focus {
-      outline: none;
-    }
-
-    &:after {
-      content: ' ';
-      background: white;
-      position: absolute;
-
-      $height: 4px;
-      width: $height;
-      top: $height / 2;
-
-      right: 0;
-      transform-origin: top right;
-      border-radius: 100px;
+    input[type='checkbox'] {
+      width: 0;
       height: 0;
-      transform: rotate(45deg) translateY(17%);
-      transition: height $animation-time;
+      appearance: none;
+      cursor: pointer;
 
-      @media (max-width: $breakpoint) {
-        $height: 2px;
+      &:not(:checked) + * {
+        opacity: 0.4;
+      }
+
+      &:focus {
+        outline: none;
+      }
+
+      &:after {
+        content: '';
+        background: white;
+        position: absolute;
+
+        $height: 4px;
         width: $height;
         top: $height / 2;
-      }
-    }
 
-    &:not(:checked):after {
-      height: $large-icon;
-      @media (max-width: $breakpoint) {
-        height: $small-icon;
+        right: 0;
+        transform-origin: top right;
+        border-radius: 100px;
+        height: 0;
+        transform: rotate(45deg) translateY(17%);
+        transition: height $animation-time;
+
+        @media (max-width: $breakpoint) {
+          $height: 2px;
+          width: $height;
+          top: $height / 2;
+        }
+      }
+
+      &:not(:checked):after {
+        height: $large-icon;
+        @media (max-width: $breakpoint) {
+          height: $small-icon;
+        }
       }
     }
   }

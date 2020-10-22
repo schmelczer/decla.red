@@ -1,15 +1,20 @@
 FROM node:14.13.0-alpine3.10 as build
+RUN npm install -g npm@7 
 
+WORKDIR /app
 COPY . .
-RUN npm i -g concurrently
-RUN yarn && yarn run build
+
+RUN npm install --legacy-peer-deps
+RUN npm run build
 
 
 FROM node:14.13.0-alpine3.10
 
+WORKDIR /app
+
 ENV NODE_ENV=production
 COPY backend/package.json .
-RUN npm i --production
+RUN npm install --production
 
 COPY --from=build backend/dist/main.js main.js 
 

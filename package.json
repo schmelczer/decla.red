@@ -6,20 +6,17 @@
       "frontend",
       "shared",
       "backend"
-    ],
-    "nohoist": [
-      "**"
     ]
   },
   "devDependencies": {
     "concurrently": "^5.3.0"
   },
   "scripts": {
-    "build": "yarn workspace shared run build && yarn workspace decla.red-frontend run build && yarn workspace declared-server run build",
+    "build": "cd shared && npm run build && cd ../frontend && npm run build && cd ../backend && npm run build",
     "lint": "eslint './**/src/**/*.{js,ts,json}' --fix",
     "frontend": "yarn workspace decla.red-frontend start",
     "shared": "yarn workspace shared start",
     "backend": "yarn workspace declared-server start",
-    "start": "concurrently --kill-others-on-fail \"yarn frontend\"  \"yarn shared\"  \"yarn backend\""
+    "start": "concurrently --kill-others-on-fail \"cd shared && npm start\"  \"cd backend && npm start\"  \"cd frontend && npm start\""
   }
 }

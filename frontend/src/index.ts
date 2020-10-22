@@ -11,15 +11,12 @@ import { CharacterView } from './scripts/objects/character-view';
 import { LampView } from './scripts/objects/lamp-view';
 import { ProjectileView } from './scripts/objects/projectile-view';
 import { PlanetView } from './scripts/objects/planet-view';
-import './styles/main.scss';
+import './main.scss';
 import { LandingPageBackground } from './scripts/landing-page-background';
 import { JoinFormHandler } from './scripts/join-form-handler';
 import { handleFullScreen } from './scripts/handle-full-screen';
 import { Game } from './scripts/game';
 import { PlayerCharacterView } from './scripts/objects/player-character-view';
-import '../static/settings.svg';
-import '../static/minimize.svg';
-import '../static/maximize.svg';
 import { handleInsights } from './scripts/handle-insights';
 import { getInsightsFromRenderer } from './scripts/get-insights-from-renderer';
 import { Renderer } from 'sdf-2d';
@@ -90,7 +87,6 @@ const toggleSettings = () =>
 
 const applyServerContainerShadows = () => {
   const { scrollHeight, clientHeight, scrollTop } = serverContainer;
-  console.log(scrollHeight, clientHeight, scrollTop);
   if (scrollHeight > clientHeight) {
     serverContainer.className = 'scroll';
     if (scrollTop === 0) {

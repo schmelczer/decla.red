@@ -1,9 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
+    "skipLibCheck": true,
     "target": "es6",
     "esModuleInterop": true,
     "strict": true,
