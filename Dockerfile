@@ -1,23 +1,8 @@
-FROM node:14.13.0-alpine3.10 as build
-RUN npm install -g npm@7 
-
-WORKDIR /app
-COPY . .
-
-RUN npm install
-RUN npm run build
-
 FROM node:14.13.0-alpine3.10
 
-WORKDIR /app
-
-ENV NODE_ENV=production
-COPY backend/package.json .
-RUN npm install --production
-
-COPY --from=build /app/backend/dist/main.js main.js 
+RUN npm i -g declared-server
 
 EXPOSE 3000
 
 CMD ["--port=3000", "--name=Docker server", "--seed=500"]
-ENTRYPOINT [ "node", "main.js" ]
+ENTRYPOINT [ "declared-server" ]
