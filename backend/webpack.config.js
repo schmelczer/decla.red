@@ -13,6 +13,7 @@ module.exports = (env, argv) => ({
   entry: {
     main: [PATHS.entryPoint],
   },
+
   externals: [
     nodeExternals({
       allowlist: [/(^shared)/],
