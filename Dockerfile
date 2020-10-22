@@ -4,9 +4,8 @@ RUN npm install -g npm@7
 WORKDIR /app
 COPY . .
 
-RUN npm install --legacy-peer-deps
+RUN npm install
 RUN npm run build
-
 
 FROM node:14.13.0-alpine3.10
 
@@ -16,7 +15,7 @@ ENV NODE_ENV=production
 COPY backend/package.json .
 RUN npm install --production
 
-COPY --from=build backend/dist/main.js main.js 
+COPY --from=build /app/backend/dist/main.js main.js 
 
 EXPOSE 3000
 
