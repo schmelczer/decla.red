@@ -17,10 +17,11 @@ import {
   Circle,
   PlayerInformation,
   CharacterTeam,
-  UpdatePlanetOwnershipCommand,
+  UpdateGameState,
   GameObject,
   Command,
   UpdateObjectMessage,
+  OtherPlayerDirection,
 } from 'shared';
 import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
@@ -189,11 +190,43 @@ export class Player extends CommandReceiver {
     );
 
     this.sendToPlayer(
-      new UpdatePlanetOwnershipCommand(
+      new UpdateGameState(
         PlanetPhysical.declaPlanetCount,
         PlanetPhysical.redPlanetCount,
         PlanetPhysical.neutralPlanetCount,
+        this.getOtherPlayers(),
       ),
+    );
+  }
+
+  private getOtherPlayers(): Array<OtherPlayerDirection> {
+    if (!this.character) {
+      return [];
+    }
+
+    const viewArea = calculateViewArea(this.center, this.aspectRatio, 0.9);
+    const bb = new BoundingBox();
+    bb.topLeft = viewArea.topLeft;
+    bb.size = viewArea.size;
+
+    const playersInViewArea = this.objects
+      .findIntersecting(bb)
+      .map((o) => o.gameObject)
+      .filter((g) => g instanceof PlayerCharacterPhysical);
+
+    const otherPlayers = this.players.filter(
+      (p) => playersInViewArea.indexOf(p.character!) < 0,
+    );
+
+    return otherPlayers.map(
+      (p) =>
+        new OtherPlayerDirection(
+          vec2.normalize(
+            vec2.create(),
+            vec2.subtract(vec2.create(), p.center, this.character!.center),
+          ),
+          p.team,
+        ),
     );
   }
 

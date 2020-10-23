@@ -145,7 +145,24 @@ body {
 
       @include square(50px);
       border-radius: 1000px;
-      mask: url('../static/mask.svg');
+      mask-image: url('../static/mask.svg');
+    }
+
+    .other-player-arrow {
+      @include square($large-icon);
+      @media (max-width: $breakpoint) {
+        @include square($small-icon);
+      }
+
+      mask-image: url('../static/chevron.svg');
+      mask-size: contain;
+
+      &.decla {
+        background-color: $bright-decla;
+      }
+      &.red {
+        background-color: $bright-red;
+      }
     }
 
     .planet-progress {
@@ -165,8 +182,10 @@ body {
         height: $height;
       }
 
+      border-radius: 100px;
+      overflow: hidden;
+
       div:nth-child(1) {
-        border-radius: 100px 0 0 100px;
         background: $bright-decla;
       }
 
@@ -175,7 +194,6 @@ body {
       }
 
       div:nth-child(3) {
-        border-radius: 0 100px 100px 0;
         background: $bright-red;
       }
     }

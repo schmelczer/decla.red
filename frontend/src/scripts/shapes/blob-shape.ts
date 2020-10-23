@@ -15,8 +15,8 @@ export class BlobShape extends Drawable {
 
       float blobSmoothMin(float a, float b)
       {
-        const float k = 300.0;
-        float res = exp2(-k * a) + exp2(-k * b);
+        const highp float k = 300.0;
+        highp float res = exp2(-k * a) + exp2(-k * b);
         return -log2(res) / k;
       }
 

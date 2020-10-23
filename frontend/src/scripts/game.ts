@@ -18,7 +18,8 @@ import {
   SetAspectRatioActionCommand,
   PlayerInformation,
   PlayerDiedCommand,
-  UpdatePlanetOwnershipCommand,
+  UpdateGameState,
+  clamp,
 } from 'shared';
 import io from 'socket.io-client';
 import { KeyboardListener } from './commands/generators/keyboard-listener';
@@ -54,6 +55,7 @@ export class Game {
     progressBar.appendChild(this.redPlanetCountElement);
   }
 
+  private arrowElements: Array<HTMLElement> = [];
   private async setupCommunication(serverUrl: string): Promise<void> {
     this.socket = io(serverUrl, {
       reconnectionDelayMax: 10000,
@@ -74,7 +76,7 @@ export class Game {
           navigator.vibrate(150);
         }
         this.overlay.appendChild(this.announcmentText);
-      } else if (command instanceof UpdatePlanetOwnershipCommand) {
+      } else if (command instanceof UpdateGameState) {
         const all = command.declaCount + command.redCount + command.neutralCount;
         this.declaPlanetCountElement.style.width = (command.declaCount / all) * 100 + '%';
         this.neutralPlanetCountElement.style.width =
@@ -90,6 +92,53 @@ export class Game {
           this.overlay.appendChild(this.announcmentText);
           this.announcmentText.innerText = 'Red team won 🎉';
         }
+
+        this.arrowElements
+          .splice(command.otherPlayerDirections.length, this.arrowElements.length)
+          .forEach((e) => e.parentElement?.removeChild(e));
+
+        for (
+          let i = this.arrowElements.length;
+          i < command.otherPlayerDirections.length;
+          i++
+        ) {
+          const element = document.createElement('div');
+          this.arrowElements.push(element);
+          this.overlay.appendChild(element);
+        }
+
+        this.arrowElements.forEach((e, i) => {
+          const direction = command.otherPlayerDirections[i].direction;
+          const team = command.otherPlayerDirections[i].team;
+          const angle = Math.atan2(direction.y, direction.x);
+          e.className = 'other-player-arrow ' + team;
+
+          const { width, height } = this.overlay.getBoundingClientRect();
+          const aspectRatio = width / height;
+          const directionRatio = direction.x / direction.y;
+
+          let deltaX: number, deltaY: number;
+          if (aspectRatio < Math.abs(directionRatio)) {
+            deltaX = (width / 2) * Math.sign(direction.x);
+            deltaY = deltaX / directionRatio;
+          } else {
+            deltaY = (height / 2) * Math.sign(direction.y);
+            deltaX = deltaY * directionRatio;
+          }
+
+          const delta = vec2.fromValues(deltaX, deltaY);
+          const center = vec2.fromValues(width / 2, height / 2);
+          const p = vec2.add(center, center, delta);
+          const arrowPadding = 16;
+          vec2.set(
+            p,
+            clamp(p.x, arrowPadding, width - 3 * arrowPadding),
+            clamp(height - p.y, arrowPadding, height - 3 * arrowPadding),
+          );
+          e.style.transform = `translateX(${p.x}px) translateY(${p.y}px) rotate(${
+            -angle + Math.PI / 2
+          }rad) translateX(-50%) translateY(-50%)`;
+        });
       } else this.gameObjects.sendCommand(command);
     });
 

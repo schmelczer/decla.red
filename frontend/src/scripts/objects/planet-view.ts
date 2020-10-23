@@ -30,12 +30,18 @@ export class PlanetView extends PlanetBase implements ViewObject {
   private getGradient(): string {
     const sideDecla = this.ownership < 0.5;
     const sidePercent = (Math.abs(this.ownership - 0.5) / 0.5) * 100;
-    const color = sideDecla ? 'var(--bright-decla)' : 'var(--bright-red)';
-    return `conic-gradient(
-      ${color} ${sidePercent}%,
-      ${color} ${sidePercent}%,
+    return sideDecla
+      ? `conic-gradient(
+      var(--bright-decla) ${sidePercent}%,
+      var(--bright-decla) ${sidePercent}%,
       var(--bright-neutral) ${sidePercent}%,
       var(--bright-neutral) 100%
+    )`
+      : `conic-gradient(
+      var(--bright-neutral) 0%,
+      var(--bright-neutral) ${100 - sidePercent}%,
+      var(--bright-red) ${100 - sidePercent}%,
+      var(--bright-red) 100%
     )`;
   }
   public beforeDestroy(): void {

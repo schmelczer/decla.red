@@ -52,7 +52,9 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
               vec2 center = planetCenters[j];
               float l = planetLengths[j];
               float randomOffset = planetRandoms[j];
-              vec2 targetTangent = normalize(target - center);
+              vec2 targetCenterDelta = target - center;
+              float targetDistance = length(targetCenterDelta);
+              vec2 targetTangent = targetCenterDelta / clamp(targetDistance, 0.01, 1000.0);
               vec2 noisyTarget = target - (
                 targetTangent * planetTerrain(vec2(
                   l * abs(atan(targetTangent.y, targetTangent.x)),
