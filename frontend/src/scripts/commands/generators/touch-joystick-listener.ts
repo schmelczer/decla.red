@@ -73,11 +73,19 @@ export class TouchJoystickListener extends CommandGenerator {
       this.joystickButton.style.transform = `translateX(${movement.x}px) translateY(${movement.y}px) translateX(-50%) translateY(-50%)`;
 
       vec2.set(movement, movement.x, -movement.y);
-      if (vec2.squaredLength(movement) > 0) {
-        vec2.normalize(movement, movement);
-
+      if (length > 10) {
         this.sendCommandToSubcribers(
-          new MoveActionCommand(movement, OptionsHandler.options.relativeMovementEnabled),
+          new MoveActionCommand(
+            vec2.normalize(movement, movement),
+            OptionsHandler.options.relativeMovementEnabled,
+          ),
+        );
+      } else {
+        this.sendCommandToSubcribers(
+          new MoveActionCommand(
+            vec2.create(),
+            OptionsHandler.options.relativeMovementEnabled,
+          ),
         );
       }
     });

@@ -8,14 +8,17 @@ import { ViewObject } from './view-object';
 
 export class PlayerCharacterView extends PlayerCharacterBase implements ViewObject {
   private shape: BlobShape;
-  private nameElement: HTMLElement;
-  private healthElement: HTMLElement;
+  private nameElement: HTMLElement = document.createElement('div');
+  private statsElement: HTMLElement = document.createElement('div');
+  private healthElement: HTMLElement = document.createElement('div');
   private timeSinceLastNameElementUpdate = 0;
   private previousHealth;
 
   constructor(
     id: Id,
     name: string,
+    killCount: number,
+    deathCount: number,
     colorIndex: number,
     team: CharacterTeam,
     health: number,
@@ -23,15 +26,25 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     leftFoot?: Circle,
     rightFoot?: Circle,
   ) {
-    super(id, name, colorIndex, team, health, head, leftFoot, rightFoot);
+    super(
+      id,
+      name,
+      killCount,
+      deathCount,
+      colorIndex,
+      team,
+      health,
+      head,
+      leftFoot,
+      rightFoot,
+    );
     this.shape = new BlobShape(colorIndex);
 
     this.previousHealth = this.health;
-    this.nameElement = document.createElement('div');
     this.nameElement.className = 'player-tag ' + this.team;
     this.nameElement.innerText = this.name;
-    this.healthElement = document.createElement('div');
     this.nameElement.appendChild(this.healthElement);
+    this.nameElement.appendChild(this.statsElement);
   }
 
   public get position(): vec2 {
@@ -41,10 +54,11 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   public step(deltaTimeInMilliseconds: number): void {
     this.timeSinceLastNameElementUpdate += deltaTimeInMilliseconds;
     this.healthElement.style.width = (50 * this.health) / settings.playerMaxHealth + 'px';
+    this.statsElement.innerText = this.getStatsText();
     if (this.previousHealth > this.health) {
       this.previousHealth = this.health;
       if (OptionsHandler.options.vibrationEnabled) {
-        navigator.vibrate(50);
+        navigator.vibrate(75);
       }
     }
     this.previousHealth = this.health;
@@ -72,6 +86,10 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     renderer.addDrawable(this.shape);
   }
 
+  private getStatsText(): string {
+    return `${this.killCount}⚔/${this.deathCount}☠`;
+  }
+
   private calculateTextPosition(): vec2 {
     const footAverage = vec2.add(
       vec2.create(),
@@ -82,7 +100,7 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
 
     const headFeetDelta = vec2.subtract(footAverage, this.head!.center, footAverage);
     vec2.normalize(headFeetDelta, headFeetDelta);
-    const textOffset = vec2.scale(headFeetDelta, headFeetDelta, this.head!.radius + 60);
+    const textOffset = vec2.scale(headFeetDelta, headFeetDelta, this.head!.radius + 80);
     return vec2.add(textOffset, this.head!.center, textOffset);
   }
 }

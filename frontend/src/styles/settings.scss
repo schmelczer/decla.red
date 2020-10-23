@@ -43,6 +43,7 @@
     top: 0;
     right: $medium-padding + $small-icon + $small-padding;
   }
+  pointer-events: none;
   overflow: hidden;
 }
 
@@ -61,11 +62,10 @@
   opacity: 0;
   transition: transform $animation-time, opacity $animation-time;
 
-  pointer-events: none;
   &.open {
     transform: none;
     opacity: 1;
-    pointer-events: inherit;
+    pointer-events: all;
   }
 
   img,

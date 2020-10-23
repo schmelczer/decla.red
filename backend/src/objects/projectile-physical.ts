@@ -38,12 +38,17 @@ export class ProjectilePhysical
     public strength: number,
     public team: CharacterTeam,
     private velocity: vec2,
+    public readonly originator: PlayerCharacterPhysical,
     readonly container: PhysicalContainer,
   ) {
     super(id(), center, radius, colorIndex, strength);
     this.object = new CirclePhysical(center, radius, this, container, 0.9);
 
     this.moveOutsideOfObject();
+  }
+
+  public get isAlive(): boolean {
+    return !this.isDestroyed;
   }
 
   private moveOutsideOfObject() {

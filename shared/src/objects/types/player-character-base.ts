@@ -9,6 +9,8 @@ export class PlayerCharacterBase extends CharacterBase {
   constructor(
     id: Id,
     public name: string,
+    public killCount: number,
+    public deathCount: number,
     colorIndex: number,
     team: CharacterTeam,
     health: number,
@@ -20,7 +22,17 @@ export class PlayerCharacterBase extends CharacterBase {
   }
 
   public toArray(): Array<any> {
-    const { id, name, colorIndex, team, health, head, leftFoot, rightFoot } = this;
-    return [id, name, colorIndex, team, health, head, leftFoot, rightFoot];
+    return [
+      this.id,
+      this.name,
+      this.killCount,
+      this.deathCount,
+      this.colorIndex,
+      this.team,
+      this.health,
+      this.head,
+      this.leftFoot,
+      this.rightFoot,
+    ];
   }
 }

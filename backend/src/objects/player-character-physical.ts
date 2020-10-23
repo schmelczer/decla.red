@@ -95,12 +95,14 @@ export class PlayerCharacterPhysical
 
   constructor(
     name: string,
+    killCount: number,
+    deathCount: number,
     public readonly colorIndex: number,
     team: CharacterTeam,
     private readonly container: PhysicalContainer,
     startPosition: vec2,
   ) {
-    super(id(), name, colorIndex, team, settings.playerMaxHealth);
+    super(id(), name, killCount, deathCount, colorIndex, team, settings.playerMaxHealth);
 
     this.head = new CirclePhysical(
       vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.headOffset),
@@ -133,7 +135,13 @@ export class PlayerCharacterPhysical
   }
 
   public calculateUpdates(): UpdateObjectMessage {
-    return new UpdateGameObjectMessage(this, ['head', 'leftFoot', 'rightFoot', 'health']);
+    return new UpdateGameObjectMessage(this, [
+      'head',
+      'leftFoot',
+      'rightFoot',
+      'health',
+      'killCount',
+    ]);
   }
 
   public handleMovementAction(c: MoveActionCommand) {
@@ -141,11 +149,16 @@ export class PlayerCharacterPhysical
   }
 
   public onCollision(other: GameObject) {
-    if (other instanceof ProjectilePhysical && other.team !== this.team) {
+    if (
+      other instanceof ProjectilePhysical &&
+      other.team !== this.team &&
+      other.isAlive
+    ) {
       other.destroy();
       this.health -= other.strength;
       if (this.health <= 0) {
         this.destroy();
+        other.originator.killCount++;
       }
     }
   }
@@ -167,6 +180,7 @@ export class PlayerCharacterPhysical
       strength,
       this.team,
       velocity,
+      this,
       this.container,
     );
     this.container.addObject(projectile);

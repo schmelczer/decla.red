@@ -10,7 +10,7 @@
   margin: 0;
   box-sizing: border-box;
   color: white;
-  font-family: 'Open Sans', sans-serif;
+  font-family: 'Open Sans', 'Segoe UI Emoji', sans-serif;
 
   &::selection {
     color: white;
@@ -41,10 +41,6 @@ h1 {
   @media (max-height: $height-breakpoint) {
     display: none;
   }
-}
-
-h2 {
-  font-size: 4rem;
 }
 
 .red {
@@ -97,10 +93,6 @@ body {
       left: 0;
     }
 
-    h2 {
-      margin: $large-padding 0;
-    }
-
     .player-tag {
       transform: translateX(-50%) translateY(-50%) rotate(-15deg);
       transition: left 200ms, top 200ms;
@@ -108,8 +100,7 @@ body {
 
       &.decla {
         color: $bright-decla;
-
-        div {
+        div:first-child {
           background-color: $bright-decla;
           &:before {
             background-color: $bright-decla;
@@ -120,7 +111,7 @@ body {
 
       &.red {
         color: $bright-red;
-        div {
+        div:first-child {
           background-color: $bright-red;
           &:before {
             background-color: $bright-red;
@@ -129,7 +120,7 @@ body {
         }
       }
 
-      div {
+      div:first-child {
         position: relative;
         height: 5px;
         border-radius: 1000px;
@@ -142,6 +133,11 @@ body {
           box-sizing: border-box;
           border-radius: 1000px;
         }
+      }
+
+      div:not(:first-child) {
+        letter-spacing: 2px;
+        font-size: 0.8em;
       }
     }
 
@@ -188,6 +184,17 @@ body {
         @include square($small-icon);
         border-radius: 1000px;
       }
+    }
+
+    .announcement {
+      top: 50%;
+      left: 50%;
+      transform: translateX(-50%) translateY(-50%);
+      font-size: 3rem;
+      @include background;
+      z-index: 1000;
+      padding: $medium-padding;
+      border-radius: 16px;
     }
 
     .planet-progress {

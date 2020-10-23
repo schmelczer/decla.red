@@ -41,12 +41,14 @@ export class Game {
   private declaPlanetCountElement = document.createElement('div');
   private redPlanetCountElement = document.createElement('div');
   private neutralPlanetCountElement = document.createElement('div');
+  private announcementText = document.createElement('h2');
 
   constructor(
     private readonly playerDecision: PlayerDecision,
     private readonly canvas: HTMLCanvasElement,
     private readonly overlay: HTMLElement,
   ) {
+    this.announcementText.className = 'announcement';
     const progressBar = document.createElement('div');
     progressBar.className = 'planet-progress';
     overlay.appendChild(progressBar);
@@ -75,7 +77,7 @@ export class Game {
         if (OptionsHandler.options.vibrationEnabled) {
           navigator.vibrate(150);
         }
-        this.overlay.appendChild(this.announcmentText);
+        this.overlay.appendChild(this.announcementText);
       } else if (command instanceof UpdateGameState) {
         const all = command.declaCount + command.redCount + command.neutralCount;
         this.declaPlanetCountElement.style.width = (command.declaCount / all) * 100 + '%';
@@ -84,13 +86,13 @@ export class Game {
         this.redPlanetCountElement.style.width = (command.redCount / all) * 100 + '%';
 
         if (command.declaCount > all * 0.5) {
-          this.overlay.appendChild(this.announcmentText);
-          this.announcmentText.innerText = 'Decla team won 🎉';
+          this.overlay.appendChild(this.announcementText);
+          this.announcementText.innerText = 'Decla team won 🎉';
         }
 
         if (command.redCount > all * 0.5) {
-          this.overlay.appendChild(this.announcmentText);
-          this.announcmentText.innerText = 'Red team won 🎉';
+          this.overlay.appendChild(this.announcementText);
+          this.announcementText.innerText = 'Red team won 🎉';
         }
 
         this.arrowElements
@@ -233,7 +235,6 @@ export class Game {
     this.isActive = false;
   }
 
-  private announcmentText = document.createElement('h2');
   private gameLoop(
     renderer: Renderer,
     currentTime: DOMHighResTimeStamp,
@@ -242,9 +243,9 @@ export class Game {
     this.renderer = renderer;
 
     if ((this.deadTimeout -= deltaTime / 1000) > 0) {
-      this.announcmentText.innerText = `Respawning in ${Math.floor(this.deadTimeout)} …`;
+      this.announcementText.innerText = `Reviving in ${Math.floor(this.deadTimeout)}…`;
     } else {
-      this.announcmentText.parentElement?.removeChild(this.announcmentText);
+      this.announcementText.parentElement?.removeChild(this.announcementText);
     }
 
     this.gameObjects.stepObjects(deltaTime);

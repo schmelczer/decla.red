@@ -21,6 +21,9 @@ export class GameObjectContainer extends CommandReceiver {
 
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
+      if (this.camera) {
+        this.deleteObject(this.camera.id);
+      }
       this.player = c.character as PlayerCharacterView;
       this.camera = new Camera(this.game);
       this.addObject(this.player);

@@ -37,6 +37,9 @@ export class Player extends CommandReceiver {
   private aspectRatio: number = 16 / 9;
   private isActive = true;
 
+  private sumKills = 0;
+  private sumDeaths = 0;
+
   private objectsPreviouslyInViewArea: Array<GameObject> = [];
 
   private pingTime?: number;
@@ -64,17 +67,20 @@ export class Player extends CommandReceiver {
   };
 
   private findEmptyPositionForPlayer(): vec2 {
-    let possibleCenter = this.players.find((p) => p.team === this.team)?.center;
+    let possibleCenter = this.players.find(
+      (p) => p.character?.isAlive && p.team === this.team,
+    )?.center;
+
     if (!possibleCenter) {
       possibleCenter = vec2.create();
     }
 
-    let rotation = Math.atan2(possibleCenter.y, possibleCenter.x);
-    let radius = vec2.length(possibleCenter);
+    let rotation = 0;
+    let radius = 0;
     for (;;) {
       const playerPosition = vec2.fromValues(
-        radius * Math.cos(rotation),
-        radius * Math.sin(rotation),
+        radius * Math.cos(rotation) + possibleCenter.x,
+        radius * Math.sin(rotation) + possibleCenter.y,
       );
 
       const playerBoundingCircle = new Circle(
@@ -121,6 +127,8 @@ export class Player extends CommandReceiver {
   private createCharacter() {
     this.character = new PlayerCharacterPhysical(
       this.playerInfo.name.slice(0, 20),
+      this.sumKills,
+      this.sumDeaths,
       this.colorIndex,
       this.team,
       this.objects,
@@ -143,6 +151,9 @@ export class Player extends CommandReceiver {
       this.center = this.character?.center;
 
       if (!this.character.isAlive) {
+        this.sumDeaths++;
+        this.sumKills = this.character.killCount;
+
         this.socket.emit(
           TransportEvents.ServerToPlayer,
           serialize(new PlayerDiedCommand(settings.playerDiedTimeout)),
