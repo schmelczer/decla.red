@@ -4,8 +4,8 @@ const ScssConfigWebpackPlugin = require('scss-config-webpack-plugin');
 const TsConfigWebpackPlugin = require('ts-config-webpack-plugin');
 const HtmlWebpackInlineSVGPlugin = require('html-webpack-inline-svg-plugin');
 const TerserJSPlugin = require('terser-webpack-plugin');
+const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 //const FaviconsWebpackPlugin = require('favicons-webpack-plugin');
-//const StyleExtHtmlWebpackPlugin = require('style-ext-html-webpack-plugin');
 
 module.exports = {
   devServer: {
@@ -18,10 +18,14 @@ module.exports = {
   plugins: [
     // Cleans the dist folder before the build starts
     new CleanWebpackPlugin(),
+    new ScssConfigWebpackPlugin(),
+
     // Generate a base html file and injects all generated css and js files
     new HtmlWebpackPlugin({
       template: './src/index.html',
+      inlineSource: '.(css)$',
     }),
+    new HtmlWebpackInlineSourcePlugin(HtmlWebpackPlugin),
     new HtmlWebpackInlineSVGPlugin({
       inlineAll: true,
       svgoConfig: [
@@ -30,11 +34,10 @@ module.exports = {
         },
       ],
     }),
-    //new StyleExtHtmlWebpackPlugin('main.css'),
     //new FaviconsWebpackPlugin('static/logo.svg'),
     // SCSS Configuration for .css .module.css and .scss .module.scss files
     // see https://github.com/namics/webpack-config-plugins/tree/master/packages/scss-config-webpack-plugin/config
-    new ScssConfigWebpackPlugin(),
+
     // Multi threading typescript loader configuration with caching for .ts and .tsx files
     // see https://github.com/namics/webpack-config-plugins/tree/master/packages/ts-config-webpack-plugin/config
     new TsConfigWebpackPlugin(),
@@ -56,6 +59,16 @@ module.exports = {
         test: /\.js$/,
         enforce: 'pre',
         use: ['source-map-loader'],
+      },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: 'style-loader',
+            options: { injectType: 'singletonStyleTag' },
+          },
+          'css-loader',
+        ],
       },
       {
         test: /\.svg/,

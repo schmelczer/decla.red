@@ -24,7 +24,7 @@ import {
 import io from 'socket.io-client';
 import { KeyboardListener } from './commands/generators/keyboard-listener';
 import { MouseListener } from './commands/generators/mouse-listener';
-import { TouchListener } from './commands/generators/touch-listener';
+import { TouchJoystickListener } from './commands/generators/touch-joystick-listener';
 import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
@@ -129,15 +129,15 @@ export class Game {
           const delta = vec2.fromValues(deltaX, deltaY);
           const center = vec2.fromValues(width / 2, height / 2);
           const p = vec2.add(center, center, delta);
-          const arrowPadding = 16;
+          const arrowPadding = 24;
           vec2.set(
             p,
-            clamp(p.x, arrowPadding, width - 3 * arrowPadding),
-            clamp(height - p.y, arrowPadding, height - 3 * arrowPadding),
+            clamp(p.x, arrowPadding, width - arrowPadding),
+            clamp(height - p.y, arrowPadding, height - arrowPadding),
           );
-          e.style.transform = `translateX(${p.x}px) translateY(${p.y}px) rotate(${
-            -angle + Math.PI / 2
-          }rad) translateX(-50%) translateY(-50%)`;
+          e.style.transform = `translateX(${p.x}px) translateY(${
+            p.y
+          }px) translateX(-50%) translateY(-50%) rotate(${-angle + Math.PI / 2}rad) `;
         });
       } else this.gameObjects.sendCommand(command);
     });
@@ -154,7 +154,7 @@ export class Game {
       [
         new KeyboardListener(document.body),
         new MouseListener(this.canvas, this),
-        new TouchListener(this.canvas, this),
+        new TouchJoystickListener(this.canvas, this.overlay, this),
       ],
       [this.gameObjects, new CommandReceiverSocket(this.socket)],
     );

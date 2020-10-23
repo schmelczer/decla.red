@@ -1,3 +1,3 @@
-export function last<T>(a: Array<T>): T | null {
+export function last<T>(a: ArrayLike<T>): T | null {
   return a.length > 0 ? a[a.length - 1] : null;
 }
