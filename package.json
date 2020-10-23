@@ -1,13 +1,6 @@
 {
   "name": "root",
   "private": true,
-  "workspaces": {
-    "packages": [
-      "frontend",
-      "shared",
-      "backend"
-    ]
-  },
   "devDependencies": {
     "concurrently": "^5.3.0"
   },
@@ -15,6 +8,7 @@
     "build": "cd shared && npm run build && cd ../frontend && npm run build && cd ../backend && npm run build",
     "lint": "eslint './**/src/**/*.{js,ts,json}' --fix",
     "frontend": "yarn workspace decla.red-frontend start",
+    "init": "cd shared && npm install && cd ../frontend && npm install && cd ../backend && npm install",
     "shared": "yarn workspace shared start",
     "backend": "yarn workspace declared-server start",
     "start": "concurrently --kill-others-on-fail \"cd shared && npm start\"  \"cd backend && npm start\"  \"cd frontend && npm start\""

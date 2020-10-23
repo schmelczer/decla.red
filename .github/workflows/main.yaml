@@ -16,7 +16,7 @@ jobs:
           lfs: true
       - name: Build project
         run: |
-          yarn && yarn run build
+          npm i && npm run init && npm run build
       - name: Deploy frontend
         uses: w9jds/firebase-action@master
         with:

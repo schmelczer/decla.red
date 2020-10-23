@@ -4,6 +4,8 @@ const ScssConfigWebpackPlugin = require('scss-config-webpack-plugin');
 const TsConfigWebpackPlugin = require('ts-config-webpack-plugin');
 const HtmlWebpackInlineSVGPlugin = require('html-webpack-inline-svg-plugin');
 const TerserJSPlugin = require('terser-webpack-plugin');
+//const FaviconsWebpackPlugin = require('favicons-webpack-plugin');
+//const StyleExtHtmlWebpackPlugin = require('style-ext-html-webpack-plugin');
 
 module.exports = {
   devServer: {
@@ -28,6 +30,8 @@ module.exports = {
         },
       ],
     }),
+    //new StyleExtHtmlWebpackPlugin('main.css'),
+    //new FaviconsWebpackPlugin('static/logo.svg'),
     // SCSS Configuration for .css .module.css and .scss .module.scss files
     // see https://github.com/namics/webpack-config-plugins/tree/master/packages/scss-config-webpack-plugin/config
     new ScssConfigWebpackPlugin(),
@@ -54,7 +58,14 @@ module.exports = {
         use: ['source-map-loader'],
       },
       {
-        test: /\.(svg|png)$/,
+        test: /\.svg/,
+        use: {
+          loader: 'svg-url-loader',
+          options: {},
+        },
+      },
+      {
+        test: /\.(png)$/,
         use: {
           loader: 'file-loader',
         },

@@ -6,7 +6,7 @@
   "author": "András Schmelczer <andras@schmelczer.dev> (https://schmelczer.dev/)",
   "main": "dist/main.js",
   "bin": {
-    "declared-server": "./dist/main.js"
+    "declared-server": "dist/main.js"
   },
   "scripts": {
     "build": "npx webpack --mode production",
@@ -44,6 +44,7 @@
     "prettier": "^2.0.5",
     "raw-loader": "^4.0.1",
     "resolve-url-loader": "^3.1.1",
+    "shared": "file:../shared",
     "terser-webpack-plugin": "^2.3.5",
     "ts-config-webpack-plugin": "^2.0.0",
     "ts-loader": "^8.0.3",
