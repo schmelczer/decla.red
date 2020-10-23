@@ -1,8 +1,8 @@
-@import './styles/vars.scss';
-@import './styles/button.scss';
-@import './styles/form.scss';
-@import './styles/mixins.scss';
-@import './styles/settings.scss';
+@use 'styles/vars' as *;
+@use 'styles/button';
+@use 'styles/form';
+@use 'styles/mixins' as *;
+@use 'styles/settings';
 
 @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300&family=Open+Sans&display=swap');
 

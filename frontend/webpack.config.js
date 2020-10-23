@@ -1,10 +1,12 @@
 const CleanWebpackPlugin = require('clean-webpack-plugin').CleanWebpackPlugin;
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const ScssConfigWebpackPlugin = require('scss-config-webpack-plugin');
 const TsConfigWebpackPlugin = require('ts-config-webpack-plugin');
 const HtmlWebpackInlineSVGPlugin = require('html-webpack-inline-svg-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const TerserJSPlugin = require('terser-webpack-plugin');
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
+const Sass = require('sass');
+
 //const FaviconsWebpackPlugin = require('favicons-webpack-plugin');
 
 module.exports = {
@@ -18,9 +20,7 @@ module.exports = {
   plugins: [
     // Cleans the dist folder before the build starts
     new CleanWebpackPlugin(),
-    new ScssConfigWebpackPlugin(),
-
-    // Generate a base html file and injects all generated css and js files
+    new MiniCssExtractPlugin(),
     new HtmlWebpackPlugin({
       template: './src/index.html',
       inlineSource: '.(css)$',
@@ -34,10 +34,8 @@ module.exports = {
         },
       ],
     }),
-    //new FaviconsWebpackPlugin('static/logo.svg'),
-    // SCSS Configuration for .css .module.css and .scss .module.scss files
-    // see https://github.com/namics/webpack-config-plugins/tree/master/packages/scss-config-webpack-plugin/config
 
+    //new FaviconsWebpackPlugin('static/logo.svg'),
     // Multi threading typescript loader configuration with caching for .ts and .tsx files
     // see https://github.com/namics/webpack-config-plugins/tree/master/packages/ts-config-webpack-plugin/config
     new TsConfigWebpackPlugin(),
@@ -61,13 +59,18 @@ module.exports = {
         use: ['source-map-loader'],
       },
       {
-        test: /\.css$/,
+        test: /\.scss$/i,
         use: [
-          {
-            loader: 'style-loader',
-            options: { injectType: 'singletonStyleTag' },
-          },
+          MiniCssExtractPlugin.loader,
           'css-loader',
+          'postcss-loader',
+          {
+            loader: 'sass-loader',
+            options: {
+              sourceMap: true,
+              implementation: Sass,
+            },
+          },
         ],
       },
       {
