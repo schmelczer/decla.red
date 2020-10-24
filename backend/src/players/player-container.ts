@@ -1,4 +1,4 @@
-import { CharacterTeam, PlayerInformation, Random } from 'shared';
+import { CharacterTeam, PlayerInformation, Random, TransportEvents } from 'shared';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { Player } from './player';
 
@@ -30,6 +30,10 @@ export class PlayerContainer {
 
   public step(deltaTimeInSeconds: number) {
     this.players.forEach((p) => p.step(deltaTimeInSeconds));
+  }
+
+  public sendOnSocket(message: any) {
+    this.players.forEach((p) => p.socket.emit(TransportEvents.ServerToPlayer, message));
   }
 
   private getTeamOfNextPlayer(): CharacterTeam {

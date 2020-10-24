@@ -2,8 +2,8 @@ export enum TransportEvents {
   PlayerJoining = 'PlayerJoining',
   PlayerToServer = 'PlayerToServer',
   ServerToPlayer = 'ServerToPlayer',
-  SubscribeForPlayerCount = 'SubscribeForPlayerCount',
-  PlayerCountUpdate = 'PlayerCountUpdate',
+  SubscribeForServerInfoUpdates = 'SubscribeForServerInfoUpdates',
+  ServerInfoUpdate = 'ServerInfoUpdate',
   Ping = 'Ping',
   Pong = 'Pong',
 }

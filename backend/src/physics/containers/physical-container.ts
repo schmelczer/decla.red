@@ -6,12 +6,14 @@ import { BoundingBoxTree } from './bounding-box-tree';
 import { Physical } from '../physicals/physical';
 import { StaticPhysical } from '../physicals/static-physical';
 import { DynamicPhysical } from '../physicals/dynamic-physical';
+import { GeneratesPoints, generatesPoints } from '../../objects/generates-points';
 
 export class PhysicalContainer {
   private isTreeInitialized = false;
   private staticBoundingBoxesWaitList: Array<StaticPhysical> = [];
   private staticBoundingBoxes = new BoundingBoxTree();
   private dynamicBoundingBoxes = new BoundingBoxList();
+  private objects: Array<Physical> = [];
 
   public initialize() {
     this.staticBoundingBoxes.build(this.staticBoundingBoxesWaitList);
@@ -19,6 +21,8 @@ export class PhysicalContainer {
   }
 
   public addObject(physical: Physical) {
+    this.objects.push(physical);
+
     if (physical.canMove) {
       this.dynamicBoundingBoxes.insert(physical);
     } else {
@@ -31,11 +35,31 @@ export class PhysicalContainer {
   }
 
   public removeObject(object: DynamicPhysical) {
+    this.objects = this.objects.filter((p) => p !== object);
     this.dynamicBoundingBoxes.remove(object);
   }
 
   public stepObjects(deltaTime: number) {
-    this.dynamicBoundingBoxes.forEach((o) => o.step(deltaTime));
+    this.objects.forEach((o) => o.step(deltaTime));
+  }
+
+  public resetRemoteCalls() {
+    this.objects.forEach((o) => o.gameObject.resetRemoteCalls());
+  }
+
+  public getPointsGenerated(): { decla: number; red: number } {
+    return this.objects
+      .filter((o) => generatesPoints(o))
+      .reduce(
+        (sum, o) => {
+          const { decla, red } = ((o as unknown) as GeneratesPoints).getPoints();
+          return {
+            decla: sum.decla + decla,
+            red: sum.red + red,
+          };
+        },
+        { decla: 0, red: 0 },
+      );
   }
 
   public findIntersecting(box: BoundingBoxBase): Array<Physical> {

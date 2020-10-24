@@ -23,7 +23,9 @@ export class ProjectileView extends ProjectileBase implements ViewObject {
     );
   }
 
-  public step(deltaTimeInMilliseconds: number): void {
+  public step(deltaTimeInSeconds: number): void {
+    super.step(deltaTimeInSeconds);
+
     this.circle.center = this.center;
     this.light.center = this.center;
     this.light.intensity = (0.15 * this.strength) / settings.projectileMaxStrength;

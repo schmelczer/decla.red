@@ -108,7 +108,12 @@ const applyServerContainerShadows = () => {
 const main = async () => {
   try {
     let game: Game;
-    SoundHandler.initialize();
+
+    const firstClickListener = () => {
+      SoundHandler.initialize();
+      document.removeEventListener('click', firstClickListener);
+    };
+    document.addEventListener('click', firstClickListener);
 
     handleFullScreen(minimize, maximize);
     toggleSettingsButton.addEventListener('click', toggleSettings);
@@ -134,7 +139,7 @@ const main = async () => {
 
     for (;;) {
       show(spinner);
-      hide(logoutButton);
+      hide(logoutButton, true);
       show(landingUI, true, 'flex');
 
       const background = new LandingPageBackground(canvas);
@@ -156,7 +161,7 @@ const main = async () => {
       await game.started;
       isInGame = true;
       hide(spinner);
-      show(logoutButton);
+      show(logoutButton, true, 'block');
       await gameOver;
       isInGame = false;
     }

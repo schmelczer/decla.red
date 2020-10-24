@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { Circle, GameObject, serializesTo, settings, UpdateObjectMessage } from 'shared';
+import { Circle, GameObject, serializesTo, settings } from 'shared';
 import { PhysicalBase } from '../physics/physicals/physical-base';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';

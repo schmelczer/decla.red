@@ -10,15 +10,16 @@ import {
   settings,
   PlanetBase,
   CharacterTeam,
-  UpdateObjectMessage,
 } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { StaticPhysical } from '../physics/physicals/static-physical';
-import { UpdateGameObjectMessage } from '../update-game-object-message';
+import { GeneratesPoints } from './generates-points';
 
 @serializesTo(PlanetBase)
-export class PlanetPhysical extends PlanetBase implements StaticPhysical {
+export class PlanetPhysical
+  extends PlanetBase
+  implements StaticPhysical, GeneratesPoints {
   public readonly canCollide = true;
   public readonly canMove = false;
 
@@ -67,41 +68,62 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
     return sign * d;
   }
 
-  public calculateUpdates(): UpdateObjectMessage {
-    return new UpdateGameObjectMessage(this, ['ownership']);
+  public get team(): CharacterTeam {
+    return this.ownership === 0.5
+      ? CharacterTeam.neutral
+      : this.ownership < 0.5
+      ? CharacterTeam.decla
+      : CharacterTeam.red;
+  }
+
+  private timeSinceLastPointGeneration = 0;
+  public getPoints(): {
+    decla: number;
+    red: number;
+  } {
+    if (this.timeSinceLastPointGeneration > settings.planetPointGenerationInterval) {
+      this.timeSinceLastPointGeneration = 0;
+      if (this.team !== CharacterTeam.neutral) {
+        this.remoteCall('generatedPoints', settings.planetPointGenerationValue);
+      }
+
+      return {
+        decla:
+          this.team === CharacterTeam.decla ? settings.planetPointGenerationValue : 0,
+        red: this.team === CharacterTeam.red ? settings.planetPointGenerationValue : 0,
+      };
+    }
+
+    return {
+      decla: 0,
+      red: 0,
+    };
+  }
+
+  public step(deltaTime: number): void {
+    this.timeSinceLastPointGeneration += deltaTime;
+
+    // In reverse order, so that teams can achieve a 100% control.
+    this.remoteCall('setOwnership', this.ownership);
+    this.takeControl(CharacterTeam.neutral, deltaTime);
   }
 
   public takeControl(team: CharacterTeam, deltaTime: number) {
-    const previousOwnership = this.ownership;
     if (team === CharacterTeam.decla) {
       this.ownership -= (0.5 / settings.takeControlTimeInSeconds) * deltaTime;
-      if (
-        previousOwnership >= 0.5 - settings.planetControlThreshold &&
-        this.ownership < 0.5 - settings.planetControlThreshold
-      ) {
-        PlanetPhysical.declaPlanetCount++;
-        PlanetPhysical.neutralPlanetCount--;
-      } else if (
-        previousOwnership > 0.5 + settings.planetControlThreshold &&
-        previousOwnership <= 0.5 + settings.planetControlThreshold
-      ) {
-        PlanetPhysical.redPlanetCount--;
-        PlanetPhysical.neutralPlanetCount++;
-      }
-    } else {
+    } else if (team === CharacterTeam.red) {
       this.ownership += (0.5 / settings.takeControlTimeInSeconds) * deltaTime;
+    } else {
+      const previous = this.ownership;
+      this.ownership +=
+        -Math.sign(this.ownership - 0.5) *
+        (0.5 / settings.loseControlTimeInSeconds) *
+        deltaTime;
       if (
-        previousOwnership < 0.5 + settings.planetControlThreshold &&
-        this.ownership >= 0.5 + settings.planetControlThreshold
+        (previous < 0.5 && this.ownership > 0.5) ||
+        (previous > 0.5 && this.ownership < 0.5)
       ) {
-        PlanetPhysical.redPlanetCount++;
-        PlanetPhysical.neutralPlanetCount--;
-      } else if (
-        previousOwnership <= 0.5 - settings.planetControlThreshold &&
-        previousOwnership > 0.5 + settings.planetControlThreshold
-      ) {
-        PlanetPhysical.declaPlanetCount--;
-        PlanetPhysical.neutralPlanetCount++;
+        this.ownership = 0.5;
       }
     }
 

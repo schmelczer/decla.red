@@ -95,6 +95,9 @@ class ServerChooserOption {
   private divElement = document.createElement('div');
   private inputElement = document.createElement('input');
   private labelElement = document.createElement('label');
+  private serverNameElement = document.createElement('span');
+  private completionElement = document.createElement('span');
+
   private socket: SocketIOClient.Socket;
 
   constructor(
@@ -111,7 +114,11 @@ class ServerChooserOption {
     this.labelElement.htmlFor = url;
     this.divElement.appendChild(this.inputElement);
     this.divElement.appendChild(this.labelElement);
-    this.setPlayerLabelText();
+    this.labelElement.appendChild(this.serverNameElement);
+    this.labelElement.appendChild(document.createElement('br'));
+    this.labelElement.appendChild(this.completionElement);
+    this.completionElement.className = 'completion';
+    this.setServerInfoLabelText();
 
     this.socket = io(url, {
       reconnection: false,
@@ -121,11 +128,15 @@ class ServerChooserOption {
     this.socket.on('connect_error', this.destroy.bind(this));
     this.socket.on('connect_timeout', this.destroy.bind(this));
     this.socket.on('disconnect', this.destroy.bind(this));
-    this.socket.emit(TransportEvents.SubscribeForPlayerCount);
-    this.socket.on(TransportEvents.PlayerCountUpdate, (v: number) => {
-      this.content.playerCount = v;
-      this.setPlayerLabelText();
-    });
+    this.socket.emit(TransportEvents.SubscribeForServerInfoUpdates);
+    this.socket.on(
+      TransportEvents.ServerInfoUpdate,
+      ([playerCount, gameState]: [number, number]) => {
+        this.content.playerCount = playerCount;
+        this.content.gameStatePercent = gameState;
+        this.setServerInfoLabelText();
+      },
+    );
   }
 
   public destroy() {
@@ -134,8 +145,25 @@ class ServerChooserOption {
     this.onDestroy(this);
   }
 
-  private setPlayerLabelText() {
-    this.labelElement.innerText = `${this.content.serverName} - ${this.content.playerCount}/${this.content.playerLimit} players`;
+  private getRoundCompletionText(percent: number): string {
+    const texts = [
+      'Just started',
+      'Just started',
+      'Ongoing',
+      'Halfway through',
+      'Nearly over',
+      'About to finish',
+      'Game is over',
+    ];
+
+    return texts[Math.floor((percent / 100) * (texts.length - 1))];
+  }
+
+  private setServerInfoLabelText() {
+    this.serverNameElement.innerText = `${this.content.serverName} - ${this.content.playerCount}/${this.content.playerLimit} players`;
+    this.completionElement.innerText = this.getRoundCompletionText(
+      this.content.gameStatePercent,
+    );
   }
 
   public get element(): HTMLElement {

@@ -4,11 +4,8 @@ import { Server } from 'http';
 import cors from 'cors';
 import { applyArrayPlugins, Random, serverInformationEndpoint } from 'shared';
 import minimist from 'minimist';
-
 import { glMatrix } from 'gl-matrix';
-
 import { GameServer } from './game-server';
-
 import { defaultOptions } from './default-options';
 
 glMatrix.setMatrixArrayType(Array);

@@ -96,9 +96,15 @@ form {
         border-radius: $border-radius;
         padding: $small-padding;
         border: $border;
+
         cursor: pointer;
         margin: $border-width-focused - $border-width $border-width-focused -
           $border-width + $small-padding / 2;
+
+        .completion {
+          font-size: 0.7em;
+          color: $bright-neutral;
+        }
       }
 
       &:focus {

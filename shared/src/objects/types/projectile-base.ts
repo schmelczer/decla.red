@@ -1,4 +1,5 @@
 import { vec2 } from 'gl-matrix';
+import { settings } from '../../settings';
 import { Id } from '../../transport/identity';
 import { serializable } from '../../transport/serialization/serializable';
 import { GameObject } from '../game-object';
@@ -14,6 +15,15 @@ export class ProjectileBase extends GameObject {
     public strength: number,
   ) {
     super(id);
+  }
+
+  public setCenter(center: vec2) {
+    this.center = center;
+  }
+
+  public step(deltaTimeInSeconds: number) {
+    this.strength -= settings.projectileFadeSpeed * deltaTimeInSeconds;
+    this.strength = Math.max(0, this.strength);
   }
 
   public toArray(): Array<any> {

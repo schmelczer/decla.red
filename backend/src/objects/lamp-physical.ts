@@ -36,6 +36,8 @@ export class LampPhysical extends LampBase implements StaticPhysical {
     return vec2.create();
   }
 
+  public step(deltaTime: number): void {}
+
   public distance(target: vec2): number {
     return vec2.distance(this.center, target);
   }

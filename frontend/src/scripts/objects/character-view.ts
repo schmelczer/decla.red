@@ -33,7 +33,7 @@ export class CharacterView extends CharacterBase implements ViewObject {
 
   public beforeDestroy(): void {}
 
-  public step(deltaTimeInMilliseconds: number): void {}
+  public step(deltaTimeInSeconds: number): void {}
 
   public draw(renderer: Renderer, overlay: HTMLElement): void {
     this.shape.setCircles([this.head!, this.leftFoot!, this.rightFoot!]);

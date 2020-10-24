@@ -5,9 +5,8 @@ import {
   CreateObjectsCommand,
   CreatePlayerCommand,
   DeleteObjectsCommand,
-  GameObject,
   Id,
-  UpdateObjectsCommand,
+  RemoteCallsForObjects,
 } from 'shared';
 import { Game } from '../game';
 import { Camera } from './camera';
@@ -24,8 +23,11 @@ export class GameObjectContainer extends CommandReceiver {
       if (this.camera) {
         this.deleteObject(this.camera.id);
       }
+
       this.player = c.character as PlayerCharacterView;
+
       this.camera = new Camera(this.game);
+
       this.addObject(this.player);
       this.addObject(this.camera);
     },
@@ -33,24 +35,25 @@ export class GameObjectContainer extends CommandReceiver {
     [CreateObjectsCommand.type]: (c: CreateObjectsCommand) =>
       c.objects.forEach((o) => this.addObject(o as ViewObject)),
 
+    [RemoteCallsForObjects.type]: (c: RemoteCallsForObjects) =>
+      c.callsForObjects.forEach((c) =>
+        this.objects.get(c.id)?.processRemoteCalls(c.calls),
+      ),
+
     [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
       c.ids.forEach((id: Id) => this.deleteObject(id)),
-
-    [UpdateObjectsCommand.type]: (c: UpdateObjectsCommand) => {
-      c.updates.forEach((u) => this.objects.get(u.id)?.update(u.updates));
-    },
   };
 
   constructor(private game: Game) {
     super();
   }
 
-  public stepObjects(delta: number) {
+  public stepObjects(deltaTimeInSeconds: number) {
     if (this.player) {
       this.camera.center = this.player.position;
     }
 
-    this.objects.forEach((o) => o.step(delta));
+    this.objects.forEach((o) => o.step(deltaTimeInSeconds));
   }
 
   public drawObjects(renderer: Renderer, overlay: HTMLElement) {

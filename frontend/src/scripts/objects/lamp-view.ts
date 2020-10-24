@@ -16,7 +16,7 @@ export class LampView extends LampBase implements ViewObject {
     this.light = new CircleLight(center, color, lightness);
   }
 
-  public step(deltaTimeInMilliseconds: number): void {}
+  public step(deltaTimeInSeconds: number): void {}
 
   public beforeDestroy(): void {}
 

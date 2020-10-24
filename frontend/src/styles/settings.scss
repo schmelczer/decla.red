@@ -50,13 +50,18 @@
 #settings {
   display: flex;
   flex-direction: column;
-  padding: 0 $medium-padding $medium-padding $medium-padding;
+  @include background;
+  border-radius: 12px;
+  z-index: 100;
+  margin-right: $medium-padding - $small-padding;
+  padding: $small-padding;
 
   transform: translateY(-100%);
   @media (max-width: $breakpoint) {
     flex-direction: row-reverse;
     transform: translateX(100%);
-    padding: $medium-padding 0 $medium-padding $medium-padding;
+    margin-top: $medium-padding - $small-padding;
+    margin-right: 0;
   }
 
   opacity: 0;
@@ -72,13 +77,9 @@
   svg {
     cursor: pointer;
     transition: opacity $animation-time;
-    margin-bottom: $small-padding;
-    margin-left: 0;
     @include square($large-icon);
     @media (max-width: $breakpoint) {
       @include square($small-icon);
-      margin-bottom: 0;
-      margin-left: $small-padding;
     }
   }
 
@@ -127,6 +128,35 @@
         @media (max-width: $breakpoint) {
           height: $small-icon;
         }
+      }
+    }
+  }
+
+  img,
+  svg {
+    margin-top: $small-padding;
+    @media (max-width: $breakpoint) {
+      margin-top: 0;
+      margin-right: $small-padding;
+    }
+  }
+
+  label:first-child {
+    img,
+    svg {
+      margin-top: 0;
+      margin-right: 0;
+    }
+  }
+
+  label:not(:first-child) {
+    input[type='checkbox']:after {
+      $height: 4px;
+      top: $height / 2 + $small-padding;
+
+      @media (max-width: $breakpoint) {
+        right: $small-padding;
+        top: $height / 2;
       }
     }
   }

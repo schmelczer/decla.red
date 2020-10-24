@@ -29,11 +29,7 @@ export abstract class OptionsHandler {
       };
 
       if (this._options.musicEnabled) {
-        const firstClickListener = () => {
-          document.removeEventListener('click', firstClickListener);
-          SoundHandler.playAmbient();
-        };
-        document.addEventListener('click', firstClickListener);
+        SoundHandler.playAmbient();
       }
     }
 

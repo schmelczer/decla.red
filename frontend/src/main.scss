@@ -37,7 +37,9 @@ h1 {
   font-size: 6rem;
   text-align: center;
   padding-bottom: $medium-padding;
-
+  @media (max-width: $height-breakpoint) {
+    font-size: 4.5rem;
+  }
   @media (max-height: $height-breakpoint) {
     display: none;
   }
@@ -163,9 +165,21 @@ body {
       font-size: 0;
       transform: translateX(-50%) translateY(-50%);
 
+      box-shadow: inset 0 0 3px 0px rgba(0, 0, 0, 0.2);
+
       @include square(50px);
       border-radius: 1000px;
       mask-image: url('../static/mask.svg');
+    }
+
+    .falling-point {
+      font-size: 1.2em;
+      &.decla {
+        color: $bright-decla;
+      }
+      &.red {
+        color: $bright-red;
+      }
     }
 
     .other-player-arrow {
@@ -205,18 +219,29 @@ body {
     }
 
     .announcement {
-      top: 50%;
-      left: 50%;
-      transform: translateX(-50%) translateY(-50%);
+      top: 25%;
+      transform: translateX(calc(-50% + 50vw)) translateY(-50%);
+
       font-size: 3rem;
       @include background;
       z-index: 1000;
       padding: $medium-padding;
       border-radius: 16px;
+
+      &:empty {
+        display: none;
+      }
+
+      .decla {
+        color: $bright-decla;
+      }
+
+      .red {
+        color: $bright-red;
+      }
     }
 
     .planet-progress {
-      position: absolute;
       top: $small-padding;
       left: 50%;
       transform: translateX(-50%);
@@ -225,26 +250,50 @@ body {
       $height: 8px;
       height: $height;
 
+      justify-content: space-between;
+      box-shadow: inset 0 0 3px 0px rgba(0, 0, 0, 0.2);
+
       border-radius: 4px;
       z-index: 100;
 
-      div {
-        height: $height;
+      &::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translateX(-50%) translateY(-50%);
+        background-color: #888;
+        height: 24px;
+        width: 4px;
+        border-radius: 1000px;
       }
 
-      border-radius: 100px;
-      overflow: hidden;
+      &::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translateX(-50%) translateY(50%);
+
+        @include square(24px);
+
+        background-image: url('../static/flag.svg');
+        background-size: contain;
+      }
+
+      div {
+        height: $height;
+        box-shadow: inset 0 0 3px 0px rgba(0, 0, 0, 0.2);
+      }
 
       div:nth-child(1) {
         background: $bright-decla;
+        border-radius: 100px 0 0 100px;
       }
 
       div:nth-child(2) {
-        background: $bright-neutral;
-      }
-
-      div:nth-child(3) {
         background: $bright-red;
+        border-radius: 0 100px 100px 0;
       }
     }
   }

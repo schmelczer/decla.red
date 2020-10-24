@@ -4,6 +4,7 @@ import { Circle, Id, PlayerCharacterBase, CharacterTeam, settings } from 'shared
 import { OptionsHandler } from '../options-handler';
 
 import { BlobShape } from '../shapes/blob-shape';
+import { SoundHandler, Sounds } from '../sound-handler';
 import { ViewObject } from './view-object';
 
 export class PlayerCharacterView extends PlayerCharacterBase implements ViewObject {
@@ -39,8 +40,17 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     return this.head!.center;
   }
 
-  public step(deltaTimeInMilliseconds: number): void {
-    this.timeSinceLastNameElementUpdate += deltaTimeInMilliseconds;
+  public setHealth(health: number) {
+    const previousHealth = this.health;
+    super.setHealth(health);
+    SoundHandler.play(
+      Sounds.hit,
+      (0.4 * 2 * (previousHealth - health)) / settings.playerMaxStrength,
+    );
+  }
+
+  public step(deltaTimeInSeconds: number): void {
+    this.timeSinceLastNameElementUpdate += deltaTimeInSeconds;
     this.healthElement.style.width = (50 * this.health) / settings.playerMaxHealth + 'px';
     this.statsElement.innerText = this.getStatsText();
     if (this.previousHealth > this.health) {
@@ -50,6 +60,10 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
       }
     }
     this.previousHealth = this.health;
+  }
+
+  public onShoot(strength: number) {
+    SoundHandler.play(Sounds.shoot, (0.3 * 2 * strength) / settings.playerMaxStrength);
   }
 
   public beforeDestroy(): void {

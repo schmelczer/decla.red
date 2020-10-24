@@ -13,8 +13,6 @@ import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { PlanetPhysical } from './planet-physical';
 import { ReactsToCollision } from '../physics/physicals/reacts-to-collision';
-import { UpdateObjectMessage } from 'shared/lib/src/objects/update-object-message';
-import { UpdateGameObjectMessage } from '../update-game-object-message';
 import { PlayerCharacterPhysical } from './player-character-physical';
 import { moveCircle } from '../physics/functions/move-circle';
 
@@ -68,10 +66,6 @@ export class ProjectilePhysical
     vec2.add(this.center, this.center, delta);
   }
 
-  public calculateUpdates(): UpdateObjectMessage {
-    return new UpdateGameObjectMessage(this, ['center', 'strength']);
-  }
-
   public get boundingBox(): ImmutableBoundingBox {
     if (!this._boundingBox) {
       this._boundingBox = (this.object as CirclePhysical).boundingBox;
@@ -105,7 +99,9 @@ export class ProjectilePhysical
   }
 
   public step(deltaTime: number) {
-    if ((this.strength -= settings.projectileFadeSpeed * deltaTime) < 0) {
+    super.step(deltaTime);
+
+    if (this.strength <= 0) {
       this.destroy();
       return;
     }
@@ -122,5 +118,7 @@ export class ProjectilePhysical
 
     this.object.velocity = this.velocity;
     this.object.step2(deltaTime);
+
+    this.remoteCall('setCenter', this.center);
   }
 }

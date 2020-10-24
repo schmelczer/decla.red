@@ -21,8 +21,6 @@ import { forceAtPosition } from '../physics/functions/force-at-position';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { PlanetPhysical } from './planet-physical';
 import { ReactsToCollision } from '../physics/physicals/reacts-to-collision';
-import { UpdateObjectMessage } from 'shared/lib/src/objects/update-object-message';
-import { UpdateGameObjectMessage } from '../update-game-object-message';
 
 @serializesTo(PlayerCharacterBase)
 export class PlayerCharacterPhysical
@@ -133,18 +131,13 @@ export class PlayerCharacterPhysical
     );
   }
 
-  public calculateUpdates(): UpdateObjectMessage {
-    return new UpdateGameObjectMessage(this, [
-      'head',
-      'leftFoot',
-      'rightFoot',
-      'health',
-      'killCount',
-    ]);
-  }
-
   public handleMovementAction(c: MoveActionCommand) {
     this.movementActions.push(c);
+  }
+
+  private addKill() {
+    this.killCount++;
+    this.remoteCall('setKillCount', this.killCount);
   }
 
   public onCollision(other: GameObject) {
@@ -155,9 +148,10 @@ export class PlayerCharacterPhysical
     ) {
       other.destroy();
       this.health -= other.strength;
+      this.remoteCall('setHealth', this.health);
       if (this.health <= 0) {
         this.destroy();
-        other.originator.killCount++;
+        other.originator.addKill();
       }
     }
   }
@@ -182,6 +176,8 @@ export class PlayerCharacterPhysical
       this.container,
     );
     this.container.addObject(projectile);
+
+    this.remoteCall('onShoot', strength);
   }
 
   public get boundingBox(): BoundingBoxBase {
@@ -299,6 +295,7 @@ export class PlayerCharacterPhysical
     this.stepBodyPart(this.leftFoot, deltaTime);
     this.stepBodyPart(this.rightFoot, deltaTime);
     this.keepPosture();
+    this.remoteCall('updateCircles', this.head, this.leftFoot, this.rightFoot);
   }
 
   private setDirection(direction: vec2, deltaTime: number) {

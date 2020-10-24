@@ -8,7 +8,6 @@ import {
   MoveActionCommand,
   serialize,
   TransportEvents,
-  UpdateObjectsCommand,
   SetAspectRatioActionCommand,
   calculateViewArea,
   SecondaryActionCommand,
@@ -17,11 +16,13 @@ import {
   Circle,
   PlayerInformation,
   CharacterTeam,
-  UpdateGameState,
+  UpdateOtherPlayerDirections,
   GameObject,
   Command,
-  UpdateObjectMessage,
   OtherPlayerDirection,
+  RemoteCallsForObject,
+  RemoteCallsForObjects,
+  ServerAnnouncement,
 } from 'shared';
 import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
@@ -70,7 +71,7 @@ export class Player extends CommandReceiver {
     private readonly playerInfo: PlayerInformation,
     private readonly playerContainer: PlayerContainer,
     private readonly objectContainer: PhysicalContainer,
-    private readonly socket: SocketIO.Socket,
+    public readonly socket: SocketIO.Socket,
     public readonly team: CharacterTeam,
   ) {
     super();
@@ -123,8 +124,15 @@ export class Player extends CommandReceiver {
         this.character = null;
         this.timeUntilRespawn = settings.playerDiedTimeout;
       }
-    } else if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
-      this.createCharacter();
+    } else {
+      this.sendToPlayer(
+        new ServerAnnouncement(`Reviving in ${Math.round(this.timeUntilRespawn)}…`),
+      );
+      if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
+        this.createCharacter();
+        this.center = this.character!.center;
+        this.sendToPlayer(new ServerAnnouncement(''));
+      }
     }
 
     const viewArea = calculateViewArea(this.center, this.aspectRatio, 1.5);
@@ -155,21 +163,14 @@ export class Player extends CommandReceiver {
     }
 
     this.sendToPlayer(
-      new UpdateObjectsCommand(
-        this.objectsPreviouslyInViewArea
-          .map((g) => g.calculateUpdates())
-          .filter((u) => u) as Array<UpdateObjectMessage>,
+      new RemoteCallsForObjects(
+        this.objectsPreviouslyInViewArea.map(
+          (g) => new RemoteCallsForObject(g.id, g.getRemoteCalls()),
+        ),
       ),
     );
 
-    this.sendToPlayer(
-      new UpdateGameState(
-        PlanetPhysical.declaPlanetCount,
-        PlanetPhysical.redPlanetCount,
-        PlanetPhysical.neutralPlanetCount,
-        this.getOtherPlayers(),
-      ),
-    );
+    this.sendToPlayer(new UpdateOtherPlayerDirections(this.getOtherPlayers()));
   }
 
   private findEmptyPositionForPlayer(): vec2 {
@@ -223,7 +224,7 @@ export class Player extends CommandReceiver {
       .filter((g) => g instanceof PlayerCharacterPhysical);
 
     const otherPlayers = this.playerContainer.players.filter(
-      (p) => playersInViewArea.indexOf(p.character!) < 0,
+      (p) => p.character?.isAlive && playersInViewArea.indexOf(p.character!) < 0,
     );
 
     return otherPlayers.map(
@@ -244,7 +245,6 @@ export class Player extends CommandReceiver {
 
   public destroy() {
     this.isActive = false;
-
     this.character?.destroy();
   }
 }
