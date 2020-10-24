@@ -25,6 +25,7 @@ import ResizeObserver from 'resize-observer-polyfill';
 import { OptionsHandler } from './scripts/options-handler';
 import { hide } from './scripts/helper/hide';
 import { show } from './scripts/helper/show';
+import { SoundHandler, Sounds } from './scripts/sound-handler';
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -50,6 +51,7 @@ const enableRelativeMovement = document.querySelector(
   '#enable-relative-movement',
 ) as HTMLInputElement;
 const enableSounds = document.querySelector('#enable-sounds') as HTMLInputElement;
+const enableMusic = document.querySelector('#enable-music') as HTMLInputElement;
 const enableVibration = document.querySelector('#enable-vibration') as HTMLInputElement;
 const spinner = document.querySelector('#spinner-container') as HTMLElement;
 
@@ -86,8 +88,10 @@ const startInsights = (getRenderer: () => Renderer | undefined) => {
   );
 };
 
-const toggleSettings = () =>
-  (settings.className = settings.className === 'open' ? '' : 'open');
+const toggleSettings = () => {
+  settings.className = settings.className === 'open' ? '' : 'open';
+  SoundHandler.play(Sounds.click);
+};
 
 const applyServerContainerShadows = () => {
   const { scrollHeight, clientHeight, scrollTop } = serverContainer;
@@ -104,6 +108,7 @@ const applyServerContainerShadows = () => {
 const main = async () => {
   try {
     let game: Game;
+    SoundHandler.initialize();
 
     handleFullScreen(minimize, maximize);
     toggleSettingsButton.addEventListener('click', toggleSettings);
@@ -115,6 +120,7 @@ const main = async () => {
       relativeMovementEnabled: enableRelativeMovement,
       soundsEnabled: enableSounds,
       vibrationEnabled: enableVibration,
+      musicEnabled: enableMusic,
     });
 
     logoutButton.addEventListener('click', () => {

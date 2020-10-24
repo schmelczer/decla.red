@@ -1,7 +1,10 @@
+import { SoundHandler, Sounds } from './sound-handler';
+
 interface Options {
   vibrationEnabled: boolean;
   soundsEnabled: boolean;
   relativeMovementEnabled: boolean;
+  musicEnabled: boolean;
 }
 
 export abstract class OptionsHandler {
@@ -10,6 +13,7 @@ export abstract class OptionsHandler {
     vibrationEnabled: true,
     soundsEnabled: true,
     relativeMovementEnabled: false,
+    musicEnabled: true,
   };
 
   public static initialize(
@@ -23,6 +27,14 @@ export abstract class OptionsHandler {
         ...this._options,
         ...stored,
       };
+
+      if (this._options.musicEnabled) {
+        const firstClickListener = () => {
+          document.removeEventListener('click', firstClickListener);
+          SoundHandler.playAmbient();
+        };
+        document.addEventListener('click', firstClickListener);
+      }
     }
 
     for (const k in inputElements) {
@@ -30,6 +42,21 @@ export abstract class OptionsHandler {
       element.checked = OptionsHandler._options[k as keyof Options];
       element.addEventListener('change', function () {
         OptionsHandler._options[k as keyof Options] = this.checked;
+        if (!this.checked && k === 'soundsEnabled') {
+          OptionsHandler._options.musicEnabled = false;
+          inputElements.musicEnabled.checked = false;
+          SoundHandler.stopAmbient();
+        }
+
+        if (k === 'musicEnabled') {
+          this.checked ? SoundHandler.playAmbient() : SoundHandler.stopAmbient();
+        }
+
+        if (this.checked && k === 'vibrationEnabled') {
+          navigator.vibrate(100);
+        }
+
+        SoundHandler.play(Sounds.click);
         OptionsHandler.save();
       });
     }

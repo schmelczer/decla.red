@@ -80,7 +80,17 @@ module.exports = {
         },
       },
       {
-        test: /\.png$/,
+        test: /\.mp3$/,
+        use: {
+          loader: 'file-loader',
+          query: {
+            outputPath: '/static',
+            name: '[name].[ext]',
+          },
+        },
+      },
+      {
+        test: /og-image.png$/,
         use: {
           loader: 'file-loader',
           query: {
