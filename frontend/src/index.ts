@@ -12,6 +12,7 @@ import { LampView } from './scripts/objects/lamp-view';
 import { ProjectileView } from './scripts/objects/projectile-view';
 import { PlanetView } from './scripts/objects/planet-view';
 import './main.scss';
+import '../static/og-image.png';
 import { LandingPageBackground } from './scripts/landing-page-background';
 import { JoinFormHandler } from './scripts/join-form-handler';
 import { handleFullScreen } from './scripts/handle-full-screen';
@@ -22,6 +23,8 @@ import { getInsightsFromRenderer } from './scripts/get-insights-from-renderer';
 import { Renderer } from 'sdf-2d';
 import ResizeObserver from 'resize-observer-polyfill';
 import { OptionsHandler } from './scripts/options-handler';
+import { hide } from './scripts/helper/hide';
+import { show } from './scripts/helper/show';
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -48,6 +51,7 @@ const enableRelativeMovement = document.querySelector(
 ) as HTMLInputElement;
 const enableSounds = document.querySelector('#enable-sounds') as HTMLInputElement;
 const enableVibration = document.querySelector('#enable-vibration') as HTMLInputElement;
+const spinner = document.querySelector('#spinner-container') as HTMLElement;
 
 let isInGame = false;
 
@@ -123,27 +127,31 @@ const main = async () => {
     startInsights(() => (isInGame ? game.renderer : backgroundRenderer));
 
     for (;;) {
-      landingUI.style.visibility = 'inherit';
-      logoutButton.style.visibility = 'hidden';
+      show(spinner);
+      hide(logoutButton);
+      show(landingUI, true, 'flex');
 
       const background = new LandingPageBackground(canvas);
       const joinHandler = new JoinFormHandler(joinGameForm, serverContainer);
 
       backgroundRenderer = await background.renderer;
+      hide(spinner);
 
       const playerDecision = await joinHandler.getPlayerDecision();
       if (!history.state) {
         history.pushState(true, '');
       }
 
-      landingUI.style.visibility = 'hidden';
-
+      hide(landingUI, true);
+      show(spinner);
       background.destroy();
-
-      logoutButton.style.visibility = 'inherit';
       game = new Game(playerDecision, canvas, overlay);
+      const gameOver = game.start();
+      await game.started;
       isInGame = true;
-      await game.start();
+      hide(spinner);
+      show(logoutButton);
+      await gameOver;
       isInGame = false;
     }
   } catch (e) {

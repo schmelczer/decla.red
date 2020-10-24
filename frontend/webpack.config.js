@@ -18,7 +18,6 @@ module.exports = {
     },
   },
   plugins: [
-    // Cleans the dist folder before the build starts
     new CleanWebpackPlugin(),
     new MiniCssExtractPlugin(),
     new HtmlWebpackPlugin({
@@ -74,16 +73,20 @@ module.exports = {
         ],
       },
       {
-        test: /\.svg/,
+        test: /\.svg$/,
         use: {
           loader: 'svg-url-loader',
           options: {},
         },
       },
       {
-        test: /\.(png)$/,
+        test: /\.png$/,
         use: {
           loader: 'file-loader',
+          query: {
+            outputPath: '/',
+            name: '[name].[ext]',
+          },
         },
       },
     ],

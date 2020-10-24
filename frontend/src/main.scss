@@ -44,7 +44,7 @@ h1 {
 }
 
 .red {
-  color: $red;
+  color: $accent;
   &::selection {
     color: $accent;
     background-color: white;
@@ -61,6 +61,24 @@ canvas {
 
 body {
   overflow: hidden;
+
+  #spinner-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+
+    @include background;
+    #spinner {
+      @include square(20vmax);
+      @media (max-width: $breakpoint) {
+        @include square(20vmax);
+      }
+    }
+  }
 
   #landing-ui {
     width: 100%;
