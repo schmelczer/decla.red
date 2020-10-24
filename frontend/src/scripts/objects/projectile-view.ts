@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { CircleLight, ColorfulCircle, Renderer } from 'sdf-2d';
-import { Id, ProjectileBase, settings, UpdateMessage } from 'shared';
+import { CharacterTeam, Id, ProjectileBase, settings, UpdateMessage } from 'shared';
 import { ViewObject } from './view-object';
 
 export class ProjectileView extends ProjectileBase implements ViewObject {
@@ -11,12 +11,16 @@ export class ProjectileView extends ProjectileBase implements ViewObject {
     id: Id,
     center: vec2,
     radius: number,
-    colorIndex: number,
+    team: CharacterTeam,
     strength: number,
   ) {
-    super(id, center, radius, colorIndex, strength);
-    this.circle = new ColorfulCircle(center, radius / 2, colorIndex);
-    this.light = new CircleLight(center, settings.palette[colorIndex], 0);
+    super(id, center, radius, team, strength);
+    this.circle = new ColorfulCircle(center, radius / 2, settings.colorIndices[team]);
+    this.light = new CircleLight(
+      center,
+      settings.paletteDim[settings.colorIndices[team]],
+      0,
+    );
   }
 
   public step(deltaTimeInMilliseconds: number): void {

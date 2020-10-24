@@ -34,14 +34,13 @@ export class ProjectilePhysical
   constructor(
     center: vec2,
     radius: number,
-    colorIndex: number,
     public strength: number,
-    public team: CharacterTeam,
+    team: CharacterTeam,
     private velocity: vec2,
     public readonly originator: PlayerCharacterPhysical,
     readonly container: PhysicalContainer,
   ) {
-    super(id(), center, radius, colorIndex, strength);
+    super(id(), center, radius, team, strength);
     this.object = new CirclePhysical(center, radius, this, container, 0.9);
 
     this.moveOutsideOfObject();

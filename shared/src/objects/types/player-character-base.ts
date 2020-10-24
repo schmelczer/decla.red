@@ -11,14 +11,13 @@ export class PlayerCharacterBase extends CharacterBase {
     public name: string,
     public killCount: number,
     public deathCount: number,
-    colorIndex: number,
     team: CharacterTeam,
     health: number,
     head?: Circle,
     leftFoot?: Circle,
     rightFoot?: Circle,
   ) {
-    super(id, colorIndex, team, health, head, leftFoot, rightFoot);
+    super(id, team, health, head, leftFoot, rightFoot);
   }
 
   public toArray(): Array<any> {
@@ -27,7 +26,6 @@ export class PlayerCharacterBase extends CharacterBase {
       this.name,
       this.killCount,
       this.deathCount,
-      this.colorIndex,
       this.team,
       this.health,
       this.head,

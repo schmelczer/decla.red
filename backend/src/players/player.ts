@@ -29,8 +29,8 @@ import { PhysicalContainer } from '../physics/containers/physical-container';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { isCircleIntersecting } from '../physics/functions/is-circle-intersecting';
 import { PlayerCharacterPhysical } from '../objects/player-character-physical';
-import { freeTeam, requestTeam } from './player-team-service';
 import { PlanetPhysical } from '../objects/planet-physical';
+import { PlayerContainer } from './player-container';
 
 export class Player extends CommandReceiver {
   private character?: PlayerCharacterPhysical | null;
@@ -66,52 +66,15 @@ export class Player extends CommandReceiver {
     },
   };
 
-  private findEmptyPositionForPlayer(): vec2 {
-    let possibleCenter = this.players.find(
-      (p) => p.character?.isAlive && p.team === this.team,
-    )?.center;
-
-    if (!possibleCenter) {
-      possibleCenter = vec2.create();
-    }
-
-    let rotation = 0;
-    let radius = 0;
-    for (;;) {
-      const playerPosition = vec2.fromValues(
-        radius * Math.cos(rotation) + possibleCenter.x,
-        radius * Math.sin(rotation) + possibleCenter.y,
-      );
-
-      const playerBoundingCircle = new Circle(
-        playerPosition,
-        PlayerCharacterPhysical.boundRadius,
-      );
-
-      const playerBoundingBox = getBoundingBoxOfCircle(playerBoundingCircle);
-      const possibleIntersectors = this.objects.findIntersecting(playerBoundingBox);
-      if (!isCircleIntersecting(playerBoundingCircle, possibleIntersectors)) {
-        return playerPosition;
-      }
-
-      rotation += Math.PI / 8;
-      radius += 30;
-    }
-  }
-
-  public readonly team: CharacterTeam;
-  private colorIndex: number;
-
   constructor(
     private readonly playerInfo: PlayerInformation,
-    private readonly players: Array<Player>,
-    private readonly objects: PhysicalContainer,
+    private readonly playerContainer: PlayerContainer,
+    private readonly objectContainer: PhysicalContainer,
     private readonly socket: SocketIO.Socket,
+    public readonly team: CharacterTeam,
   ) {
     super();
-    const { team, colorIndex } = requestTeam();
     this.team = team;
-    this.colorIndex = colorIndex;
 
     this.createCharacter();
 
@@ -129,13 +92,12 @@ export class Player extends CommandReceiver {
       this.playerInfo.name.slice(0, 20),
       this.sumKills,
       this.sumDeaths,
-      this.colorIndex,
       this.team,
-      this.objects,
+      this.objectContainer,
       this.findEmptyPositionForPlayer(),
     );
 
-    this.objects.addObject(this.character);
+    this.objectContainer.addObject(this.character);
     this.objectsPreviouslyInViewArea.push(this.character);
 
     this.socket.emit(
@@ -146,7 +108,7 @@ export class Player extends CommandReceiver {
 
   private center: vec2 = vec2.create();
   private timeUntilRespawn = 0;
-  public step(deltaTime: number) {
+  public step(deltaTimeInSeconds: number) {
     if (this.character) {
       this.center = this.character?.center;
 
@@ -161,7 +123,7 @@ export class Player extends CommandReceiver {
         this.character = null;
         this.timeUntilRespawn = settings.playerDiedTimeout;
       }
-    } else if ((this.timeUntilRespawn -= deltaTime) < 0) {
+    } else if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
       this.createCharacter();
     }
 
@@ -171,7 +133,7 @@ export class Player extends CommandReceiver {
     bb.size = viewArea.size;
 
     const objectsInViewArea = Array.from(
-      new Set(this.objects.findIntersecting(bb).map((o) => o.gameObject)),
+      new Set(this.objectContainer.findIntersecting(bb).map((o) => o.gameObject)),
     );
 
     const newlyIntersecting = objectsInViewArea.filter(
@@ -210,6 +172,41 @@ export class Player extends CommandReceiver {
     );
   }
 
+  private findEmptyPositionForPlayer(): vec2 {
+    let possibleCenter = this.playerContainer.players.find(
+      (p) => p.character?.isAlive && p.team === this.team,
+    )?.center;
+
+    if (!possibleCenter) {
+      possibleCenter = vec2.create();
+    }
+
+    let rotation = 0;
+    let radius = 0;
+    for (;;) {
+      const playerPosition = vec2.fromValues(
+        radius * Math.cos(rotation) + possibleCenter.x,
+        radius * Math.sin(rotation) + possibleCenter.y,
+      );
+
+      const playerBoundingCircle = new Circle(
+        playerPosition,
+        PlayerCharacterPhysical.boundRadius,
+      );
+
+      const playerBoundingBox = getBoundingBoxOfCircle(playerBoundingCircle);
+      const possibleIntersectors = this.objectContainer.findIntersecting(
+        playerBoundingBox,
+      );
+      if (!isCircleIntersecting(playerBoundingCircle, possibleIntersectors)) {
+        return playerPosition;
+      }
+
+      rotation += Math.PI / 8;
+      radius += 30;
+    }
+  }
+
   private getOtherPlayers(): Array<OtherPlayerDirection> {
     if (!this.character) {
       return [];
@@ -220,12 +217,12 @@ export class Player extends CommandReceiver {
     bb.topLeft = viewArea.topLeft;
     bb.size = viewArea.size;
 
-    const playersInViewArea = this.objects
+    const playersInViewArea = this.objectContainer
       .findIntersecting(bb)
       .map((o) => o.gameObject)
       .filter((g) => g instanceof PlayerCharacterPhysical);
 
-    const otherPlayers = this.players.filter(
+    const otherPlayers = this.playerContainer.players.filter(
       (p) => playersInViewArea.indexOf(p.character!) < 0,
     );
 
@@ -247,10 +244,7 @@ export class Player extends CommandReceiver {
 
   public destroy() {
     this.isActive = false;
-    freeTeam(this.team);
 
-    if (this.character) {
-      this.character.destroy();
-    }
+    this.character?.destroy();
   }
 }

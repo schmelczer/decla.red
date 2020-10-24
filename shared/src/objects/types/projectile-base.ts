@@ -2,6 +2,7 @@ import { vec2 } from 'gl-matrix';
 import { Id } from '../../transport/identity';
 import { serializable } from '../../transport/serialization/serializable';
 import { GameObject } from '../game-object';
+import { CharacterTeam } from './character-team';
 
 @serializable
 export class ProjectileBase extends GameObject {
@@ -9,13 +10,13 @@ export class ProjectileBase extends GameObject {
     id: Id,
     public center: vec2,
     public radius: number,
-    public colorIndex: number,
+    public team: CharacterTeam,
     public strength: number,
   ) {
     super(id);
   }
 
   public toArray(): Array<any> {
-    return [this.id, this.center, this.radius, this.colorIndex, this.strength];
+    return [this.id, this.center, this.radius, this.team, this.strength];
   }
 }

@@ -19,26 +19,14 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     name: string,
     killCount: number,
     deathCount: number,
-    colorIndex: number,
     team: CharacterTeam,
     health: number,
     head?: Circle,
     leftFoot?: Circle,
     rightFoot?: Circle,
   ) {
-    super(
-      id,
-      name,
-      killCount,
-      deathCount,
-      colorIndex,
-      team,
-      health,
-      head,
-      leftFoot,
-      rightFoot,
-    );
-    this.shape = new BlobShape(colorIndex);
+    super(id, name, killCount, deathCount, team, health, head, leftFoot, rightFoot);
+    this.shape = new BlobShape(settings.colorIndices[team]);
 
     this.previousHealth = this.health;
     this.nameElement.className = 'player-tag ' + this.team;

@@ -97,12 +97,11 @@ export class PlayerCharacterPhysical
     name: string,
     killCount: number,
     deathCount: number,
-    public readonly colorIndex: number,
     team: CharacterTeam,
     private readonly container: PhysicalContainer,
     startPosition: vec2,
   ) {
-    super(id(), name, killCount, deathCount, colorIndex, team, settings.playerMaxHealth);
+    super(id(), name, killCount, deathCount, team, settings.playerMaxHealth);
 
     this.head = new CirclePhysical(
       vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.headOffset),
@@ -176,7 +175,6 @@ export class PlayerCharacterPhysical
     const projectile = new ProjectilePhysical(
       vec2.clone(this.center),
       20,
-      this.colorIndex,
       strength,
       this.team,
       velocity,
