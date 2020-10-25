@@ -50,7 +50,6 @@ export class NPC extends PlayerBase {
     );
 
     if (enemies.length > allies.length) {
-      console.log('fleeing');
       const enemiesCenter = enemies.reduce(
         (sum, e) => vec2.add(sum, sum, (e.gameObject as PlayerCharacterPhysical).center),
         vec2.create(),
