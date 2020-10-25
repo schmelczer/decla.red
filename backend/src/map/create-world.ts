@@ -22,7 +22,7 @@ export const createWorld = (objectContainer: PhysicalContainer, worldRadius: num
         rad,
       );
 
-      if (Random.getRandom() > 0.5) {
+      if (objects.length !== 0 && Random.getRandom() > 0.5) {
         if (
           evaluateSdf(position, objects) > 200 &&
           !lights.find((l) => l.distance(position) < 2500)
@@ -44,16 +44,26 @@ export const createWorld = (objectContainer: PhysicalContainer, worldRadius: num
           evaluateSdf(position, objects) > 1400 &&
           !lights.find((l) => l.distance(position) < 1700)
         ) {
-          objects.push(
-            new PlanetPhysical(
-              PlanetBase.createPlanetVertices(
-                position,
-                Random.getRandomInRange(300, 1600),
-                Random.getRandomInRange(300, 1600),
-                Random.getRandomInRange(20, 100),
-              ),
-            ),
-          );
+          const planet =
+            objects.length === 0
+              ? new PlanetPhysical(
+                  PlanetBase.createPlanetVertices(
+                    position,
+                    Random.getRandomInRange(1600, 2400),
+                    Random.getRandomInRange(1600, 2400),
+                    Random.getRandomInRange(80, 300),
+                  ),
+                )
+              : new PlanetPhysical(
+                  PlanetBase.createPlanetVertices(
+                    position,
+                    Random.getRandomInRange(300, 1600),
+                    Random.getRandomInRange(300, 1600),
+                    Random.getRandomInRange(20, 100),
+                  ),
+                );
+
+          objects.push(planet);
         }
       }
     }
