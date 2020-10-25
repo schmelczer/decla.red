@@ -12,7 +12,6 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   private nameElement: HTMLElement = document.createElement('div');
   private statsElement: HTMLElement = document.createElement('div');
   private healthElement: HTMLElement = document.createElement('div');
-  private timeSinceLastNameElementUpdate = 0;
   private previousHealth;
 
   constructor(
@@ -50,7 +49,6 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   }
 
   public step(deltaTimeInSeconds: number): void {
-    this.timeSinceLastNameElementUpdate += deltaTimeInSeconds;
     this.healthElement.style.width = (50 * this.health) / settings.playerMaxHealth + 'px';
     this.statsElement.innerText = this.getStatsText();
     if (this.previousHealth > this.health) {
@@ -75,14 +73,11 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
       overlay.appendChild(this.nameElement);
     }
 
-    if (this.timeSinceLastNameElementUpdate > 0.15) {
-      const screenPosition = renderer.worldToDisplayCoordinates(
-        this.calculateTextPosition(),
-      );
-      this.nameElement.style.left = screenPosition.x + 'px';
-      this.nameElement.style.top = screenPosition.y + 'px';
-      this.timeSinceLastNameElementUpdate = 0;
-    }
+    const screenPosition = renderer.worldToDisplayCoordinates(
+      this.calculateTextPosition(),
+    );
+    this.nameElement.style.left = screenPosition.x + 'px';
+    this.nameElement.style.top = screenPosition.y + 'px';
 
     this.shape.setCircles([this.head!, this.leftFoot!, this.rightFoot!]);
     renderer.addDrawable(this.shape);

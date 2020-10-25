@@ -190,7 +190,9 @@ export class PlayerCharacterPhysical
   }
 
   public get center(): vec2 {
-    return this.head.center;
+    const bodyCenter = vec2.add(vec2.create(), this.head.center, this.leftFoot.center);
+    vec2.add(bodyCenter, bodyCenter, this.rightFoot.center);
+    return vec2.scale(bodyCenter, bodyCenter, 1 / 3);
   }
 
   public distance(target: vec2): number {
@@ -199,7 +201,7 @@ export class PlayerCharacterPhysical
         this.head.distance(target),
         this.leftFoot.distance(target),
         this.rightFoot.distance(target),
-      ) - 20
+      ) - 5
     );
   }
 
@@ -222,7 +224,7 @@ export class PlayerCharacterPhysical
       this.movementActions = [];
     }
 
-    return direction;
+    return vec2.normalize(direction, direction);
   }
 
   public step(deltaTime: number) {
@@ -251,16 +253,28 @@ export class PlayerCharacterPhysical
       this.rightFoot.center,
     );
     vec2.scale(feetCenter, feetCenter, 0.5);
-    const actualGravity = forceAtPosition(feetCenter, intersectingWithForcefield);
+    const leftFootGravity = forceAtPosition(
+      this.leftFoot.center,
+      intersectingWithForcefield,
+    );
+    const rightFootGravity = forceAtPosition(
+      this.rightFoot.center,
+      intersectingWithForcefield,
+    );
 
     const direction = this.averageAndResetMovementActions();
     const movementForce = vec2.scale(direction, direction, settings.maxAcceleration);
 
     if (!this.currentPlanet) {
-      this.applyForce(this.leftFoot, actualGravity, deltaTime);
-      this.applyForce(this.rightFoot, actualGravity, deltaTime);
+      this.applyForce(this.leftFoot, leftFootGravity, deltaTime);
+      this.applyForce(this.rightFoot, rightFootGravity, deltaTime);
 
-      const sumForce = vec2.subtract(vec2.create(), actualGravity, movementForce);
+      const sumForce = vec2.subtract(
+        vec2.create(),
+        // the next line is intentional
+        vec2.add(vec2.create(), leftFootGravity, rightFootGravity),
+        movementForce,
+      );
 
       this.setDirection(
         vec2.length(sumForce) === 0 ? vec2.fromValues(0, -1) : sumForce,
@@ -274,7 +288,7 @@ export class PlayerCharacterPhysical
         vec2.rotate(movementForce, movementForce, vec2.create(), this.direction);
       }
 
-      if (vec2.dot(movementForce, actualGravity) < -vec2.length(movementForce) * 0.8) {
+      if (vec2.dot(movementForce, leftFootGravity) < -vec2.length(movementForce) * 0.8) {
         vec2.scale(leftFootGravity, leftFootGravity, 0.35);
         vec2.scale(rightFootGravity, rightFootGravity, 0.35);
       }
@@ -283,7 +297,7 @@ export class PlayerCharacterPhysical
 
       const headGravity = this.currentPlanet!.getForce(this.head.center);
 
-      if (vec2.length(headGravity) < vec2.length(actualGravity) / 2) {
+      if (vec2.length(headGravity) < vec2.length(leftFootGravity) / 2) {
         this.currentPlanet = undefined;
       }
       this.setDirection(headGravity, deltaTime);
@@ -294,7 +308,9 @@ export class PlayerCharacterPhysical
 
     this.stepBodyPart(this.leftFoot, deltaTime);
     this.stepBodyPart(this.rightFoot, deltaTime);
-    this.keepPosture();
+
+    this.keepPosture(deltaTime);
+
     this.remoteCall('updateCircles', this.head, this.leftFoot, this.rightFoot);
   }
 
@@ -302,27 +318,68 @@ export class PlayerCharacterPhysical
     this.direction = interpolateAngles(
       this.direction,
       Math.atan2(direction.y, direction.x) + Math.PI / 2,
-      Math.pow(4, deltaTime),
+      Math.pow(2, deltaTime),
     );
   }
 
-  private keepPosture() {
-    const bodyCenter = vec2.add(vec2.create(), this.head.center, this.leftFoot.center);
-    vec2.add(bodyCenter, bodyCenter, this.rightFoot.center);
-    vec2.scale(bodyCenter, bodyCenter, 1 / 3);
-    this.springMove(this.leftFoot, bodyCenter, PlayerCharacterPhysical.leftFootOffset);
-    this.springMove(this.rightFoot, bodyCenter, PlayerCharacterPhysical.rightFootOffset);
-    this.springMove(this.head, bodyCenter, PlayerCharacterPhysical.headOffset);
+  private keepPosture(deltaTime: number) {
+    const center = this.center;
+    this.springMove(
+      this.leftFoot,
+      center,
+      PlayerCharacterPhysical.leftFootOffset,
+      deltaTime,
+    );
+    this.springMove(
+      this.rightFoot,
+      center,
+      PlayerCharacterPhysical.rightFootOffset,
+      deltaTime,
+    );
+    /*
+    const feetDelta = vec2.subtract(
+      vec2.create(),
+      this.leftFoot.center,
+      this.rightFoot.center,
+    );
+    const desiredDistance = vec2.dist(
+      PlayerCharacterPhysical.desiredLeftFootOffset,
+      PlayerCharacterPhysical.desiredRightFootOffset,
+    );
+    const actualDistance = vec2.length(feetDelta);
+    const delta = vec2.normalize(feetDelta, feetDelta);
+    vec2.scale(delta, delta, Math.min(actualDistance / 2, deltaTime * 200));
+    let hitObject = this.rightFoot.tryMove(delta);
+    if (hitObject instanceof PlanetPhysical) {
+      this.secondsSinceOnSurface = 0;
+      this.currentPlanet = hitObject;
+    }
+    vec2.scale(delta, delta, -1);
+    hitObject = this.leftFoot.tryMove(delta);
+    if (hitObject instanceof PlanetPhysical) {
+      this.secondsSinceOnSurface = 0;
+      this.currentPlanet = hitObject;
+    }*/
+
+    this.springMove(this.head, center, PlayerCharacterPhysical.headOffset, deltaTime);
   }
 
-  private springMove(object: CirclePhysical, center: vec2, offset: vec2) {
-    // todo: make time-independent
-    const springConstant = 0.55;
-
+  private springMove(
+    object: CirclePhysical,
+    center: vec2,
+    offset: vec2,
+    deltaTime: number,
+  ) {
     const desiredPosition = vec2.add(vec2.create(), center, offset);
     vec2.rotate(desiredPosition, desiredPosition, center, this.direction);
     const positionDelta = vec2.subtract(desiredPosition, desiredPosition, object.center);
-    vec2.scale(positionDelta, positionDelta, springConstant);
+    const positionDeltaDirection = vec2.normalize(vec2.create(), positionDelta);
+    const positionDeltaLength = vec2.length(positionDelta);
+    vec2.scale(
+      positionDelta,
+      positionDeltaDirection,
+      Math.min(positionDeltaLength, (positionDeltaLength / 50) * deltaTime * 800),
+    );
     const hitObject = object.tryMove(positionDelta);
 
     if (hitObject instanceof PlanetPhysical) {

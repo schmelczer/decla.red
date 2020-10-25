@@ -33,6 +33,7 @@ export abstract class SoundHandler {
     setTimeout(() => {
       this.ambientSound.muted = false;
       this.ambientSound.volume = 0.5;
+      this.ambientSound.loop = true;
       if (!this.isAmbientPlaying) {
         this.ambientSound.pause();
       }

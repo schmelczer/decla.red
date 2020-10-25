@@ -44,7 +44,6 @@ export * from './transport/serialization/serialize';
 export * from './transport/serialization/serializes-to';
 export * from './transport/serialization/serializable';
 export * from './transport/serialization/override-deserialization';
-export * from './objects/types/character-base';
 export * from './objects/types/character-team';
 export * from './objects/types/player-character-base';
 export * from './objects/types/lamp-base';

@@ -6,7 +6,6 @@ import {
   settings,
   ServerInformation,
   PlayerInformation,
-  serializable,
   UpdateGameState,
   serialize,
   CharacterTeam,
@@ -18,7 +17,7 @@ import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { Options } from './options';
 import { PlayerContainer } from './players/player-container';
 
-const playerCountSubscribedRoom = 'playerCountUpdates';
+const gameStateSubscribedRoom = 'gameStateSubscribedRoom';
 
 export class GameServer {
   private objects!: PhysicalContainer;
@@ -38,15 +37,15 @@ export class GameServer {
   private initialize() {
     const previousPlayers = this.players;
     this.objects = new PhysicalContainer();
-    this.players = new PlayerContainer(this.objects);
+    createWorld(this.objects, this.options.worldSize);
+    this.objects.initialize();
+    this.players = new PlayerContainer(this.objects, this.options.playerLimit);
     this.deltaTimeCalculator = new DeltaTimeCalculator();
     this.deltaTimes = [];
     this.declaPoints = 0;
     this.redPoints = 0;
     this.isInEndGame = false;
     this.timeScaling = 1;
-    createWorld(this.objects, this.options.worldSize);
-    this.objects.initialize();
     previousPlayers?.sendOnSocket(serialize(new GameStart()));
   }
 
@@ -58,23 +57,27 @@ export class GameServer {
 
     io.on('connection', (socket: SocketIO.Socket) => {
       socket.on(TransportEvents.PlayerJoining, (playerInfo: PlayerInformation) => {
-        const player = this.players.createPlayer(playerInfo, socket);
-        socket.on(TransportEvents.PlayerToServer, (json: string) => {
-          const command = deserialize(json);
-          player.sendCommand(command);
-        });
+        try {
+          const player = this.players.createPlayer(playerInfo, socket);
+          socket.on(TransportEvents.PlayerToServer, (json: string) => {
+            const command = deserialize(json);
+            player.sendCommand(command);
+          });
 
-        this.sendServerStateUpdate();
-
-        socket.on('disconnect', () => {
-          player.destroy();
-          this.players.deletePlayer(player);
           this.sendServerStateUpdate();
-        });
+
+          socket.on('disconnect', () => {
+            player.destroy();
+            this.players.deletePlayer(player);
+            this.sendServerStateUpdate();
+          });
+        } catch {
+          socket.disconnect();
+        }
       });
 
       socket.on(TransportEvents.SubscribeForServerInfoUpdates, () => {
-        socket.join(playerCountSubscribedRoom);
+        socket.join(gameStateSubscribedRoom);
       });
     });
   }
@@ -82,7 +85,7 @@ export class GameServer {
   private timeSinceLastServerStateUpdate = 0;
   public sendServerStateUpdate() {
     this.io
-      .to(playerCountSubscribedRoom)
+      .to(gameStateSubscribedRoom)
       .emit(TransportEvents.ServerInfoUpdate, [this.players.count, this.gameProgress]);
   }
 

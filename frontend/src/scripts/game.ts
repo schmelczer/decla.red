@@ -155,7 +155,12 @@ export class Game extends CommandReceiver {
       const angle = Math.atan2(direction.y, direction.x);
       e.className = 'other-player-arrow ' + team;
 
-      const { width, height } = this.overlay.getBoundingClientRect();
+      if (!this.renderer) {
+        return;
+      }
+
+      const width = this.renderer.canvasSize.x;
+      const height = this.renderer.canvasSize.y;
       const aspectRatio = width / height;
       const directionRatio = direction.x / direction.y;
 

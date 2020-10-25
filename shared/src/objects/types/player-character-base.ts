@@ -1,23 +1,23 @@
-import { CharacterBase } from './character-base';
 import { Circle } from '../../helper/circle';
 import { Id } from '../../transport/identity';
 import { serializable } from '../../transport/serialization/serializable';
+import { GameObject } from '../game-object';
 import { CharacterTeam } from './character-team';
 
 @serializable
-export class PlayerCharacterBase extends CharacterBase {
+export class PlayerCharacterBase extends GameObject {
   constructor(
     id: Id,
     public name: string,
     public killCount: number,
     public deathCount: number,
-    team: CharacterTeam,
-    health: number,
-    head?: Circle,
-    leftFoot?: Circle,
-    rightFoot?: Circle,
+    public team: CharacterTeam,
+    public health: number,
+    public head?: Circle,
+    public leftFoot?: Circle,
+    public rightFoot?: Circle,
   ) {
-    super(id, team, health, head, leftFoot, rightFoot);
+    super(id);
   }
 
   public onShoot(strength: number) {}

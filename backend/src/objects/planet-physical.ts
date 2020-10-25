@@ -69,7 +69,7 @@ export class PlanetPhysical
   }
 
   public get team(): CharacterTeam {
-    return this.ownership === 0.5
+    return Math.abs(this.ownership - 0.5) < 0.1
       ? CharacterTeam.neutral
       : this.ownership < 0.5
       ? CharacterTeam.decla

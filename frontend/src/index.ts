@@ -1,13 +1,11 @@
 import { glMatrix } from 'gl-matrix';
 import {
-  CharacterBase,
   LampBase,
   overrideDeserialization,
   PlanetBase,
   PlayerCharacterBase,
   ProjectileBase,
 } from 'shared';
-import { CharacterView } from './scripts/objects/character-view';
 import { LampView } from './scripts/objects/lamp-view';
 import { ProjectileView } from './scripts/objects/projectile-view';
 import { PlanetView } from './scripts/objects/planet-view';
@@ -33,7 +31,6 @@ import { SoundHandler, Sounds } from './scripts/sound-handler';
 
 glMatrix.setMatrixArrayType(Array);
 
-overrideDeserialization(CharacterBase, CharacterView);
 overrideDeserialization(PlayerCharacterBase, PlayerCharacterView);
 overrideDeserialization(PlanetBase, PlanetView);
 overrideDeserialization(LampBase, LampView);
