@@ -17,6 +17,8 @@ export class CharacterBase extends GameObject {
     super(id);
   }
 
+  public onShoot(strength: number) {}
+
   public toArray(): Array<any> {
     const { id, team, health, head, leftFoot, rightFoot } = this;
     return [id, team, health, head, leftFoot, rightFoot];

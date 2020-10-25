@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { CircleLight, ColorfulCircle, Renderer } from 'sdf-2d';
-import { CharacterTeam, Id, ProjectileBase, settings, UpdateMessage } from 'shared';
+import { CharacterTeam, Id, ProjectileBase, settings } from 'shared';
 import { ViewObject } from './view-object';
 
 export class ProjectileView extends ProjectileBase implements ViewObject {

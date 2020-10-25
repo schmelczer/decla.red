@@ -7,8 +7,6 @@ const TerserJSPlugin = require('terser-webpack-plugin');
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 const Sass = require('sass');
 
-//const FaviconsWebpackPlugin = require('favicons-webpack-plugin');
-
 module.exports = {
   devServer: {
     host: '0.0.0.0',
@@ -34,9 +32,6 @@ module.exports = {
       ],
     }),
 
-    //new FaviconsWebpackPlugin('static/logo.svg'),
-    // Multi threading typescript loader configuration with caching for .ts and .tsx files
-    // see https://github.com/namics/webpack-config-plugins/tree/master/packages/ts-config-webpack-plugin/config
     new TsConfigWebpackPlugin(),
   ],
   optimization: {
@@ -80,11 +75,21 @@ module.exports = {
         },
       },
       {
-        test: /\.mp3$/,
+        test: /\.(mp3|png)$/,
         use: {
           loader: 'file-loader',
           query: {
             outputPath: '/static',
+            name: '[name].[ext]',
+          },
+        },
+      },
+      {
+        test: /\.ico$/,
+        use: {
+          loader: 'file-loader',
+          query: {
+            outputPath: '/',
             name: '[name].[ext]',
           },
         },

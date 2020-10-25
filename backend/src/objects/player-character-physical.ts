@@ -135,7 +135,7 @@ export class PlayerCharacterPhysical
     this.movementActions.push(c);
   }
 
-  private addKill() {
+  public addKill() {
     this.killCount++;
     this.remoteCall('setKillCount', this.killCount);
   }

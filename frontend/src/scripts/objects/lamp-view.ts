@@ -1,6 +1,6 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { CircleLight, Renderer } from 'sdf-2d';
-import { CommandExecutors, Id, LampBase, UpdateMessage } from 'shared';
+import { CommandExecutors, Id, LampBase } from 'shared';
 import { RenderCommand } from '../commands/types/render';
 import { ViewObject } from './view-object';
 

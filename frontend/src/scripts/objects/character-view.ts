@@ -1,13 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import {
-  CharacterBase,
-  CharacterTeam,
-  Circle,
-  Id,
-  settings,
-  UpdateMessage,
-} from 'shared';
+import { CharacterBase, CharacterTeam, Circle, Id, settings } from 'shared';
 
 import { BlobShape } from '../shapes/blob-shape';
 import { ViewObject } from './view-object';
