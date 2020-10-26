@@ -22,14 +22,14 @@ export abstract class PlayerBase extends CommandReceiver {
     super();
   }
 
-  protected createCharacter() {
+  protected createCharacter(preferredCenter: vec2) {
     this.character = new PlayerCharacterPhysical(
       this.playerInfo.name.slice(0, 20),
       this.sumKills,
       this.sumDeaths,
       this.team,
       this.objectContainer,
-      this.findEmptyPositionForPlayer(),
+      this.findEmptyPositionForPlayer(preferredCenter),
     );
 
     this.objectContainer.addObject(this.character);
@@ -37,21 +37,17 @@ export abstract class PlayerBase extends CommandReceiver {
 
   public abstract step(deltaTimeInSeconds: number): void;
 
-  protected findEmptyPositionForPlayer(): vec2 {
-    let possibleCenter = this.playerContainer.players.find(
-      (p) => p.character?.isAlive && p.team === this.team,
-    )?.center;
-
-    if (!possibleCenter) {
-      possibleCenter = vec2.create();
+  protected findEmptyPositionForPlayer(preferredCenter: vec2): vec2 {
+    if (!preferredCenter) {
+      preferredCenter = vec2.create();
     }
 
     let rotation = 0;
     let radius = 0;
     for (;;) {
       const playerPosition = vec2.fromValues(
-        radius * Math.cos(rotation) + possibleCenter.x,
-        radius * Math.sin(rotation) + possibleCenter.y,
+        radius * Math.cos(rotation) + preferredCenter.x,
+        radius * Math.sin(rotation) + preferredCenter.y,
       );
 
       const playerBoundingCircle = new Circle(

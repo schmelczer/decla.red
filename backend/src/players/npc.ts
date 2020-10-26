@@ -13,12 +13,15 @@ import { PlayerBase } from './player-base';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { PlayerCharacterPhysical } from '../objects/player-character-physical';
 import { PlanetPhysical } from '../objects/planet-physical';
+import { Physical } from '../physics/physicals/physical';
 
 export class NPC extends PlayerBase {
-  private moveTarget: vec2 = vec2.create();
-  private planet?: PlanetPhysical;
+  private direction: vec2 = vec2.fromValues(Random.getRandom(), Random.getRandom());
   private timeSinceLastFindTarget = 10000;
   private timeSinceLastFindShootTarget = 10000;
+  private isWandering = false;
+  private timeSinceLastWanderingConsideration = 0;
+  private isComingBack = false;
 
   constructor(
     playerInfo: PlayerInformation,
@@ -32,45 +35,103 @@ export class NPC extends PlayerBase {
   }
 
   private findTarget() {
-    const observableArea = getBoundingBoxOfCircle(new Circle(this.center, 100));
+    if (
+      (!this.isComingBack && vec2.length(this.center) > settings.worldRadius) ||
+      (this.isComingBack && vec2.length(this.center) > settings.worldRadius / 2)
+    ) {
+      this.isComingBack = true;
+      vec2.subtract(this.direction, vec2.fromValues(0, 0), this.center);
+      return;
+    }
+
+    this.isComingBack = false;
+
+    const observableArea = getBoundingBoxOfCircle(new Circle(this.center, 2000));
     const nearObjects = this.objectContainer.findIntersecting(observableArea);
+    const characters = this.findNearCharactersSorted(nearObjects);
 
-    const enemies = nearObjects.filter(
-      (o) =>
-        o.gameObject instanceof PlayerCharacterPhysical &&
-        o.gameObject.team !== this.team,
-    );
-    const allies = nearObjects.filter(
-      (o) =>
-        o.gameObject instanceof PlayerCharacterPhysical &&
-        o.gameObject.team === this.team,
-    );
-    const notControlledPlanets = nearObjects.filter(
-      (o) => o.gameObject instanceof PlanetPhysical && o.gameObject.team !== this.team,
-    );
-
-    if (enemies.length > allies.length) {
-      const enemiesCenter = enemies.reduce(
-        (sum, e) => vec2.add(sum, sum, (e.gameObject as PlayerCharacterPhysical).center),
-        vec2.create(),
-      );
-      vec2.scale(enemiesCenter, enemiesCenter, 1 / enemies.length);
-      const enemiesDelta = vec2.subtract(enemiesCenter, this.center, enemiesCenter);
-      if (vec2.length(enemiesDelta) > 0) {
-        vec2.scale(enemiesDelta, enemiesDelta, 200 / vec2.length(enemiesDelta));
-      }
-      vec2.add(this.moveTarget, this.center, enemiesDelta);
-    } else if (!this.planet) {
-      if (notControlledPlanets.length > 0) {
-        this.planet = notControlledPlanets[0] as PlanetPhysical;
-        this.moveTarget = this.planet.center;
-      } else {
-        this.moveTarget = vec2.fromValues(
-          Random.getRandomInRange(-5000, 5000),
-          Random.getRandomInRange(-5000, 5000),
-        );
+    if (characters.length > 0) {
+      const nearest = characters[0];
+      if (nearest.distance < 200) {
+        vec2.subtract(this.direction, this.center, nearest.character.center);
+        return;
       }
     }
+
+    const enemies = characters.filter((o) => o.character.team !== this.team);
+
+    if (enemies.length > 0) {
+      const nearest = enemies[0];
+      if (nearest.distance < 500) {
+        vec2.subtract(this.direction, this.center, nearest.character.center);
+        return;
+      }
+    }
+
+    if (enemies.length > 0) {
+      const nearest = enemies[0];
+      if (nearest.distance > 1000) {
+        vec2.subtract(this.direction, nearest.character.center, this.center);
+        return;
+      }
+    }
+
+    if (this.isWandering) {
+      vec2.rotate(
+        this.direction,
+        this.direction,
+        vec2.create(),
+        Random.getRandomInRange(-0.2, 0.2),
+      );
+    } else {
+      const planets = this.findNearPlanetsSorted(nearObjects).filter(
+        (p) => p.planet.team !== this.team,
+      );
+
+      if (planets.length > 0) {
+        vec2.subtract(this.direction, planets[0].planet.center, this.center);
+      } else {
+        this.isWandering = true;
+      }
+    }
+  }
+
+  private findNearCharactersSorted(
+    nearObjects: Array<Physical>,
+  ): Array<{ character: PlayerCharacterPhysical; distance: number }> {
+    const characters = Array.from(
+      new Set(
+        nearObjects.filter(
+          (o) =>
+            o.gameObject instanceof PlayerCharacterPhysical &&
+            o.gameObject !== this.character,
+        ),
+      ),
+    ).map((c) => ({
+      character: c.gameObject,
+      distance: vec2.distance(
+        this.center,
+        (c.gameObject as PlayerCharacterPhysical).center,
+      ),
+    })) as Array<{ character: PlayerCharacterPhysical; distance: number }>;
+
+    characters.sort((a, b) => a.distance - b.distance);
+
+    return characters;
+  }
+
+  private findNearPlanetsSorted(
+    nearObjects: Array<Physical>,
+  ): Array<{ planet: PlanetPhysical; distance: number }> {
+    const planets = nearObjects
+      .filter((o) => o.gameObject instanceof PlanetPhysical)
+      .map((c) => ({
+        planet: c.gameObject,
+        distance: vec2.distance(this.center, (c.gameObject as PlanetPhysical).center),
+      })) as Array<{ planet: PlanetPhysical; distance: number }>;
+
+    planets.sort((a, b) => a.distance - b.distance);
+    return planets;
   }
 
   private findShootTarget(): vec2 | undefined {
@@ -106,26 +167,45 @@ export class NPC extends PlayerBase {
       }
     }
 
-    if (this.planet && Math.abs(this.planet.ownership - 0.5) > 0.3) {
-      this.planet = undefined;
+    if ((this.timeSinceLastWanderingConsideration += deltaTimeInSeconds) > 3) {
+      this.timeSinceLastWanderingConsideration = 0;
+      this.isWandering = Random.getRandom() > 0.5;
+    }
+
+    if ((this.timeSinceLastFindTarget += deltaTimeInSeconds) > 1) {
+      this.timeSinceLastFindTarget = 0;
       this.findTarget();
-    } else {
-      if ((this.timeSinceLastFindTarget += deltaTimeInSeconds) > 1) {
-        this.timeSinceLastFindTarget = 0;
-        this.findTarget();
-      }
     }
 
     if ((this.timeSinceLastFindShootTarget += deltaTimeInSeconds) > 0.5) {
-      const shootTarget = this.findShootTarget();
-      if (shootTarget) {
-        this.character?.shootTowards(shootTarget);
+      if (Random.getRandom() > 0.5) {
+        const shootTarget = this.findShootTarget();
+        if (shootTarget) {
+          vec2.add(
+            shootTarget,
+            shootTarget,
+            vec2.fromValues(
+              Random.getRandomInRange(-200, 200),
+              Random.getRandomInRange(-200, 200),
+            ),
+          );
+          this.character?.shootTowards(shootTarget);
+        }
       }
+
       this.timeSinceLastFindShootTarget = 0;
     }
 
-    const targetDelta = vec2.subtract(vec2.create(), this.moveTarget, this.center);
-    vec2.normalize(targetDelta, targetDelta);
-    this.character?.handleMovementAction(new MoveActionCommand(targetDelta, false));
+    this.character?.handleMovementAction(new MoveActionCommand(this.direction, false));
+  }
+
+  protected createCharacter() {
+    const randomPoint = vec2.rotate(
+      vec2.create(),
+      vec2.fromValues(Random.getRandomInRange(0, settings.worldRadius), 0),
+      vec2.create(),
+      Random.getRandomInRange(0, Math.PI * 2),
+    );
+    super.createCharacter(randomPoint);
   }
 }

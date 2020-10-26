@@ -83,7 +83,11 @@ export class Player extends PlayerBase {
   }
 
   protected createCharacter() {
-    super.createCharacter();
+    const preferredCenter = this.playerContainer.players.find(
+      (p) => p.character?.isAlive && p.team === this.team,
+    )?.center;
+
+    super.createCharacter(preferredCenter ?? vec2.create());
 
     this.objectsPreviouslyInViewArea.push(this.character!);
     this.queueCommandSend(new CreatePlayerCommand(this.character!));
