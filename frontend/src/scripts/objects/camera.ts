@@ -18,7 +18,7 @@ export class Camera extends GameObject implements ViewObject {
 
   public step(deltaTimeInSeconds: number): void {}
 
-  public draw(renderer: Renderer, overlay: HTMLElement) {
+  public draw(renderer: Renderer, overlay: HTMLElement, shouldChangeLayout: boolean) {
     const canvasAspectRatio = renderer.canvasSize.x / renderer.canvasSize.y;
     if (canvasAspectRatio !== this.aspectRatio) {
       this.aspectRatio = canvasAspectRatio;

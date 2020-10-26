@@ -9,7 +9,9 @@
     "moduleResolution": "node",
     "skipLibCheck": true,
     "module": "commonjs",
-    "lib": ["dom", "es2017"]
+    "lib": ["dom", "es2017"],
+    "typeRoots": ["./types", "./node_modules/@types"]
   },
-  "include": ["src/**/*.ts", "src/*.ts"]
+  "include": ["src/**/*.ts", "src/*.ts"],
+  "exclude": ["node_modules", "typings"]
 }

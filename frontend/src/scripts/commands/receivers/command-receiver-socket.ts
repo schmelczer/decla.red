@@ -5,7 +5,15 @@ export class CommandReceiverSocket extends CommandReceiver {
     super();
   }
 
+  private commandQueue: Array<Command> = [];
   protected defaultCommandExecutor(command: Command) {
-    this.socket.emit(TransportEvents.PlayerToServer, serialize(command));
+    this.commandQueue.push(command);
+  }
+
+  public sendQueuedCommands() {
+    if (this.commandQueue.length > 0) {
+      this.socket.emit(TransportEvents.PlayerToServer, serialize(this.commandQueue));
+      this.commandQueue = [];
+    }
   }
 }

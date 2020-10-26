@@ -28,6 +28,7 @@ import { startAnimation } from './start-animation';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
 import { OptionsHandler } from './options-handler';
+import parser from 'socket.io-msgpack-parser';
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
@@ -43,6 +44,7 @@ export class Game extends CommandReceiver {
   private announcementText = document.createElement('h2');
   private progressBar = document.createElement('div');
   private arrowElements: Array<HTMLElement> = [];
+  private socketReceiver!: CommandReceiverSocket;
 
   constructor(
     private readonly playerDecision: PlayerDecision,
@@ -71,7 +73,8 @@ export class Game extends CommandReceiver {
       reconnectionDelayMax: 10000,
       transports: ['websocket'],
       forceNew: true,
-    });
+      parser,
+    } as any);
 
     this.socket.on('reconnect_attempt', () => {
       this.socket.io.opts.transports = ['polling', 'websocket'];
@@ -87,17 +90,19 @@ export class Game extends CommandReceiver {
       this.socket.emit(TransportEvents.Pong);
     });
 
-    this.socket.on(TransportEvents.ServerToPlayer, (serialized: string) =>
-      this.sendCommand(deserialize(serialized)),
-    );
+    this.socket.on(TransportEvents.ServerToPlayer, (serializedCommands: string) => {
+      const commands: Array<Command> = deserialize(serializedCommands);
+      commands.forEach((c) => this.sendCommand(c));
+    });
 
+    this.socketReceiver = new CommandReceiverSocket(this.socket);
     broadcastCommands(
       [
         new KeyboardListener(document.body),
         new MouseListener(this.canvas, this),
         new TouchJoystickListener(this.canvas, this.overlay, this),
       ],
-      [this.gameObjects, new CommandReceiverSocket(this.socket)],
+      [this.socketReceiver],
     );
 
     this.isBetweenGames = false;
@@ -111,29 +116,31 @@ export class Game extends CommandReceiver {
     this.gameObjects.sendCommand(c);
   }
 
+  private lastGameState?: UpdateGameState;
+
+  private lastAnnouncementText = '';
   protected commandExecutors: CommandExecutors = {
     [ServerAnnouncement.type]: (c: ServerAnnouncement) =>
-      (this.announcementText.innerText = c.text),
+      (this.lastAnnouncementText = c.text),
     [PlayerDiedCommand.type]: (c: PlayerDiedCommand) => {
       if (OptionsHandler.options.vibrationEnabled) {
         navigator.vibrate(150);
       }
     },
-    [UpdateGameState.type]: (c: UpdateGameState) => {
-      this.declaPlanetCountElement.style.width = (c.declaCount / c.limit) * 50 + '%';
-      this.redPlanetCountElement.style.width = (c.redCount / c.limit) * 50 + '%';
-    },
+    [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
     [GameEnd.type]: (c: GameEnd) => {
       const team =
         c.winningTeam === CharacterTeam.decla
           ? '<span class="decla">decla</span>'
           : '<span class="red">red</span>';
-      this.announcementText.innerHTML = `Team ${team} won 🎉`;
+      this.lastAnnouncementText = `Team ${team} won 🎉`;
     },
-    [UpdateOtherPlayerDirections.type]: this.handleOtherPlayerDirections.bind(this),
+    [UpdateOtherPlayerDirections.type]: (c: UpdateOtherPlayerDirections) =>
+      (this.lastOtherPlayerDirections = c),
     [GameStart.type]: this.initialize.bind(this),
   };
 
+  private lastOtherPlayerDirections?: UpdateOtherPlayerDirections;
   private handleOtherPlayerDirections(command: UpdateOtherPlayerDirections) {
     this.arrowElements
       .splice(command.otherPlayerDirections.length, this.arrowElements.length)
@@ -205,10 +212,7 @@ export class Game extends CommandReceiver {
   }
 
   public aspectRatioChanged(aspectRatio: number) {
-    this.socket.emit(
-      TransportEvents.PlayerToServer,
-      serialize(new SetAspectRatioActionCommand(aspectRatio)),
-    );
+    this.socketReceiver.sendCommand(new SetAspectRatioActionCommand(aspectRatio));
   }
 
   private isActive = true;
@@ -216,6 +220,7 @@ export class Game extends CommandReceiver {
     this.isActive = false;
   }
 
+  private framesSinceLastLayoutUpdate = 0;
   private gameLoop(
     renderer: Renderer,
     _: DOMHighResTimeStamp,
@@ -224,10 +229,34 @@ export class Game extends CommandReceiver {
     this.resolveStarted();
     deltaTime /= 1000;
 
+    let shouldChangeLayout = false;
+    if (++this.framesSinceLastLayoutUpdate > 1) {
+      shouldChangeLayout = true;
+      this.framesSinceLastLayoutUpdate = 0;
+      this.draw();
+    }
+
     this.renderer = renderer;
+
+    this.socketReceiver.sendQueuedCommands();
     this.gameObjects.stepObjects(deltaTime);
-    this.gameObjects.drawObjects(this.renderer, this.overlay);
+    this.gameObjects.drawObjects(this.renderer, this.overlay, shouldChangeLayout);
 
     return this.isActive;
+  }
+
+  private draw() {
+    if (this.lastGameState) {
+      this.declaPlanetCountElement.style.width =
+        (this.lastGameState.declaCount / this.lastGameState.limit) * 50 + '%';
+      this.redPlanetCountElement.style.width =
+        (this.lastGameState.redCount / this.lastGameState.limit) * 50 + '%';
+    }
+
+    if (this.lastOtherPlayerDirections) {
+      this.handleOtherPlayerDirections(this.lastOtherPlayerDirections);
+    }
+
+    this.announcementText.innerHTML = this.lastAnnouncementText;
   }
 }

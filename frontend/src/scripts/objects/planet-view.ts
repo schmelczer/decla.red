@@ -47,31 +47,76 @@ export class PlanetView extends PlanetBase implements ViewObject {
         vec2.scale(vec2.create(), p.velocity, deltaTimeInSeconds),
       );
 
-      if ((p.timeToLive -= deltaTimeInSeconds) <= 0) {
-        p.element.parentElement?.removeChild(p.element);
-      } else {
-        p.element.style.opacity = Math.min(1, p.timeToLive).toString();
-      }
+      p.timeToLive -= deltaTimeInSeconds;
     });
-
-    this.generatedPointElements = this.generatedPointElements.filter(
-      (p) => p.timeToLive > 0,
-    );
   }
 
   private generatedPointElements: Array<FallingPoint> = [];
 
+  private lastGeneratedPoint?: number;
   public generatedPoints(value: number) {
-    const element = document.createElement('div');
-    element.className = 'falling-point ' + (this.ownership < 0.5 ? 'decla' : 'red');
-    element.innerText = '+' + value;
-    this.generatedPointElements.push({
-      element,
-      addedToOverlay: false,
-      timeToLive: Random.getRandomInRange(2, 3),
-      position: vec2.create(),
-      velocity: vec2.fromValues(Random.getRandomInRange(-30, 30), 0),
-    });
+    this.lastGeneratedPoint = value;
+  }
+
+  public beforeDestroy(): void {
+    this.ownershipProgess.parentElement?.removeChild(this.ownershipProgess);
+    this.generatedPointElements.forEach((p) =>
+      p.element.parentElement?.removeChild(p.element),
+    );
+  }
+
+  public draw(
+    renderer: Renderer,
+    overlay: HTMLElement,
+    shouldChangeLayout: boolean,
+  ): void {
+    if (shouldChangeLayout) {
+      if (!this.ownershipProgess.parentElement) {
+        overlay.appendChild(this.ownershipProgess);
+      }
+
+      const screenPosition = renderer.worldToDisplayCoordinates(this.center);
+
+      this.generatedPointElements.forEach((p) => {
+        if (!p.addedToOverlay) {
+          overlay.appendChild(p.element);
+        }
+
+        p.element.style.transform = `translateX(${
+          screenPosition.x + p.position.x
+        }px) translateY(${screenPosition.y + p.position.y}px)`;
+
+        if (p.timeToLive <= 0) {
+          p.element.parentElement?.removeChild(p.element);
+        } else {
+          p.element.style.opacity = Math.min(1, p.timeToLive).toString();
+        }
+      });
+
+      this.generatedPointElements = this.generatedPointElements.filter(
+        (p) => p.timeToLive > 0,
+      );
+
+      this.ownershipProgess.style.transform = `translateX(${screenPosition.x}px) translateY(${screenPosition.y}px) translateX(-50%) translateY(-50%)`;
+      this.ownershipProgess.style.background = this.getGradient();
+
+      if (this.lastGeneratedPoint !== undefined) {
+        const element = document.createElement('div');
+        element.className = 'falling-point ' + (this.ownership < 0.5 ? 'decla' : 'red');
+        element.innerText = '+' + this.lastGeneratedPoint;
+        this.generatedPointElements.push({
+          element,
+          addedToOverlay: false,
+          timeToLive: Random.getRandomInRange(2, 3),
+          position: vec2.create(),
+          velocity: vec2.fromValues(Random.getRandomInRange(-30, 30), 0),
+        });
+
+        this.lastGeneratedPoint = undefined;
+      }
+    }
+
+    renderer.addDrawable(this.shape);
   }
 
   private getGradient(): string {
@@ -90,34 +135,5 @@ export class PlanetView extends PlanetBase implements ViewObject {
       var(--bright-red) ${100 - sidePercent}%,
       var(--bright-red) 100%
     )`;
-  }
-  public beforeDestroy(): void {
-    this.ownershipProgess.parentElement?.removeChild(this.ownershipProgess);
-    this.generatedPointElements.forEach((p) =>
-      p.element.parentElement?.removeChild(p.element),
-    );
-  }
-
-  public draw(renderer: Renderer, overlay: HTMLElement): void {
-    if (!this.ownershipProgess.parentElement) {
-      overlay.appendChild(this.ownershipProgess);
-    }
-
-    const screenPosition = renderer.worldToDisplayCoordinates(this.center);
-
-    this.generatedPointElements.forEach((p) => {
-      if (!p.addedToOverlay) {
-        overlay.appendChild(p.element);
-      }
-
-      p.element.style.left = screenPosition.x + p.position.x + 'px';
-      p.element.style.top = screenPosition.y + p.position.y + 'px';
-    });
-
-    this.ownershipProgess.style.left = screenPosition.x + 'px';
-    this.ownershipProgess.style.top = screenPosition.y + 'px';
-    this.ownershipProgess.style.background = this.getGradient();
-
-    renderer.addDrawable(this.shape);
   }
 }

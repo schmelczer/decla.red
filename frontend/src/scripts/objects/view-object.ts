@@ -3,6 +3,6 @@ import { GameObject } from 'shared';
 
 export interface ViewObject extends GameObject {
   step(deltaTimeInMilliseconds: number): void;
-  draw(renderer: Renderer, overlay: HTMLElement): void;
+  draw(renderer: Renderer, overlay: HTMLElement, shouldChangeLayout: boolean): void;
   beforeDestroy(): void;
 }

@@ -33,7 +33,11 @@ export class ProjectileView extends ProjectileBase implements ViewObject {
 
   public beforeDestroy(): void {}
 
-  public draw(renderer: Renderer, overlay: HTMLElement): void {
+  public draw(
+    renderer: Renderer,
+    overlay: HTMLElement,
+    shouldChangeLayout: boolean,
+  ): void {
     renderer.addDrawable(this.circle);
     renderer.addDrawable(this.light);
   }

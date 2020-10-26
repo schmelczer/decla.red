@@ -7,6 +7,7 @@ import minimist from 'minimist';
 import { glMatrix } from 'gl-matrix';
 import { GameServer } from './game-server';
 import { defaultOptions } from './default-options';
+import parser from 'socket.io-msgpack-parser';
 
 glMatrix.setMatrixArrayType(Array);
 applyArrayPlugins();
@@ -21,7 +22,7 @@ Random.seed = options.seed;
 
 const app = express();
 const server = new Server(app);
-const io = ioserver(server);
+const io = ioserver(server, { parser } as any);
 
 const gameServer = new GameServer(io, options);
 

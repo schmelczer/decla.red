@@ -56,8 +56,12 @@ export class GameObjectContainer extends CommandReceiver {
     this.objects.forEach((o) => o.step(deltaTimeInSeconds));
   }
 
-  public drawObjects(renderer: Renderer, overlay: HTMLElement) {
-    this.objects.forEach((o) => o.draw(renderer, overlay));
+  public drawObjects(
+    renderer: Renderer,
+    overlay: HTMLElement,
+    shouldChangeLayout: boolean,
+  ) {
+    this.objects.forEach((o) => o.draw(renderer, overlay, shouldChangeLayout));
   }
 
   private addObject(object: ViewObject) {

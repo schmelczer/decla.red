@@ -1,10 +1,4 @@
-import {
-  CharacterTeam,
-  PlayerInformation,
-  Random,
-  TransportEvents,
-  settings,
-} from 'shared';
+import { CharacterTeam, PlayerInformation, Random, settings, Command } from 'shared';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { NPC } from './npc';
 import { Player } from './player';
@@ -17,12 +11,16 @@ export class PlayerContainer {
   constructor(
     private readonly objects: PhysicalContainer,
     private readonly playerMaxCount: number,
+    private readonly npcMaxCount: number,
   ) {
     this.createNPCs();
   }
 
   public createNPCs() {
-    const newNpcCount = this.playerMaxCount - this._players.length - this._npcs.length;
+    const newNpcCount = Math.min(
+      this.playerMaxCount - this._players.length - this._npcs.length,
+      this.npcMaxCount - this._npcs.length,
+    );
     for (let i = 0; i < newNpcCount; i++) {
       const name = `BOT ${Random.choose(settings.npcNames)}`;
       this._npcs.push(
@@ -62,8 +60,12 @@ export class PlayerContainer {
     this.players.forEach((p) => p.step(deltaTimeInSeconds));
   }
 
-  public sendOnSocket(message: any) {
-    this._players.forEach((p) => p.socket.emit(TransportEvents.ServerToPlayer, message));
+  public queueCommandForEachClient(command: Command) {
+    this._players.forEach((p) => p.queueCommandSend(command));
+  }
+
+  public sendQueuedCommands() {
+    this._players.forEach((p) => p.sendQueuedCommandsToClient());
   }
 
   private getTeamOfNextPlayer(isNpc = false): CharacterTeam {

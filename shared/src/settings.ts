@@ -13,7 +13,7 @@ const redPlanetColor = redColor;
 
 export const settings = {
   lightCutoffDistance: 600,
-  physicsMaxStep: 2,
+  physicsMaxStep: 8,
   maxVelocityX: 1000,
   maxVelocityY: 1000,
   radiusSteps: 500,
@@ -33,7 +33,7 @@ export const settings = {
   playerMaxStrength: 80,
   endGameDeltaScaling: 4,
   playerDiedTimeout: 5,
-  playerStrengthRegenerationPerSeconds: 40,
+  playerStrengthRegenerationPerSeconds: 60,
   projectileMaxStrength: 40,
   projectileSpeed: 4000,
   projectileMaxBounceCount: 1,

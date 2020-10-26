@@ -49,8 +49,6 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   }
 
   public step(deltaTimeInSeconds: number): void {
-    this.healthElement.style.width = (50 * this.health) / settings.playerMaxHealth + 'px';
-    this.statsElement.innerText = this.getStatsText();
     if (this.previousHealth > this.health) {
       this.previousHealth = this.health;
       if (OptionsHandler.options.vibrationEnabled) {
@@ -68,16 +66,26 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     this.nameElement.parentElement?.removeChild(this.nameElement);
   }
 
-  public draw(renderer: Renderer, overlay: HTMLElement): void {
-    if (!this.nameElement.parentElement) {
-      overlay.appendChild(this.nameElement);
-    }
+  public draw(
+    renderer: Renderer,
+    overlay: HTMLElement,
+    shouldChangeLayout: boolean,
+  ): void {
+    if (shouldChangeLayout) {
+      if (!this.nameElement.parentElement) {
+        overlay.appendChild(this.nameElement);
+      }
 
-    const screenPosition = renderer.worldToDisplayCoordinates(
-      this.calculateTextPosition(),
-    );
-    this.nameElement.style.left = screenPosition.x + 'px';
-    this.nameElement.style.top = screenPosition.y + 'px';
+      const screenPosition = renderer.worldToDisplayCoordinates(
+        this.calculateTextPosition(),
+      );
+
+      this.nameElement.style.transform = `translateX(${screenPosition.x}px) translateY(${screenPosition.y}px) translateX(-50%) translateY(-50%) rotate(-15deg)`;
+
+      this.healthElement.style.width =
+        (50 * this.health) / settings.playerMaxHealth + 'px';
+      this.statsElement.innerText = this.getStatsText();
+    }
 
     this.shape.setCircles([this.head!, this.leftFoot!, this.rightFoot!]);
     renderer.addDrawable(this.shape);

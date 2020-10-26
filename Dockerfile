@@ -5,4 +5,4 @@ RUN npm i -g declared-server
 EXPOSE 3000
 
 CMD ["--port=3000", "--name=Docker server", "--seed=500"]
-ENTRYPOINT [ "declared-server" ]
+ENTRYPOINT [ "NODE_ENV=production node", "declared-server" ]

@@ -104,6 +104,10 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
 
     const delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
 
+    this.radius += vec2.length(delta);
+    const intersecting = this.container.findIntersecting(this.boundingBox);
+    this.radius -= vec2.length(delta);
+
     const stepCount = Math.ceil(vec2.length(delta) / settings.physicsMaxStep);
     vec2.scale(delta, delta, 1 / stepCount);
 
@@ -115,9 +119,6 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
         this.velocity,
         deltaTimeInSeconds / stepCount,
       );
-      this.radius += vec2.length(distance);
-      const intersecting = this.container.findIntersecting(this.boundingBox);
-      this.radius -= vec2.length(distance);
 
       const { normal, hitSurface, hitObject } = moveCircle(
         this,
@@ -144,16 +145,16 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
   }
 
   public tryMove(delta: vec2): GameObject | undefined {
+    this.radius += vec2.length(delta);
+    const intersecting = this.container.findIntersecting(this.boundingBox);
+    this.radius -= vec2.length(delta);
+
     const stepCount = Math.ceil(vec2.length(delta) / settings.physicsMaxStep);
     vec2.scale(delta, delta, 1 / stepCount);
 
     let lastHit: GameObject | undefined;
 
     for (let i = 0; i < stepCount; i++) {
-      this.radius += vec2.length(delta);
-      const intersecting = this.container.findIntersecting(this.boundingBox);
-      this.radius -= vec2.length(delta);
-
       const { tangent, hitSurface, hitObject } = moveCircle(
         this,
         vec2.clone(delta),

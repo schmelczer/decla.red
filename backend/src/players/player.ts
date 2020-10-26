@@ -55,7 +55,7 @@ export class Player extends PlayerBase {
     playerContainer: PlayerContainer,
     objectContainer: PhysicalContainer,
     team: CharacterTeam,
-    public readonly socket: SocketIO.Socket,
+    private readonly socket: SocketIO.Socket,
   ) {
     super(playerInfo, playerContainer, objectContainer, team);
 
@@ -86,7 +86,7 @@ export class Player extends PlayerBase {
     super.createCharacter();
 
     this.objectsPreviouslyInViewArea.push(this.character!);
-    this.sendToPlayer(new CreatePlayerCommand(this.character!));
+    this.queueCommandSend(new CreatePlayerCommand(this.character!));
   }
 
   private timeUntilRespawn = 0;
@@ -98,21 +98,18 @@ export class Player extends PlayerBase {
         this.sumDeaths++;
         this.sumKills = this.character.killCount;
 
-        this.socket.emit(
-          TransportEvents.ServerToPlayer,
-          serialize(new PlayerDiedCommand(settings.playerDiedTimeout)),
-        );
+        this.queueCommandSend(new PlayerDiedCommand(settings.playerDiedTimeout));
         this.character = null;
         this.timeUntilRespawn = settings.playerDiedTimeout;
       }
     } else {
-      this.sendToPlayer(
+      this.queueCommandSend(
         new ServerAnnouncement(`Reviving in ${Math.round(this.timeUntilRespawn)}…`),
       );
       if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
         this.createCharacter();
         this.center = this.character!.center;
-        this.sendToPlayer(new ServerAnnouncement(''));
+        this.queueCommandSend(new ServerAnnouncement(''));
       }
     }
 
@@ -136,14 +133,16 @@ export class Player extends PlayerBase {
     this.objectsPreviouslyInViewArea = objectsInViewArea;
 
     if (noLongerIntersecting.length > 0) {
-      this.sendToPlayer(new DeleteObjectsCommand(noLongerIntersecting.map((g) => g.id)));
+      this.queueCommandSend(
+        new DeleteObjectsCommand(noLongerIntersecting.map((g) => g.id)),
+      );
     }
 
     if (newlyIntersecting.length > 0) {
-      this.sendToPlayer(new CreateObjectsCommand(newlyIntersecting));
+      this.queueCommandSend(new CreateObjectsCommand(newlyIntersecting));
     }
 
-    this.sendToPlayer(
+    this.queueCommandSend(
       new RemoteCallsForObjects(
         this.objectsPreviouslyInViewArea.map(
           (g) => new RemoteCallsForObject(g.id, g.getRemoteCalls()),
@@ -151,7 +150,7 @@ export class Player extends PlayerBase {
       ),
     );
 
-    this.sendToPlayer(new UpdateOtherPlayerDirections(this.getOtherPlayers()));
+    this.queueCommandSend(new UpdateOtherPlayerDirections(this.getOtherPlayers()));
   }
 
   private getOtherPlayers(): Array<OtherPlayerDirection> {
@@ -185,8 +184,14 @@ export class Player extends PlayerBase {
     );
   }
 
-  private sendToPlayer(command: Command) {
-    this.socket.emit(TransportEvents.ServerToPlayer, serialize(command));
+  private commandsToBeSent: Array<Command> = [];
+  public queueCommandSend(command: Command) {
+    this.commandsToBeSent.push(command);
+  }
+
+  public sendQueuedCommandsToClient() {
+    this.socket.emit(TransportEvents.ServerToPlayer, serialize(this.commandsToBeSent));
+    this.commandsToBeSent = [];
   }
 
   public destroy() {

@@ -11,6 +11,7 @@ import {
   CharacterTeam,
   GameEnd,
   GameStart,
+  Command,
 } from 'shared';
 import { createWorld } from './map/create-world';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
@@ -39,14 +40,19 @@ export class GameServer {
     this.objects = new PhysicalContainer();
     createWorld(this.objects, this.options.worldSize);
     this.objects.initialize();
-    this.players = new PlayerContainer(this.objects, this.options.playerLimit);
+    this.players = new PlayerContainer(
+      this.objects,
+      this.options.playerLimit,
+      this.options.npcCount,
+    );
     this.deltaTimeCalculator = new DeltaTimeCalculator();
     this.deltaTimes = [];
     this.declaPoints = 0;
     this.redPoints = 0;
     this.isInEndGame = false;
     this.timeScaling = 1;
-    previousPlayers?.sendOnSocket(serialize(new GameStart()));
+    previousPlayers?.queueCommandForEachClient(new GameStart());
+    previousPlayers?.sendQueuedCommands();
   }
 
   constructor(private readonly io: ioserver.Server, private options: Options) {
@@ -60,8 +66,12 @@ export class GameServer {
         try {
           const player = this.players.createPlayer(playerInfo, socket);
           socket.on(TransportEvents.PlayerToServer, (json: string) => {
-            const command = deserialize(json);
-            player.sendCommand(command);
+            try {
+              const commands: Array<Command> = deserialize(json);
+              commands.forEach((c) => player.sendCommand(c));
+            } catch (e) {
+              console.log('Error while processing command', e);
+            }
           });
 
           this.sendServerStateUpdate();
@@ -94,9 +104,6 @@ export class GameServer {
   }
 
   private updatePoints() {
-    if (this.isInEndGame) {
-      return;
-    }
     const { decla, red } = this.objects.getPointsGenerated();
     this.declaPoints += decla;
     this.redPoints += red;
@@ -110,8 +117,8 @@ export class GameServer {
   private endGame(winningTeam: CharacterTeam) {
     this.isInEndGame = true;
     const endTitleLength = 6000;
-    this.players.sendOnSocket(
-      serialize(new GameEnd(winningTeam, endTitleLength / 1000, true)),
+    this.players.queueCommandForEachClient(
+      new GameEnd(winningTeam, endTitleLength / 1000, true),
     );
     setTimeout(() => this.destroy(), endTitleLength * 1.1);
   }
@@ -120,6 +127,7 @@ export class GameServer {
     this.initialize();
   }
 
+  private timeSinceLastPointUpdate = 0;
   private handlePhysics() {
     let delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds();
     const framesBetweenDeltaTimeCalculation = 1000;
@@ -137,25 +145,30 @@ export class GameServer {
       this.deltaTimes = [];
     }
 
-    if ((this.timeSinceLastServerStateUpdate += delta) > 5) {
+    if ((this.timeSinceLastServerStateUpdate += delta) > 4) {
       this.timeSinceLastServerStateUpdate = 0;
       this.sendServerStateUpdate();
+    }
+
+    if ((this.timeSinceLastPointUpdate += delta) > 0.5) {
+      this.timeSinceLastPointUpdate = 0;
+      this.players.queueCommandForEachClient(
+        new UpdateGameState(this.declaPoints, this.redPoints, this.options.scoreLimit),
+      );
     }
 
     if (this.isInEndGame) {
       this.timeScaling *= Math.pow(settings.endGameDeltaScaling, delta);
       delta /= this.timeScaling;
+    } else {
+      this.updatePoints();
     }
 
     this.objects.stepObjects(delta);
-    this.updatePoints();
-    this.players.sendOnSocket(
-      serialize(
-        new UpdateGameState(this.declaPoints, this.redPoints, this.options.scoreLimit),
-      ),
-    );
     this.players.step(delta);
     this.objects.resetRemoteCalls();
+
+    this.players.sendQueuedCommands();
 
     const physicsDelta = this.deltaTimeCalculator.getDeltaTimeInSeconds() * 1000;
     this.deltaTimes.push(physicsDelta);

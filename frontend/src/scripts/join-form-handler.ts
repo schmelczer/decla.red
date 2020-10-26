@@ -1,13 +1,14 @@
 import { ServerInformation, serverInformationEndpoint, TransportEvents } from 'shared';
 import io from 'socket.io-client';
 import { Configuration } from './config/configuration';
+import parser from 'socket.io-msgpack-parser';
 
 export type PlayerDecision = {
   playerName: string;
   server: string;
 };
 
-const pollInterval = 10000;
+const pollInterval = 8000;
 export class JoinFormHandler {
   private waitingForDecision: Promise<PlayerDecision>;
   private resolvePlayerDecision!: (d: PlayerDecision) => void;
@@ -122,8 +123,9 @@ class ServerChooserOption {
 
     this.socket = io(url, {
       reconnection: false,
-      timeout: 1500,
-    });
+      timeout: 4000,
+      parser,
+    } as any);
 
     this.socket.on('connect_error', this.destroy.bind(this));
     this.socket.on('connect_timeout', this.destroy.bind(this));

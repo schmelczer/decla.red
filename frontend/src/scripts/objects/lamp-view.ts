@@ -20,7 +20,11 @@ export class LampView extends LampBase implements ViewObject {
 
   public beforeDestroy(): void {}
 
-  public draw(renderer: Renderer, overlay: HTMLElement): void {
+  public draw(
+    renderer: Renderer,
+    overlay: HTMLElement,
+    shouldChangeLayout: boolean,
+  ): void {
     renderer.addDrawable(this.light);
   }
 }
