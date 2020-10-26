@@ -14,6 +14,8 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   private healthElement: HTMLElement = document.createElement('div');
   private previousHealth;
 
+  public isMainCharacter = false;
+
   constructor(
     id: Id,
     name: string,
@@ -50,12 +52,12 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
 
   public step(deltaTimeInSeconds: number): void {
     if (this.previousHealth > this.health) {
-      this.previousHealth = this.health;
-      if (OptionsHandler.options.vibrationEnabled) {
-        navigator.vibrate(75);
+      if (this.isMainCharacter && OptionsHandler.options.vibrationEnabled) {
+        navigator.vibrate(Math.min(200, (this.previousHealth - this.health) * 4));
       }
+
+      this.previousHealth = this.health;
     }
-    this.previousHealth = this.health;
   }
 
   public onShoot(strength: number) {

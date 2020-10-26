@@ -25,6 +25,7 @@ export class GameObjectContainer extends CommandReceiver {
       }
 
       this.player = c.character as PlayerCharacterView;
+      this.player.isMainCharacter = true;
 
       this.camera = new Camera(this.game);
 
