@@ -65,6 +65,7 @@ export class Game extends CommandReceiver {
     this.socket?.close();
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
+    this.lastAnnouncementText = '';
     this.overlay.appendChild(this.progressBar);
     this.announcementText.innerText = '';
     this.overlay.appendChild(this.announcementText);
