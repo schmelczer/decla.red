@@ -1,15 +1,14 @@
 import { rgb255 } from './helper/rgb255';
 import { CharacterTeam } from './objects/types/character-team';
 
+const declaColor = rgb255(64, 105, 165);
+const neutralColor = rgb255(82, 165, 64);
+const redColor = rgb255(209, 86, 82);
 const q = 2.5;
-const qDim = 1.5;
-const declaColor = rgb255(64 * q, 105 * q, 165 * q);
-const neutralColor = rgb255(82 * q, 165 * q, 64 * q);
-const redColor = rgb255(209 * q, 86 * q, 82 * q);
-const declaColorDim = rgb255(64 * qDim, 105 * qDim, 165 * qDim);
-const redColorDim = rgb255(209 * qDim, 8 * qDim, 82 * qDim);
-const declaPlanetColor = declaColor;
-const redPlanetColor = redColor;
+const declaColorDim = rgb255(64 * q, 105 * q, 165 * q);
+const redColorDim = rgb255(209 * q, 8 * q, 82 * q);
+const declaPlanetColor = declaColorDim;
+const redPlanetColor = redColorDim;
 
 export const settings = {
   lightCutoffDistance: 600,
