@@ -96,7 +96,6 @@ export class PlayerCharacterPhysical
     startPosition: vec2,
   ) {
     super(id(), name, killCount, deathCount, team, settings.playerMaxHealth);
-
     this.head = new CirclePhysical(
       vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.headOffset),
       PlayerCharacterPhysical.headRadius,
@@ -149,7 +148,7 @@ export class PlayerCharacterPhysical
       other.destroy();
       this.health -= other.strength;
       this.remoteCall('setHealth', this.health);
-      if (this.health <= 0) {
+      if (this.health <= 0 && this.isAlive) {
         this.kill();
         other.originator.addKill();
       }
@@ -352,14 +351,14 @@ export class PlayerCharacterPhysical
       center,
       PlayerCharacterPhysical.leftFootOffset,
       deltaTime,
-      15000,
+      150,
     );
     this.springMove(
       this.rightFoot,
       center,
       PlayerCharacterPhysical.rightFootOffset,
       deltaTime,
-      15000,
+      150,
     );
 
     this.springMove(
@@ -367,7 +366,7 @@ export class PlayerCharacterPhysical
       center,
       PlayerCharacterPhysical.headOffset,
       deltaTime,
-      25000,
+      350,
     );
   }
 
@@ -387,7 +386,7 @@ export class PlayerCharacterPhysical
     vec2.scale(
       positionDelta,
       positionDeltaDirection,
-      positionDeltaLength * deltaTime * strength,
+      positionDeltaLength ** 2 * deltaTime * strength,
     );
 
     object.applyForce(positionDelta, deltaTime);

@@ -12,6 +12,7 @@ import {
   GameEnd,
   GameStart,
   Command,
+  last,
 } from 'shared';
 import { createWorld } from './map/create-world';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
@@ -137,7 +138,9 @@ export class GameServer {
       console.log(
         `Median physics time: ${this.deltaTimes[
           Math.floor(framesBetweenDeltaTimeCalculation / 2)
-        ].toFixed(2)} ms`,
+        ].toFixed(2)} ms\n`,
+        'Tail times: ',
+        this.deltaTimes.slice(-20).map((v) => `${v.toFixed(2)} ms`),
       );
       console.log(
         `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
