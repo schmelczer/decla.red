@@ -44,7 +44,6 @@ export const startAnimation = async (
     {
       shadowTraceCount: 16,
       paletteSize: settings.palette.length,
-      //enableStopwatch: true,
     },
     {
       colorPalette: settings.palette,
