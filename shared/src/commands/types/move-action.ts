@@ -4,14 +4,11 @@ import { Command } from '../command';
 
 @serializable
 export class MoveActionCommand extends Command {
-  public constructor(
-    public readonly direction: vec2,
-    public readonly isCharacterRelative: boolean,
-  ) {
+  public constructor(public readonly direction: vec2) {
     super();
   }
 
   public toArray(): Array<any> {
-    return [this.direction, this.isCharacterRelative];
+    return [this.direction];
   }
 }

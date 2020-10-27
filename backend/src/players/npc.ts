@@ -196,7 +196,7 @@ export class NPC extends PlayerBase {
       this.timeSinceLastFindShootTarget = 0;
     }
 
-    this.character?.handleMovementAction(new MoveActionCommand(this.direction, false));
+    this.character?.handleMovementAction(new MoveActionCommand(this.direction));
   }
 
   protected createCharacter() {

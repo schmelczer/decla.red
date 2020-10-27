@@ -75,18 +75,10 @@ export class TouchJoystickListener extends CommandGenerator {
       vec2.set(movement, movement.x, -movement.y);
       if (length > 10) {
         this.sendCommandToSubcribers(
-          new MoveActionCommand(
-            vec2.normalize(movement, movement),
-            OptionsHandler.options.relativeMovementEnabled,
-          ),
+          new MoveActionCommand(vec2.normalize(movement, movement)),
         );
       } else {
-        this.sendCommandToSubcribers(
-          new MoveActionCommand(
-            vec2.create(),
-            OptionsHandler.options.relativeMovementEnabled,
-          ),
-        );
+        this.sendCommandToSubcribers(new MoveActionCommand(vec2.create()));
       }
     });
 
@@ -104,12 +96,7 @@ export class TouchJoystickListener extends CommandGenerator {
       } else if (event.touches.length === 0) {
         this.isJoystickActive = false;
         this.joystick.parentElement?.removeChild(this.joystick);
-        this.sendCommandToSubcribers(
-          new MoveActionCommand(
-            vec2.create(),
-            OptionsHandler.options.relativeMovementEnabled,
-          ),
-        );
+        this.sendCommandToSubcribers(new MoveActionCommand(vec2.create()));
       }
     });
   }

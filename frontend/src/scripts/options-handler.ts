@@ -3,7 +3,6 @@ import { SoundHandler, Sounds } from './sound-handler';
 interface Options {
   vibrationEnabled: boolean;
   soundsEnabled: boolean;
-  relativeMovementEnabled: boolean;
   musicEnabled: boolean;
 }
 
@@ -12,7 +11,6 @@ export abstract class OptionsHandler {
   private static _options: Options = {
     vibrationEnabled: true,
     soundsEnabled: true,
-    relativeMovementEnabled: false,
     musicEnabled: true,
   };
 

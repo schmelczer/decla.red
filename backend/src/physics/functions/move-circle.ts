@@ -17,59 +17,82 @@ export const moveCircle = (
   tangent?: vec2;
   hitObject?: GameObject;
 } => {
-  const nextCircle = new Circle(vec2.clone(circle.center), circle.radius);
-  vec2.add(nextCircle.center, nextCircle.center, delta);
+  const direction = vec2.normalize(vec2.create(), delta);
+  const deltaLength = vec2.length(delta);
+  let travelled = 0;
+  let rayEnd = vec2.create();
+  let prevMinDistance = 0;
+  while (travelled < deltaLength) {
+    travelled += prevMinDistance;
+    vec2.add(
+      rayEnd,
+      circle.center,
+      vec2.scale(vec2.create(), direction, Math.min(travelled, deltaLength)),
+    );
 
-  possibleIntersectors = possibleIntersectors.filter(
-    (b) => b.gameObject !== circle.gameObject && b.canCollide,
-  );
+    const minDistance = evaluateSdf(rayEnd, possibleIntersectors);
 
-  const sdfAtCenter = evaluateSdf(nextCircle.center, possibleIntersectors);
+    if (minDistance < circle.radius) {
+      const intersecting = possibleIntersectors.find(
+        (i) => i.distance(rayEnd) <= circle.radius,
+      )!;
 
-  if (sdfAtCenter > nextCircle.radius) {
-    circle.center = vec2.add(circle.center, circle.center, delta);
+      if (ignoreCollision) {
+        circle.center = vec2.add(circle.center, circle.center, delta);
+      } else {
+        if (reactsToCollision(intersecting)) {
+          intersecting.onCollision(circle.gameObject);
+        }
 
-    return {
-      realDelta: delta,
-      hitSurface: false,
-    };
-  }
+        if (reactsToCollision(circle)) {
+          circle.onCollision(intersecting.gameObject);
+        }
+      }
 
-  const intersecting = possibleIntersectors.find(
-    (i) => i.distance(nextCircle.center) <= circle.radius,
-  )!;
+      vec2.add(
+        rayEnd,
+        circle.center,
+        vec2.scale(vec2.create(), direction, travelled - prevMinDistance),
+      );
 
-  if (ignoreCollision) {
-    circle.center = vec2.add(circle.center, circle.center, delta);
-  } else {
-    if (reactsToCollision(intersecting)) {
-      intersecting.onCollision(circle.gameObject);
+      vec2.copy(circle.center, rayEnd);
+
+      const dx =
+        evaluateSdf(vec2.add(vec2.create(), rayEnd, vec2.fromValues(0.01, 0)), [
+          intersecting,
+        ]) -
+        evaluateSdf(vec2.add(vec2.create(), rayEnd, vec2.fromValues(-0.01, 0)), [
+          intersecting,
+        ]);
+      const dy =
+        evaluateSdf(vec2.add(vec2.create(), rayEnd, vec2.fromValues(0, 0.01)), [
+          intersecting,
+        ]) -
+        evaluateSdf(vec2.add(vec2.create(), rayEnd, vec2.fromValues(0, -0.01)), [
+          intersecting,
+        ]);
+      const normal = vec2.fromValues(dx, dy);
+      vec2.normalize(normal, normal);
+      const rotatedNormal = rotate90Deg(normal);
+      return {
+        realDelta: delta,
+        hitSurface: true,
+        normal,
+        hitObject: intersecting?.gameObject,
+        tangent:
+          vec2.dot(rotatedNormal, delta) < 0
+            ? vec2.scale(rotatedNormal, rotatedNormal, -1)
+            : rotatedNormal,
+      };
     }
 
-    if (reactsToCollision(circle)) {
-      circle.onCollision(intersecting.gameObject);
-    }
+    prevMinDistance = minDistance;
   }
 
-  const dx =
-    evaluateSdf(vec2.add(vec2.create(), nextCircle.center, vec2.fromValues(0.01, 0)), [
-      intersecting,
-    ]) - sdfAtCenter;
-  const dy =
-    evaluateSdf(vec2.add(vec2.create(), nextCircle.center, vec2.fromValues(0, 0.01)), [
-      intersecting,
-    ]) - sdfAtCenter;
-  const normal = vec2.fromValues(dx, dy);
-  vec2.normalize(normal, normal);
-  const rotatedNormal = rotate90Deg(normal);
+  vec2.add(circle.center, circle.center, delta);
+
   return {
     realDelta: delta,
-    hitSurface: true,
-    normal,
-    hitObject: intersecting?.gameObject,
-    tangent:
-      vec2.dot(rotatedNormal, delta) < 0
-        ? vec2.scale(rotatedNormal, rotatedNormal, -1)
-        : rotatedNormal,
+    hitSurface: false,
   };
 };

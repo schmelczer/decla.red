@@ -69,6 +69,6 @@ export abstract class PlayerBase extends CommandReceiver {
   }
 
   public destroy() {
-    this.character?.destroy();
+    this.character?.kill();
   }
 }

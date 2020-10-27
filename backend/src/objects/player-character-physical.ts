@@ -70,10 +70,13 @@ export class PlayerCharacterPhysical
   public static readonly boundRadius =
     (PlayerCharacterPhysical.headRadius + PlayerCharacterPhysical.feetRadius * 2) * 2;
 
+  private timeSinceDying = 0;
   private isDestroyed = false;
+  private timeSinceBorn = 0;
+  private hasJustBorn = true;
+
   private direction = 0;
   private currentPlanet?: PlanetPhysical;
-  private lastMovementWasRelative = false;
   private secondsSinceOnSurface = 1000;
 
   public head: CirclePhysical;
@@ -81,15 +84,8 @@ export class PlayerCharacterPhysical
   public rightFoot: CirclePhysical;
   public bound: CirclePhysical;
 
-  public get isAlive(): boolean {
-    return !this.isDestroyed;
-  }
-
   private movementActions: Array<MoveActionCommand> = [];
-  private lastMovementAction: MoveActionCommand = new MoveActionCommand(
-    vec2.create(),
-    false,
-  );
+  private lastMovementAction: MoveActionCommand = new MoveActionCommand(vec2.create());
 
   constructor(
     name: string,
@@ -131,6 +127,10 @@ export class PlayerCharacterPhysical
     );
   }
 
+  public get isAlive(): boolean {
+    return !this.isDestroyed;
+  }
+
   public handleMovementAction(c: MoveActionCommand) {
     this.movementActions.push(c);
   }
@@ -150,7 +150,7 @@ export class PlayerCharacterPhysical
       this.health -= other.strength;
       this.remoteCall('setHealth', this.health);
       if (this.health <= 0) {
-        this.destroy();
+        this.kill();
         other.originator.addKill();
       }
     }
@@ -217,9 +217,6 @@ export class PlayerCharacterPhysical
 
       vec2.scale(direction, direction, 1 / this.movementActions.length);
 
-      this.lastMovementWasRelative =
-        this.movementActions.find((a) => a.isCharacterRelative) !== undefined;
-
       this.lastMovementAction = last(this.movementActions)!;
       this.movementActions = [];
     }
@@ -227,8 +224,35 @@ export class PlayerCharacterPhysical
     return vec2.normalize(direction, direction);
   }
 
+  private animateScaling(q: number) {
+    this.remoteCall(
+      'updateCircles',
+      new Circle(this.head.center, PlayerCharacterPhysical.headRadius * q),
+      new Circle(this.leftFoot.center, PlayerCharacterPhysical.feetRadius * q),
+      new Circle(this.rightFoot.center, PlayerCharacterPhysical.feetRadius * q),
+    );
+  }
+
   public step(deltaTime: number) {
-    if ((this.secondsSinceOnSurface += deltaTime) > 1) {
+    if (this.isDestroyed) {
+      if ((this.timeSinceDying += deltaTime) > settings.spawnDespawnTime) {
+        this.destroy();
+      } else {
+        this.animateScaling(1 - this.timeSinceDying / settings.spawnDespawnTime);
+      }
+      return;
+    }
+
+    if (this.hasJustBorn) {
+      if ((this.timeSinceBorn += deltaTime) > settings.spawnDespawnTime) {
+        this.hasJustBorn = false;
+      } else {
+        this.animateScaling(this.timeSinceBorn / settings.spawnDespawnTime);
+      }
+      return;
+    }
+
+    if ((this.secondsSinceOnSurface += deltaTime) > 0.5) {
       this.currentPlanet = undefined;
     }
 
@@ -247,34 +271,24 @@ export class PlayerCharacterPhysical
         ),
       ),
     );
-    const feetCenter = vec2.add(
-      vec2.create(),
-      this.leftFoot.center,
-      this.rightFoot.center,
-    );
-    vec2.scale(feetCenter, feetCenter, 0.5);
-    const leftFootGravity = forceAtPosition(
-      this.leftFoot.center,
-      intersectingWithForcefield,
-    );
-    const rightFootGravity = forceAtPosition(
-      this.rightFoot.center,
-      intersectingWithForcefield,
-    );
 
     const direction = this.averageAndResetMovementActions();
     const movementForce = vec2.scale(direction, direction, settings.maxAcceleration);
 
     if (!this.currentPlanet) {
+      const leftFootGravity = forceAtPosition(
+        this.leftFoot.center,
+        intersectingWithForcefield,
+      );
+      const rightFootGravity = forceAtPosition(
+        this.rightFoot.center,
+        intersectingWithForcefield,
+      );
+
       this.applyForce(this.leftFoot, leftFootGravity, deltaTime);
       this.applyForce(this.rightFoot, rightFootGravity, deltaTime);
 
-      const sumForce = vec2.subtract(
-        vec2.create(),
-        // the next line is intentional
-        vec2.add(vec2.create(), leftFootGravity, rightFootGravity),
-        movementForce,
-      );
+      const sumForce = vec2.subtract(vec2.create(), leftFootGravity, movementForce);
 
       this.setDirection(
         vec2.length(sumForce) === 0 ? vec2.fromValues(0, -1) : sumForce,
@@ -284,32 +298,41 @@ export class PlayerCharacterPhysical
       const leftFootGravity = this.currentPlanet!.getForce(this.leftFoot.center);
       const rightFootGravity = this.currentPlanet!.getForce(this.rightFoot.center);
 
-      if (this.lastMovementWasRelative) {
-        vec2.rotate(movementForce, movementForce, vec2.create(), this.direction);
+      vec2.add(leftFootGravity, leftFootGravity, rightFootGravity);
+      const gravity = vec2.scale(leftFootGravity, leftFootGravity, 0.5);
+
+      if (vec2.dot(movementForce, gravity) < -vec2.length(movementForce) * 0.8) {
+        vec2.scale(gravity, gravity, 0.35);
       }
 
-      if (vec2.dot(movementForce, leftFootGravity) < -vec2.length(movementForce) * 0.8) {
-        vec2.scale(leftFootGravity, leftFootGravity, 0.35);
-        vec2.scale(rightFootGravity, rightFootGravity, 0.35);
-      }
-      this.applyForce(this.leftFoot, leftFootGravity, deltaTime);
-      this.applyForce(this.rightFoot, rightFootGravity, deltaTime);
+      const scaledLeftFootGravity = vec2.scale(
+        vec2.create(),
+        this.leftFoot.lastNormal,
+        vec2.dot(this.leftFoot.lastNormal, gravity),
+      );
+      this.applyForce(this.leftFoot, scaledLeftFootGravity, deltaTime);
 
-      const headGravity = this.currentPlanet!.getForce(this.head.center);
+      const scaledRightFootGravity = vec2.scale(
+        vec2.create(),
+        this.rightFoot.lastNormal,
+        vec2.dot(this.rightFoot.lastNormal, gravity),
+      );
 
-      if (vec2.length(headGravity) < vec2.length(leftFootGravity) / 2) {
+      this.applyForce(this.rightFoot, scaledRightFootGravity, deltaTime);
+
+      if (vec2.length(gravity) <= 100) {
         this.currentPlanet = undefined;
       }
-      this.setDirection(headGravity, deltaTime);
+      this.setDirection(gravity, deltaTime);
     }
 
     this.applyForce(this.leftFoot, movementForce, deltaTime);
     this.applyForce(this.rightFoot, movementForce, deltaTime);
 
+    this.keepPosture(deltaTime);
     this.stepBodyPart(this.leftFoot, deltaTime);
     this.stepBodyPart(this.rightFoot, deltaTime);
-
-    this.keepPosture(deltaTime);
+    this.stepBodyPart(this.head, deltaTime);
 
     this.remoteCall('updateCircles', this.head, this.leftFoot, this.rightFoot);
   }
@@ -323,45 +346,29 @@ export class PlayerCharacterPhysical
   }
 
   private keepPosture(deltaTime: number) {
-    const center = this.center;
+    let center = this.center;
     this.springMove(
       this.leftFoot,
       center,
       PlayerCharacterPhysical.leftFootOffset,
       deltaTime,
+      15000,
     );
     this.springMove(
       this.rightFoot,
       center,
       PlayerCharacterPhysical.rightFootOffset,
       deltaTime,
+      15000,
     );
-    /*
-    const feetDelta = vec2.subtract(
-      vec2.create(),
-      this.leftFoot.center,
-      this.rightFoot.center,
-    );
-    const desiredDistance = vec2.dist(
-      PlayerCharacterPhysical.desiredLeftFootOffset,
-      PlayerCharacterPhysical.desiredRightFootOffset,
-    );
-    const actualDistance = vec2.length(feetDelta);
-    const delta = vec2.normalize(feetDelta, feetDelta);
-    vec2.scale(delta, delta, Math.min(actualDistance / 2, deltaTime * 200));
-    let hitObject = this.rightFoot.tryMove(delta);
-    if (hitObject instanceof PlanetPhysical) {
-      this.secondsSinceOnSurface = 0;
-      this.currentPlanet = hitObject;
-    }
-    vec2.scale(delta, delta, -1);
-    hitObject = this.leftFoot.tryMove(delta);
-    if (hitObject instanceof PlanetPhysical) {
-      this.secondsSinceOnSurface = 0;
-      this.currentPlanet = hitObject;
-    }*/
 
-    this.springMove(this.head, center, PlayerCharacterPhysical.headOffset, deltaTime);
+    this.springMove(
+      this.head,
+      center,
+      PlayerCharacterPhysical.headOffset,
+      deltaTime,
+      25000,
+    );
   }
 
   private springMove(
@@ -369,28 +376,25 @@ export class PlayerCharacterPhysical
     center: vec2,
     offset: vec2,
     deltaTime: number,
+    strength: number,
   ) {
     const desiredPosition = vec2.add(vec2.create(), center, offset);
     vec2.rotate(desiredPosition, desiredPosition, center, this.direction);
-    const positionDelta = vec2.subtract(desiredPosition, desiredPosition, object.center);
+    const positionDelta = vec2.subtract(vec2.create(), desiredPosition, object.center);
+
     const positionDeltaDirection = vec2.normalize(vec2.create(), positionDelta);
     const positionDeltaLength = vec2.length(positionDelta);
     vec2.scale(
       positionDelta,
       positionDeltaDirection,
-      Math.min(positionDeltaLength, (positionDeltaLength / 50) * deltaTime * 800),
+      positionDeltaLength * deltaTime * strength,
     );
-    const hitObject = object.tryMove(positionDelta);
 
-    if (hitObject instanceof PlanetPhysical) {
-      this.secondsSinceOnSurface = 0;
-      this.currentPlanet = hitObject;
-    }
+    object.applyForce(positionDelta, deltaTime);
   }
 
   private stepBodyPart(part: CirclePhysical, deltaTime: number) {
-    const hitObject = part.step2(deltaTime);
-
+    const { hitObject } = part.step2(deltaTime);
     if (hitObject instanceof PlanetPhysical) {
       this.secondsSinceOnSurface = 0;
       this.currentPlanet = hitObject;
@@ -411,13 +415,14 @@ export class PlayerCharacterPhysical
     );
   }
 
-  public destroy() {
-    if (!this.isDestroyed) {
-      this.isDestroyed = true;
-      this.container.removeObject(this);
-      this.container.removeObject(this.head);
-      this.container.removeObject(this.leftFoot);
-      this.container.removeObject(this.rightFoot);
-    }
+  public kill() {
+    this.isDestroyed = true;
+  }
+
+  private destroy() {
+    this.container.removeObject(this);
+    this.container.removeObject(this.head);
+    this.container.removeObject(this.leftFoot);
+    this.container.removeObject(this.rightFoot);
   }
 }

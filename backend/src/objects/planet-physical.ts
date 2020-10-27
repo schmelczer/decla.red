@@ -154,43 +154,15 @@ export class PlanetPhysical
   }
 
   public getForce(position: vec2): vec2 {
-    const height = this.distance(position);
-
-    let closestIndex = 0;
-    this.vertices.forEach((v, i) => {
-      if (
-        vec2.distance(position, v) < vec2.distance(position, this.vertices[closestIndex])
-      ) {
-        closestIndex = i;
-      }
-    });
-
-    const afterClosest = this.vertices[(closestIndex + 1) % this.vertices.length];
-    const closest = this.vertices[closestIndex];
-    const beforeClosest = this.vertices[
-      (closestIndex - 1 + this.vertices.length) % this.vertices.length
-    ];
-
-    const diff = vec2.subtract(vec2.create(), position, closest);
-    const edge1 = vec2.subtract(vec2.create(), afterClosest, closest);
-    const edge2 = vec2.subtract(vec2.create(), closest, beforeClosest);
-    const normalizedDiff = vec2.normalize(vec2.create(), diff);
-
-    const currentEdge =
-      vec2.dot(vec2.normalize(vec2.create(), rotate90Deg(edge1)), normalizedDiff) >
-      vec2.dot(vec2.normalize(vec2.create(), rotate90Deg(edge2)), normalizedDiff)
-        ? edge1
-        : edge2;
-
-    vec2.normalize(currentEdge, currentEdge);
-    const normal = rotateMinus90Deg(currentEdge);
-
+    const diff = vec2.subtract(vec2.create(), this.center, position);
+    const dist = Math.max(0, vec2.length(diff) - 600);
+    vec2.normalize(diff, diff);
     const scale = clamp(
-      settings.maxGravityQ * ((settings.maxGravityDistance / height) ** 3 - 1),
+      settings.maxGravityQ * ((settings.maxGravityDistance / dist) ** 1.5 - 1),
       0,
       settings.maxGravityStrength,
     );
-    return vec2.scale(normal, normal, scale);
+    return vec2.scale(diff, diff, scale);
   }
 
   public get gameObject(): this {

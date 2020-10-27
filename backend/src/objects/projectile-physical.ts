@@ -114,10 +114,19 @@ export class ProjectilePhysical
       }
     });
 
-    vec2.add(this.velocity, this.velocity, vec2.scale(vec2.create(), gravity, deltaTime));
+    vec2.add(
+      this.velocity,
+      this.velocity,
+      vec2.scale(
+        vec2.create(),
+        gravity,
+        deltaTime * settings.gravityScalingForProjectiles,
+      ),
+    );
 
-    this.object.velocity = this.velocity;
-    this.object.step2(deltaTime);
+    vec2.copy(this.object.velocity, this.velocity);
+    const { velocity } = this.object.step2(deltaTime);
+    vec2.copy(this.velocity, velocity);
 
     this.remoteCall('setCenter', this.center);
   }

@@ -48,9 +48,6 @@ const toggleSettingsButton = document.querySelector(
 const minimize = document.querySelector('#minimize') as HTMLElement;
 const maximize = document.querySelector('#maximize') as HTMLElement;
 const logoutButton = document.querySelector('#logout') as HTMLElement;
-const enableRelativeMovement = document.querySelector(
-  '#enable-relative-movement',
-) as HTMLInputElement;
 const enableSounds = document.querySelector('#enable-sounds') as HTMLInputElement;
 const enableMusic = document.querySelector('#enable-music') as HTMLInputElement;
 const enableVibration = document.querySelector('#enable-vibration') as HTMLInputElement;
@@ -123,7 +120,6 @@ const main = async () => {
     serverContainer.addEventListener('scroll', applyServerContainerShadows);
 
     OptionsHandler.initialize({
-      relativeMovementEnabled: enableRelativeMovement,
       soundsEnabled: enableSounds,
       vibrationEnabled: enableVibration,
       musicEnabled: enableMusic,

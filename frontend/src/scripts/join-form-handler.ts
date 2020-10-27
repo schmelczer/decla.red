@@ -2,6 +2,7 @@ import { ServerInformation, serverInformationEndpoint, TransportEvents } from 's
 import io from 'socket.io-client';
 import { Configuration } from './config/configuration';
 import parser from 'socket.io-msgpack-parser';
+import { SoundHandler, Sounds } from './sound-handler';
 
 export type PlayerDecision = {
   playerName: string;
@@ -26,6 +27,7 @@ export class JoinFormHandler {
     });
 
     form.onsubmit = (e) => {
+      SoundHandler.play(Sounds.click);
       const result: PlayerDecision = (Array.from(
         (new FormData(form) as any).entries(),
       ) as Array<[string, any]>).reduce((result, [name, value]) => {
@@ -113,6 +115,7 @@ class ServerChooserOption {
     this.inputElement.name = 'server';
     this.inputElement.checked = isFirst;
     this.labelElement.htmlFor = url;
+    this.labelElement.onclick = () => SoundHandler.play(Sounds.click);
     this.divElement.appendChild(this.inputElement);
     this.divElement.appendChild(this.labelElement);
     this.labelElement.appendChild(this.serverNameElement);

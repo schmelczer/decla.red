@@ -10,6 +10,7 @@ import {
   ReactsToCollision,
   reactsToCollision,
 } from '../physics/physicals/reacts-to-collision';
+import { Physical } from '../physics/physicals/physical';
 
 @serializesTo(Circle)
 export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollision {
@@ -18,6 +19,7 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
 
   public velocity = vec2.create();
   private _boundingBox: BoundingBox;
+  public lastNormal = vec2.fromValues(1, 0);
 
   constructor(
     private _center: vec2,
@@ -95,79 +97,47 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
 
   public step(_: number) {}
 
-  public step2(deltaTimeInSeconds: number): GameObject | undefined {
-    vec2.scale(
-      this.velocity,
-      this.velocity,
-      Math.pow(settings.velocityAttenuation, deltaTimeInSeconds),
-    );
-
-    const delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
+  public step2(
+    deltaTimeInSeconds: number,
+    additionalCollider?: Physical,
+  ): { hitObject: GameObject | undefined; velocity: vec2 } {
+    let delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
 
     this.radius += vec2.length(delta);
-    const intersecting = this.container.findIntersecting(this.boundingBox);
+    const intersecting = this.container
+      .findIntersecting(this.boundingBox)
+      .filter((b) => b.gameObject !== this.gameObject && b.canCollide);
     this.radius -= vec2.length(delta);
 
-    const stepCount = Math.ceil(vec2.length(delta) / settings.physicsMaxStep);
-    vec2.scale(delta, delta, 1 / stepCount);
+    if (additionalCollider) {
+      intersecting.push(additionalCollider);
+    }
 
-    let lastHit: GameObject | undefined;
+    let { normal, hitSurface, hitObject } = moveCircle(this, delta, intersecting);
 
-    for (let i = 0; i < stepCount; i++) {
-      const distance = vec2.scale(
-        vec2.create(),
+    if (hitSurface) {
+      vec2.copy(this.lastNormal, normal!);
+
+      vec2.subtract(
         this.velocity,
-        deltaTimeInSeconds / stepCount,
+        this.velocity,
+        vec2.scale(
+          normal!,
+          normal!,
+          (1 + this.restitution) * vec2.dot(normal!, this.velocity),
+        ),
       );
 
-      const { normal, hitSurface, hitObject } = moveCircle(
-        this,
-        vec2.clone(distance),
-        intersecting,
-      );
-
-      if (hitSurface) {
-        vec2.subtract(
-          this.velocity,
-          this.velocity,
-          vec2.scale(
-            normal!,
-            normal!,
-            (1 + this.restitution) * vec2.dot(normal!, this.velocity),
-          ),
-        );
-
-        lastHit = hitObject;
+      if (vec2.length(this.velocity) > 50) {
+        delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
+        moveCircle(this, delta, intersecting);
       }
     }
 
-    return lastHit;
-  }
+    const lastVelocity = vec2.clone(this.velocity);
+    vec2.zero(this.velocity);
 
-  public tryMove(delta: vec2): GameObject | undefined {
-    this.radius += vec2.length(delta);
-    const intersecting = this.container.findIntersecting(this.boundingBox);
-    this.radius -= vec2.length(delta);
-
-    const stepCount = Math.ceil(vec2.length(delta) / settings.physicsMaxStep);
-    vec2.scale(delta, delta, 1 / stepCount);
-
-    let lastHit: GameObject | undefined;
-
-    for (let i = 0; i < stepCount; i++) {
-      const { tangent, hitSurface, hitObject } = moveCircle(
-        this,
-        vec2.clone(delta),
-        intersecting,
-      );
-
-      if (hitSurface) {
-        delta = vec2.scale(delta, tangent!, vec2.length(delta));
-        lastHit = hitObject;
-      }
-    }
-
-    return lastHit;
+    return { hitObject, velocity: lastVelocity };
   }
 
   public toArray(): Array<any> {
