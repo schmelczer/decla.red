@@ -29,6 +29,7 @@ import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
 import { OptionsHandler } from './options-handler';
 import parser from 'socket.io-msgpack-parser';
+import { VibrationHandler } from './vibration-handler';
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
@@ -123,11 +124,7 @@ export class Game extends CommandReceiver {
   protected commandExecutors: CommandExecutors = {
     [ServerAnnouncement.type]: (c: ServerAnnouncement) =>
       (this.lastAnnouncementText = c.text),
-    [PlayerDiedCommand.type]: (c: PlayerDiedCommand) => {
-      if (OptionsHandler.options.vibrationEnabled) {
-        navigator.vibrate(150);
-      }
-    },
+    [PlayerDiedCommand.type]: (c: PlayerDiedCommand) => VibrationHandler.vibrate(150),
     [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
     [GameEnd.type]: (c: GameEnd) => {
       const team =

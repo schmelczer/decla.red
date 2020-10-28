@@ -1,4 +1,5 @@
 import { SoundHandler, Sounds } from './sound-handler';
+import { VibrationHandler } from './vibration-handler';
 
 interface Options {
   vibrationEnabled: boolean;
@@ -47,7 +48,7 @@ export abstract class OptionsHandler {
         }
 
         if (this.checked && k === 'vibrationEnabled') {
-          navigator.vibrate(100);
+          VibrationHandler.vibrate(100);
         }
 
         SoundHandler.play(Sounds.click);
