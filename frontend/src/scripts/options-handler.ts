@@ -25,10 +25,10 @@ export abstract class OptionsHandler {
         ...this._options,
         ...stored,
       };
+    }
 
-      if (this._options.musicEnabled) {
-        SoundHandler.playAmbient();
-      }
+    if (this._options.musicEnabled) {
+      SoundHandler.playAmbient();
     }
 
     for (const k in inputElements) {

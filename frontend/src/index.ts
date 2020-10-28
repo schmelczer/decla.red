@@ -108,7 +108,16 @@ const main = async () => {
     let game: Game;
 
     const firstClickListener = () => {
-      SoundHandler.initialize();
+      SoundHandler.initialize(
+        () => {
+          enableMusic.checked = true;
+          enableMusic.dispatchEvent(new Event('change'));
+        },
+        () => {
+          enableMusic.checked = false;
+          enableMusic.dispatchEvent(new Event('change'));
+        },
+      );
       document.removeEventListener('click', firstClickListener);
     };
     document.addEventListener('click', firstClickListener);

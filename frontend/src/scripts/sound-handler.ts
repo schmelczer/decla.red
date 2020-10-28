@@ -10,8 +10,6 @@ export enum Sounds {
   click = 'click',
 }
 
-const concurrencyScale = 5;
-
 export abstract class SoundHandler {
   private static sounds: { [key in Sounds]: HTMLAudioElement };
   private static isAmbientPlaying = false;
@@ -19,25 +17,29 @@ export abstract class SoundHandler {
   private static ambientSound = new Audio(ambientSound);
 
   private static initialized = false;
-  public static async initialize() {
+  public static async initialize(
+    onPlayKeypress: () => unknown = () => null,
+    onPauseKeypress: () => unknown = () => null,
+  ) {
     this.sounds = {
       [Sounds.hit]: await this.initializeSound(hitSound),
       [Sounds.shoot]: await this.initializeSound(shootSound),
       [Sounds.click]: await this.initializeSound(clickSound),
     };
 
-    this.ambientSound.play();
+    await this.ambientSound.play();
     this.ambientSound.muted = true;
     this.initialized = true;
+    this.ambientSound.onpause = onPauseKeypress;
+    this.ambientSound.onplay = onPlayKeypress;
 
-    setTimeout(() => {
-      this.ambientSound.muted = false;
-      this.ambientSound.volume = 0.5;
-      this.ambientSound.loop = true;
-      if (!this.isAmbientPlaying) {
-        this.ambientSound.pause();
-      }
-    }, 100);
+    this.ambientSound.muted = false;
+    this.ambientSound.volume = 0.5;
+    this.ambientSound.loop = true;
+
+    if (!this.isAmbientPlaying) {
+      this.ambientSound.pause();
+    }
   }
 
   private static async initializeSound(hitSound: string): Promise<HTMLAudioElement> {
