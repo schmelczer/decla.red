@@ -15,12 +15,17 @@ button {
   transition: transform $animation-time, padding-bottom $animation-time,
     margin-bottom $animation-time;
 
-  &:hover,
-  &:focus {
+  &:not(:disabled):hover,
+  &:not(:disabled):focus {
     outline: none;
     color: $accent;
     transform: translateY(-$ascend);
     padding-bottom: $ascend;
     margin-bottom: 0;
+  }
+
+  &:disabled {
+    color: #777;
+    cursor: not-allowed;
   }
 }

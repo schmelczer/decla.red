@@ -11,11 +11,14 @@ export type PlayerDecision = {
 
 const pollInterval = 8000;
 export class JoinFormHandler {
+  private joinButton: HTMLButtonElement;
   private waitingForDecision: Promise<PlayerDecision>;
   private resolvePlayerDecision!: (d: PlayerDecision) => void;
   private pollServersTimer: any;
 
   constructor(form: HTMLFormElement, private readonly container: HTMLElement) {
+    this.joinButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+    this.joinButton.disabled = true;
     this.waitingForDecision = new Promise((r) => (this.resolvePlayerDecision = r));
 
     new FormData(form);
@@ -80,13 +83,21 @@ export class JoinFormHandler {
         const server = new ServerChooserOption(
           content,
           url,
-          (r) => (this.servers = this.servers.filter((s) => s !== r)),
+          this.removeServer.bind(this),
           this.servers.length === 0,
         );
         this.servers.push(server);
+        this.joinButton.disabled = false;
         this.container.appendChild(server.element);
       }
     });
+  }
+
+  private removeServer(server: ServerChooserOption) {
+    this.servers = this.servers.filter((s) => s !== server);
+    if (this.servers.length) {
+      this.joinButton.disabled = true;
+    }
   }
 
   public async getPlayerDecision(): Promise<PlayerDecision> {
