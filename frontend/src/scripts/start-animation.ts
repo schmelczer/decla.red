@@ -44,8 +44,6 @@ export const startAnimation = async (
     {
       shadowTraceCount: 16,
       paletteSize: settings.palette.length,
-    },
-    {
       colorPalette: settings.palette,
       enableHighDpiRendering: true,
       lightCutoffDistance: settings.lightCutoffDistance,

@@ -47,8 +47,6 @@ export class LandingPageBackground {
       {
         shadowTraceCount: 16,
         paletteSize: 1,
-      },
-      {
         ambientLight: rgb(0, 0, 0),
         lightCutoffDistance: settings.lightCutoffDistance,
         textures: {

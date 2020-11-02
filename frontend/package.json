@@ -47,7 +47,7 @@
     "resolve-url-loader": "^3.1.1",
     "sass": "^1.27.0",
     "sass-loader": "^8.0.2",
-    "sdf-2d": "^0.6.3",
+    "sdf-2d": "^0.7.0",
     "shared": "file:../shared",
     "socket.io-client": "^2.3.1",
     "socket.io-msgpack-parser": "^2.0.0",

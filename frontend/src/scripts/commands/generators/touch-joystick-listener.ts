@@ -2,14 +2,15 @@ import { vec2 } from 'gl-matrix';
 import {
   CommandGenerator,
   SecondaryActionCommand,
-  TernaryActionCommand,
   MoveActionCommand,
   last,
 } from 'shared';
 import { Game } from '../../game';
-import { OptionsHandler } from '../../options-handler';
 
 export class TouchJoystickListener extends CommandGenerator {
+  private readonly deadZone = 8;
+  private readonly deltaScaling = 0.4;
+
   private joystick: HTMLElement;
   private joystickButton: HTMLElement;
 
@@ -35,8 +36,13 @@ export class TouchJoystickListener extends CommandGenerator {
           last(event.touches)!.clientX,
           last(event.touches)!.clientY,
         );
-        this.sendCommandToSubcribers(
+        this.sendCommandToSubscribers(
           new SecondaryActionCommand(this.game.displayToWorldCoordinates(center)),
+        );
+      } else {
+        this.touchStartPosition = vec2.fromValues(
+          event.touches[0].clientX,
+          event.touches[0].clientY,
         );
       }
     });
@@ -44,41 +50,33 @@ export class TouchJoystickListener extends CommandGenerator {
     target.addEventListener('touchmove', (event: TouchEvent) => {
       event.preventDefault();
 
-      if (!this.isJoystickActive) {
-        this.isJoystickActive = true;
-        this.overlay.appendChild(this.joystick);
-        this.touchStartPosition = vec2.fromValues(
-          event.touches[0].clientX,
-          event.touches[0].clientY,
-        );
-        this.joystickButton.style.transform = `translateX(-50%) translateY(-50%)`;
-        this.joystick.style.transform = `translateX(${this.touchStartPosition.x}px) translateY(${this.touchStartPosition.y}px) translateX(-50%) translateY(-50%)`;
-      }
-
       const touchPosition = vec2.fromValues(
         event.touches[0].clientX,
         event.touches[0].clientY,
       );
 
-      const movement = vec2.subtract(
-        vec2.create(),
-        touchPosition,
-        this.touchStartPosition,
-      );
+      const delta = vec2.subtract(vec2.create(), touchPosition, this.touchStartPosition);
+      vec2.scale(delta, delta, this.deltaScaling);
+      const deltaLength = vec2.length(delta);
 
-      vec2.scale(movement, movement, 1 / 3);
-      const length = vec2.length(movement);
+      if (!this.isJoystickActive && deltaLength > this.deadZone) {
+        this.isJoystickActive = true;
+        this.overlay.appendChild(this.joystick);
+        this.joystickButton.style.transform = `translateX(-50%) translateY(-50%)`;
+        this.joystick.style.transform = `translateX(${this.touchStartPosition.x}px) translateY(${this.touchStartPosition.y}px) translateX(-50%) translateY(-50%)`;
+      }
+
       const maxLength = 20;
-      vec2.scale(movement, movement, Math.min(1, maxLength / length));
-      this.joystickButton.style.transform = `translateX(${movement.x}px) translateY(${movement.y}px) translateX(-50%) translateY(-50%)`;
+      vec2.scale(delta, delta, Math.min(1, maxLength / deltaLength));
+      this.joystickButton.style.transform = `translateX(${delta.x}px) translateY(${delta.y}px) translateX(-50%) translateY(-50%)`;
 
-      vec2.set(movement, movement.x, -movement.y);
-      if (length > 10) {
-        this.sendCommandToSubcribers(
-          new MoveActionCommand(vec2.normalize(movement, movement)),
+      vec2.set(delta, delta.x, -delta.y);
+      if (deltaLength > this.deadZone) {
+        this.sendCommandToSubscribers(
+          new MoveActionCommand(vec2.normalize(delta, delta)),
         );
       } else {
-        this.sendCommandToSubcribers(new MoveActionCommand(vec2.create()));
+        this.sendCommandToSubscribers(new MoveActionCommand(vec2.create()));
       }
     });
 
@@ -90,13 +88,13 @@ export class TouchJoystickListener extends CommandGenerator {
           event.changedTouches[0].clientX,
           event.changedTouches[0].clientY,
         );
-        this.sendCommandToSubcribers(
+        this.sendCommandToSubscribers(
           new SecondaryActionCommand(this.game.displayToWorldCoordinates(center)),
         );
       } else if (event.touches.length === 0) {
         this.isJoystickActive = false;
         this.joystick.parentElement?.removeChild(this.joystick);
-        this.sendCommandToSubcribers(new MoveActionCommand(vec2.create()));
+        this.sendCommandToSubscribers(new MoveActionCommand(vec2.create()));
       }
     });
   }

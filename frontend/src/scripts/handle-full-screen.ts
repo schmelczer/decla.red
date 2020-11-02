@@ -10,7 +10,7 @@ export const handleFullScreen = (
     return;
   }
 
-  let isInFullScreen = (): boolean => document.fullscreenElement !== null;
+  const isInFullScreen = (): boolean => document.fullscreenElement !== null;
 
   const showButtons = () => {
     minimizeButton.style.visibility = isInFullScreen() ? 'visible' : 'hidden';

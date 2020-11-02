@@ -8,7 +8,7 @@ export class CommandGenerator {
     this.subscribers.push(subscriber);
   }
 
-  protected sendCommandToSubcribers(command: Command): void {
+  protected sendCommandToSubscribers(command: Command): void {
     this.subscribers.forEach((s) => s.sendCommand(command));
   }
 }
