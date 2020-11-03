@@ -6,7 +6,7 @@ export const serializesTo = (target: SerializableClass) => {
     if (!serializableMapping.get(target.name)) {
       serializableMapping.set(target.name, {
         constructor: target,
-        overriden: false,
+        overridden: false,
       });
     }
 

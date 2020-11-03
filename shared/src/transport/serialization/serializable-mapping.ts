@@ -7,6 +7,6 @@ export const serializableMapping = new Map<
   string,
   {
     constructor: DeserializableClass;
-    overriden: boolean;
+    overridden: boolean;
   }
 >();

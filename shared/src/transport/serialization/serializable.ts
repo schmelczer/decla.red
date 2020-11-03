@@ -5,7 +5,7 @@ export const serializable = (type: SerializableClass): any => {
   if (!serializableMapping.get(type.name)) {
     serializableMapping.set(type.name, {
       constructor: type,
-      overriden: false,
+      overridden: false,
     });
   }
 

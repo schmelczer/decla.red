@@ -8,6 +8,6 @@ export const overrideDeserialization = (
 ) => {
   serializableMapping.set(source.name, {
     constructor: target,
-    overriden: true,
+    overridden: true,
   });
 };
