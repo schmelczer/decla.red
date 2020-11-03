@@ -4,12 +4,13 @@ import {
   settings,
   MoveActionCommand,
   serializesTo,
-  clamp,
   last,
   GameObject,
   Circle,
   PlayerCharacterBase,
   CharacterTeam,
+  PropertyUpdatesForObject,
+  UpdateProperty,
 } from 'shared';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { CirclePhysical } from './circle-physical';
@@ -33,7 +34,7 @@ export class PlayerCharacterPhysical
   private static readonly feetRadius = 20;
   private projectileStrength = settings.playerMaxStrength;
 
-  // offsets are meassured from (0, 0)
+  // offsets are measured from (0, 0)
   private static readonly desiredHeadOffset = vec2.fromValues(0, 65);
   private static readonly desiredLeftFootOffset = vec2.fromValues(-20, 0);
   private static readonly desiredRightFootOffset = vec2.fromValues(20, 0);
@@ -86,6 +87,10 @@ export class PlayerCharacterPhysical
 
   private movementActions: Array<MoveActionCommand> = [];
   private lastMovementAction: MoveActionCommand = new MoveActionCommand(vec2.create());
+
+  private headVelocity = new Circle(vec2.create(), 0);
+  private leftFootVelocity = new Circle(vec2.create(), 0);
+  private rightFootVelocity = new Circle(vec2.create(), 0);
 
   constructor(
     name: string,
@@ -220,25 +225,78 @@ export class PlayerCharacterPhysical
       this.movementActions = [];
     }
 
-    return vec2.normalize(direction, direction);
+    return vec2.length(direction) > 0
+      ? vec2.normalize(direction, direction)
+      : vec2.create();
   }
 
   private animateScaling(q: number) {
-    this.remoteCall(
-      'updateCircles',
-      new Circle(this.head.center, PlayerCharacterPhysical.headRadius * q),
-      new Circle(this.leftFoot.center, PlayerCharacterPhysical.feetRadius * q),
-      new Circle(this.rightFoot.center, PlayerCharacterPhysical.feetRadius * q),
+    this.head.radius = PlayerCharacterPhysical.headRadius * q;
+    this.leftFoot.radius = this.rightFoot.radius = PlayerCharacterPhysical.feetRadius * q;
+  }
+
+  public getPropertyUpdates(): PropertyUpdatesForObject {
+    return new PropertyUpdatesForObject(this.id, [
+      new UpdateProperty('head', this.head, this.headVelocity),
+      new UpdateProperty('leftFoot', this.leftFoot, this.leftFootVelocity),
+      new UpdateProperty('rightFoot', this.rightFoot, this.rightFootVelocity),
+    ]);
+  }
+
+  private setPropertyUpdates(
+    oldHead: Circle,
+    oldLeftFoot: Circle,
+    oldRightFoot: Circle,
+    deltaTime: number,
+  ) {
+    this.headVelocity = new Circle(
+      vec2.scale(
+        oldHead.center,
+        vec2.subtract(oldHead.center, this.head.center, oldHead.center),
+        1 / deltaTime,
+      ),
+      (this.head.radius - oldHead.radius) / deltaTime,
     );
+
+    this.leftFootVelocity = new Circle(
+      vec2.scale(
+        oldLeftFoot.center,
+        vec2.subtract(oldLeftFoot.center, this.leftFoot.center, oldLeftFoot.center),
+        1 / deltaTime,
+      ),
+      (this.leftFoot.radius - oldLeftFoot.radius) / deltaTime,
+    );
+
+    this.rightFootVelocity = new Circle(
+      vec2.scale(
+        oldRightFoot.center,
+        vec2.subtract(oldRightFoot.center, this.rightFoot.center, oldRightFoot.center),
+        1 / deltaTime,
+      ),
+      (this.rightFoot.radius - oldRightFoot.radius) / deltaTime,
+    );
+
+    this.animateScaling(1);
   }
 
   public step(deltaTime: number) {
+    const oldHead = new Circle(vec2.clone(this.head.center), this.head.radius);
+    const oldLeftFoot = new Circle(
+      vec2.clone(this.leftFoot.center),
+      this.leftFoot.radius,
+    );
+    const oldRightFoot = new Circle(
+      vec2.clone(this.rightFoot.center),
+      this.rightFoot.radius,
+    );
+
     if (this.isDestroyed) {
       if ((this.timeSinceDying += deltaTime) > settings.spawnDespawnTime) {
         this.destroy();
       } else {
         this.animateScaling(1 - this.timeSinceDying / settings.spawnDespawnTime);
       }
+      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTime);
       return;
     }
 
@@ -248,6 +306,7 @@ export class PlayerCharacterPhysical
       } else {
         this.animateScaling(this.timeSinceBorn / settings.spawnDespawnTime);
       }
+      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTime);
       return;
     }
 
@@ -262,7 +321,7 @@ export class PlayerCharacterPhysical
 
     this.currentPlanet?.takeControl(this.team, deltaTime);
 
-    const intersectingWithForcefield = this.container.findIntersecting(
+    const intersectingWithForceField = this.container.findIntersecting(
       getBoundingBoxOfCircle(
         new Circle(
           this.center,
@@ -273,15 +332,17 @@ export class PlayerCharacterPhysical
 
     const direction = this.averageAndResetMovementActions();
     const movementForce = vec2.scale(direction, direction, settings.maxAcceleration);
+    this.applyForce(this.leftFoot, movementForce, deltaTime);
+    this.applyForce(this.rightFoot, movementForce, deltaTime);
 
     if (!this.currentPlanet) {
       const leftFootGravity = forceAtPosition(
         this.leftFoot.center,
-        intersectingWithForcefield,
+        intersectingWithForceField,
       );
       const rightFootGravity = forceAtPosition(
         this.rightFoot.center,
-        intersectingWithForcefield,
+        intersectingWithForceField,
       );
 
       this.applyForce(this.leftFoot, leftFootGravity, deltaTime);
@@ -325,22 +386,19 @@ export class PlayerCharacterPhysical
       this.setDirection(gravity, deltaTime);
     }
 
-    this.applyForce(this.leftFoot, movementForce, deltaTime);
-    this.applyForce(this.rightFoot, movementForce, deltaTime);
-
     this.keepPosture(deltaTime);
     this.stepBodyPart(this.leftFoot, deltaTime);
     this.stepBodyPart(this.rightFoot, deltaTime);
     this.stepBodyPart(this.head, deltaTime);
 
-    this.remoteCall('updateCircles', this.head, this.leftFoot, this.rightFoot);
+    this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTime);
   }
 
   private setDirection(direction: vec2, deltaTime: number) {
     this.direction = interpolateAngles(
       this.direction,
       Math.atan2(direction.y, direction.x) + Math.PI / 2,
-      Math.pow(2, deltaTime),
+      0.2,
     );
   }
 
@@ -351,14 +409,14 @@ export class PlayerCharacterPhysical
       center,
       PlayerCharacterPhysical.leftFootOffset,
       deltaTime,
-      150,
+      3000,
     );
     this.springMove(
       this.rightFoot,
       center,
       PlayerCharacterPhysical.rightFootOffset,
       deltaTime,
-      150,
+      3000,
     );
 
     this.springMove(
@@ -366,7 +424,7 @@ export class PlayerCharacterPhysical
       center,
       PlayerCharacterPhysical.headOffset,
       deltaTime,
-      350,
+      7000,
     );
   }
 
@@ -381,15 +439,26 @@ export class PlayerCharacterPhysical
     vec2.rotate(desiredPosition, desiredPosition, center, this.direction);
     const positionDelta = vec2.subtract(vec2.create(), desiredPosition, object.center);
 
-    const positionDeltaDirection = vec2.normalize(vec2.create(), positionDelta);
     const positionDeltaLength = vec2.length(positionDelta);
-    vec2.scale(
-      positionDelta,
-      positionDeltaDirection,
-      positionDeltaLength ** 2 * deltaTime * strength,
-    );
 
-    object.applyForce(positionDelta, deltaTime);
+    if (positionDeltaLength > 0) {
+      const positionDeltaDirection = vec2.normalize(vec2.create(), positionDelta);
+      vec2.scale(
+        positionDelta,
+        positionDeltaDirection,
+        positionDeltaLength ** 2 * deltaTime * strength,
+      );
+
+      if (vec2.length(positionDelta) * deltaTime * deltaTime > positionDeltaLength) {
+        vec2.scale(
+          positionDelta,
+          positionDelta,
+          positionDeltaLength / (vec2.length(positionDelta) * deltaTime * deltaTime),
+        );
+      }
+
+      object.applyForce(positionDelta, deltaTime);
+    }
   }
 
   private stepBodyPart(part: CirclePhysical, deltaTime: number) {
@@ -405,12 +474,6 @@ export class PlayerCharacterPhysical
       circle.velocity,
       circle.velocity,
       vec2.scale(vec2.create(), force, timeInSeconds),
-    );
-
-    vec2.set(
-      circle.velocity,
-      clamp(circle.velocity.x, -settings.maxVelocityX, settings.maxVelocityX),
-      clamp(circle.velocity.y, -settings.maxVelocityY, settings.maxVelocityY),
     );
   }
 

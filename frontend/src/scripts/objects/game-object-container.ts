@@ -6,6 +6,7 @@ import {
   CreatePlayerCommand,
   DeleteObjectsCommand,
   Id,
+  PropertyUpdatesForObjects,
   RemoteCallsForObjects,
 } from 'shared';
 import { Game } from '../game';
@@ -41,6 +42,9 @@ export class GameObjectContainer extends CommandReceiver {
         this.objects.get(c.id)?.processRemoteCalls(c.calls),
       ),
 
+    [PropertyUpdatesForObjects.type]: (c: PropertyUpdatesForObjects) =>
+      c.updates.forEach((c) => this.objects.get(c.id)?.updateProperties(c.updates)),
+
     [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
       c.ids.forEach((id: Id) => this.deleteObject(id)),
   };
@@ -50,11 +54,11 @@ export class GameObjectContainer extends CommandReceiver {
   }
 
   public stepObjects(deltaTimeInSeconds: number) {
+    this.objects.forEach((o) => o.step(deltaTimeInSeconds));
+
     if (this.player) {
       this.camera.center = this.player.position;
     }
-
-    this.objects.forEach((o) => o.step(deltaTimeInSeconds));
   }
 
   public drawObjects(

@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import { CommandExecutors, Id, Random, PlanetBase } from 'shared';
+import { CommandExecutors, Id, Random, PlanetBase, UpdateProperty } from 'shared';
 import { RenderCommand } from '../commands/types/render';
 import { PlanetShape } from '../shapes/planet-shape';
 import { ViewObject } from './view-object';
@@ -29,6 +29,8 @@ export class PlanetView extends PlanetBase implements ViewObject {
     this.ownershipProgess = document.createElement('div');
     this.ownershipProgess.className = 'ownership';
   }
+
+  public updateProperties(update: UpdateProperty[]): void {}
 
   public step(deltaTimeInSeconds: number): void {
     this.shape.randomOffset += deltaTimeInSeconds / 4;

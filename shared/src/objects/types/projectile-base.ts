@@ -17,10 +17,6 @@ export class ProjectileBase extends GameObject {
     super(id);
   }
 
-  public setCenter(center: vec2) {
-    this.center = center;
-  }
-
   public step(deltaTimeInSeconds: number) {
     this.strength -= settings.projectileFadeSpeed * deltaTimeInSeconds;
     this.strength = Math.max(0, this.strength);

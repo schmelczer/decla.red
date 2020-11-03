@@ -180,6 +180,8 @@ body {
     }
 
     .other-player-arrow {
+      transition: transform 150ms;
+
       @include square($large-icon);
       @media (max-width: $breakpoint) {
         @include square($small-icon);
@@ -191,6 +193,7 @@ body {
       &.decla {
         background-color: $bright-decla;
       }
+
       &.red {
         background-color: $bright-red;
       }

@@ -1,6 +1,14 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import { Circle, Id, PlayerCharacterBase, CharacterTeam, settings } from 'shared';
+import {
+  Circle,
+  Id,
+  PlayerCharacterBase,
+  CharacterTeam,
+  settings,
+  UpdateProperty,
+} from 'shared';
+import { CircleExtrapolator } from '../helper/circle-extrapolator';
 import { BlobShape } from '../shapes/blob-shape';
 import { SoundHandler, Sounds } from '../sound-handler';
 import { VibrationHandler } from '../vibration-handler';
@@ -14,6 +22,10 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   private previousHealth;
 
   public isMainCharacter = false;
+
+  private leftFootExtrapolator: CircleExtrapolator;
+  private rightFootExtrapolator: CircleExtrapolator;
+  private headExtrapolator: CircleExtrapolator;
 
   constructor(
     id: Id,
@@ -29,6 +41,10 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     super(id, name, killCount, deathCount, team, health, head, leftFoot, rightFoot);
     this.shape = new BlobShape(settings.colorIndices[team]);
 
+    this.leftFootExtrapolator = new CircleExtrapolator(this.leftFoot!);
+    this.rightFootExtrapolator = new CircleExtrapolator(this.rightFoot!);
+    this.headExtrapolator = new CircleExtrapolator(this.head!);
+
     this.previousHealth = this.health;
     this.nameElement.className = 'player-tag ' + this.team;
     this.nameElement.innerText = this.name;
@@ -38,6 +54,20 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
 
   public get position(): vec2 {
     return this.head!.center;
+  }
+
+  public updateProperties(update: Array<UpdateProperty>) {
+    update.forEach((u) => {
+      if (u.propertyKey === 'head') {
+        this.headExtrapolator.addFrame(u.propertyValue, u.rateOfChange);
+      }
+      if (u.propertyKey === 'leftFoot') {
+        this.leftFootExtrapolator.addFrame(u.propertyValue, u.rateOfChange);
+      }
+      if (u.propertyKey === 'rightFoot') {
+        this.rightFootExtrapolator.addFrame(u.propertyValue, u.rateOfChange);
+      }
+    });
   }
 
   public setHealth(health: number) {
@@ -57,10 +87,14 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
 
       this.previousHealth = this.health;
     }
+
+    this.head! = this.headExtrapolator.getValue(deltaTimeInSeconds);
+    this.leftFoot! = this.leftFootExtrapolator.getValue(deltaTimeInSeconds);
+    this.rightFoot! = this.rightFootExtrapolator.getValue(deltaTimeInSeconds);
   }
 
   public onShoot(strength: number) {
-    SoundHandler.play(Sounds.shoot, (0.3 * 2 * strength) / settings.playerMaxStrength);
+    SoundHandler.play(Sounds.shoot, (0.6 * strength) / settings.playerMaxStrength);
   }
 
   public beforeDestroy(): void {

@@ -3,7 +3,6 @@ import { Renderer, renderNoise } from 'sdf-2d';
 import {
   broadcastCommands,
   deserialize,
-  serialize,
   TransportEvents,
   SetAspectRatioActionCommand,
   PlayerInformation,
@@ -27,7 +26,6 @@ import { CommandReceiverSocket } from './commands/receivers/command-receiver-soc
 import { startAnimation } from './start-animation';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
-import { OptionsHandler } from './options-handler';
 import parser from 'socket.io-msgpack-parser';
 import { VibrationHandler } from './vibration-handler';
 
@@ -44,7 +42,7 @@ export class Game extends CommandReceiver {
   private redPlanetCountElement = document.createElement('div');
   private announcementText = document.createElement('h2');
   private progressBar = document.createElement('div');
-  private arrowElements: Array<HTMLElement> = [];
+  private arrows: { [id: number]: HTMLElement } = {};
   private socketReceiver!: CommandReceiverSocket;
 
   constructor(
@@ -66,6 +64,7 @@ export class Game extends CommandReceiver {
     this.socket?.close();
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
+    this.isEnding = false;
     this.lastAnnouncementText = '';
     this.overlay.appendChild(this.progressBar);
     this.announcementText.innerText = '';
@@ -119,7 +118,7 @@ export class Game extends CommandReceiver {
   }
 
   private lastGameState?: UpdateGameState;
-
+  private isEnding = false;
   private lastAnnouncementText = '';
   protected commandExecutors: CommandExecutors = {
     [ServerAnnouncement.type]: (c: ServerAnnouncement) =>
@@ -127,11 +126,9 @@ export class Game extends CommandReceiver {
     [PlayerDiedCommand.type]: (c: PlayerDiedCommand) => VibrationHandler.vibrate(150),
     [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
     [GameEnd.type]: (c: GameEnd) => {
-      const team =
-        c.winningTeam === CharacterTeam.decla
-          ? '<span class="decla">decla</span>'
-          : '<span class="red">red</span>';
+      const team = `<span class="${c.winningTeam}">${c.winningTeam}</span>`;
       this.lastAnnouncementText = `Team ${team} won 🎉`;
+      this.isEnding = true;
     },
     [UpdateOtherPlayerDirections.type]: (c: UpdateOtherPlayerDirections) =>
       (this.lastOtherPlayerDirections = c),
@@ -140,23 +137,16 @@ export class Game extends CommandReceiver {
 
   private lastOtherPlayerDirections?: UpdateOtherPlayerDirections;
   private handleOtherPlayerDirections(command: UpdateOtherPlayerDirections) {
-    this.arrowElements
-      .splice(command.otherPlayerDirections.length, this.arrowElements.length)
-      .forEach((e) => e.parentElement?.removeChild(e));
+    command.otherPlayerDirections.forEach((d) => {
+      if (!(d.id! in this.arrows)) {
+        const element = document.createElement('div');
+        this.arrows[d.id!] = element;
+        this.overlay.appendChild(element);
+      }
 
-    for (
-      let i = this.arrowElements.length;
-      i < command.otherPlayerDirections.length;
-      i++
-    ) {
-      const element = document.createElement('div');
-      this.arrowElements.push(element);
-      this.overlay.appendChild(element);
-    }
-
-    this.arrowElements.forEach((e, i) => {
-      const direction = command.otherPlayerDirections[i].direction;
-      const team = command.otherPlayerDirections[i].team;
+      const e = this.arrows[d.id!];
+      const direction = d.direction;
+      const team = d.team;
       const angle = Math.atan2(direction.y, direction.x);
       e.className = 'other-player-arrow ' + team;
 
@@ -191,6 +181,16 @@ export class Game extends CommandReceiver {
         p.y
       }px) translateX(-50%) translateY(-50%) rotate(${-angle + Math.PI / 2}rad) `;
     });
+
+    for (let id in this.arrows) {
+      if (
+        Object.prototype.hasOwnProperty.call(this.arrows, id) &&
+        command.otherPlayerDirections.find((v) => v.id?.toString() === id) === undefined
+      ) {
+        this.arrows[id].parentElement?.removeChild(this.arrows[id]);
+        delete this.arrows[id];
+      }
+    }
   }
 
   public async start(): Promise<void> {
@@ -237,7 +237,7 @@ export class Game extends CommandReceiver {
     this.renderer = renderer;
 
     this.socketReceiver.sendQueuedCommands();
-    this.gameObjects.stepObjects(deltaTime);
+    this.gameObjects.stepObjects(this.isEnding ? 0 : deltaTime);
     this.gameObjects.drawObjects(this.renderer, this.overlay, shouldChangeLayout);
 
     return this.isActive;

@@ -35,7 +35,7 @@ export const settings = {
   playerDiedTimeout: 5,
   playerStrengthRegenerationPerSeconds: 80,
   projectileMaxStrength: 40,
-  projectileSpeed: 4000,
+  projectileSpeed: 2500,
   projectileMaxBounceCount: 2,
   projectileTimeout: 3,
   projectileFadeSpeed: 20,
@@ -111,7 +111,6 @@ export const settings = {
   },
   palette: [declaColor, neutralColor, redColor],
   paletteDim: [declaColorDim, neutralColor, redColorDim],
-  targetPhysicsDeltaTimeInMilliseconds: 15,
-  minPhysicsSleepTime: 4,
+  targetPhysicsDeltaTimeInSeconds: 1 / 100,
   inViewAreaSize: 1920 * 1080 * 3,
 };

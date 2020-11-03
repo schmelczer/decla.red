@@ -1,3 +1,4 @@
+import { Command } from '../commands/command';
 import { Id } from '../transport/identity';
 import { serializable } from '../transport/serialization/serializable';
 
@@ -7,6 +8,39 @@ export class RemoteCall {
 
   public toArray(): Array<any> {
     return [this.functionName, this.args];
+  }
+}
+
+@serializable
+export class UpdateProperty {
+  constructor(
+    public readonly propertyKey: string,
+    public readonly propertyValue: any,
+    public readonly rateOfChange: any,
+  ) {}
+
+  public toArray(): Array<any> {
+    return [this.propertyKey, this.propertyValue, this.rateOfChange];
+  }
+}
+
+@serializable
+export class PropertyUpdatesForObject {
+  constructor(public readonly id: Id, public readonly updates: Array<UpdateProperty>) {}
+
+  public toArray(): Array<any> {
+    return [this.id, this.updates];
+  }
+}
+
+@serializable
+export class PropertyUpdatesForObjects extends Command {
+  constructor(public readonly updates: Array<PropertyUpdatesForObject>) {
+    super();
+  }
+
+  public toArray(): Array<any> {
+    return [this.updates];
   }
 }
 
@@ -22,6 +56,8 @@ export abstract class GameObject {
       ) => unknown)(...r.args),
     );
   }
+
+  public getPropertyUpdates(): PropertyUpdatesForObject | void {}
 
   public getRemoteCalls(): Array<RemoteCall> {
     return this.remoteCalls;

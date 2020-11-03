@@ -10,7 +10,6 @@ import {
   ReactsToCollision,
   reactsToCollision,
 } from '../physics/physicals/reacts-to-collision';
-import { Physical } from '../physics/physicals/physical';
 
 @serializesTo(Circle)
 export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollision {
@@ -99,7 +98,6 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
 
   public step2(
     deltaTimeInSeconds: number,
-    additionalCollider?: Physical,
   ): { hitObject: GameObject | undefined; velocity: vec2 } {
     let delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
 
@@ -108,10 +106,6 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
       .findIntersecting(this.boundingBox)
       .filter((b) => b.gameObject !== this.gameObject && b.canCollide);
     this.radius -= vec2.length(delta);
-
-    if (additionalCollider) {
-      intersecting.push(additionalCollider);
-    }
 
     let { normal, hitSurface, hitObject } = moveCircle(this, delta, intersecting);
 

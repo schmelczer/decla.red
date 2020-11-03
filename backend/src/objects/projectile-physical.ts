@@ -6,6 +6,8 @@ import {
   ProjectileBase,
   GameObject,
   CharacterTeam,
+  PropertyUpdatesForObject,
+  UpdateProperty,
 } from 'shared';
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { CirclePhysical } from './circle-physical';
@@ -98,6 +100,12 @@ export class ProjectilePhysical
     }
   }
 
+  public getPropertyUpdates(): PropertyUpdatesForObject {
+    return new PropertyUpdatesForObject(this.id, [
+      new UpdateProperty('center', this.center, this.velocity),
+    ]);
+  }
+
   public step(deltaTime: number) {
     super.step(deltaTime);
 
@@ -127,7 +135,5 @@ export class ProjectilePhysical
     vec2.copy(this.object.velocity, this.velocity);
     const { velocity } = this.object.step2(deltaTime);
     vec2.copy(this.velocity, velocity);
-
-    this.remoteCall('setCenter', this.center);
   }
 }

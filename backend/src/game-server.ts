@@ -129,8 +129,44 @@ export class GameServer {
   }
 
   private timeSinceLastPointUpdate = 0;
+
   private handlePhysics() {
     let delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds();
+    if (delta > settings.targetPhysicsDeltaTimeInSeconds) {
+      this.deltaTimeCalculator.getNextDeltaTimeInSeconds(true);
+
+      this.handleStats();
+
+      if ((this.timeSinceLastServerStateUpdate += delta) > 4) {
+        this.timeSinceLastServerStateUpdate = 0;
+        this.sendServerStateUpdate();
+      }
+
+      if ((this.timeSinceLastPointUpdate += delta) > 0.5) {
+        this.timeSinceLastPointUpdate = 0;
+        this.players.queueCommandForEachClient(
+          new UpdateGameState(this.declaPoints, this.redPoints, this.options.scoreLimit),
+        );
+      }
+
+      if (this.isInEndGame) {
+        this.timeScaling *= Math.pow(settings.endGameDeltaScaling, delta);
+        delta /= this.timeScaling;
+      } else {
+        this.updatePoints();
+      }
+
+      this.objects.stepObjects(delta);
+      this.players.step(delta);
+      this.objects.resetRemoteCalls();
+
+      this.deltaTimes.push(this.deltaTimeCalculator.getNextDeltaTimeInSeconds());
+    }
+
+    setImmediate(this.handlePhysics.bind(this));
+  }
+
+  private handleStats() {
     const framesBetweenDeltaTimeCalculation = 1000;
 
     if (this.deltaTimes.length > framesBetweenDeltaTimeCalculation) {
@@ -138,49 +174,16 @@ export class GameServer {
       console.log(
         `Median physics time: ${this.deltaTimes[
           Math.floor(framesBetweenDeltaTimeCalculation / 2)
-        ].toFixed(2)} ms\n`,
+        ].toFixed(2)} ms`,
+      );
+      console.log(
         'Tail times: ',
-        this.deltaTimes.slice(-20).map((v) => `${v.toFixed(2)} ms`),
+        this.deltaTimes.slice(-20).map((v) => `${(v * 1000).toFixed(2)} ms`),
       );
       console.log(
         `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
       );
       this.deltaTimes = [];
-    }
-
-    if ((this.timeSinceLastServerStateUpdate += delta) > 4) {
-      this.timeSinceLastServerStateUpdate = 0;
-      this.sendServerStateUpdate();
-    }
-
-    if ((this.timeSinceLastPointUpdate += delta) > 0.5) {
-      this.timeSinceLastPointUpdate = 0;
-      this.players.queueCommandForEachClient(
-        new UpdateGameState(this.declaPoints, this.redPoints, this.options.scoreLimit),
-      );
-    }
-
-    if (this.isInEndGame) {
-      this.timeScaling *= Math.pow(settings.endGameDeltaScaling, delta);
-      delta /= this.timeScaling;
-    } else {
-      this.updatePoints();
-    }
-
-    this.objects.stepObjects(delta);
-    this.players.step(delta);
-    this.objects.resetRemoteCalls();
-
-    this.players.sendQueuedCommands();
-
-    const physicsDelta = this.deltaTimeCalculator.getDeltaTimeInSeconds() * 1000;
-    this.deltaTimes.push(physicsDelta);
-    const sleepTime = settings.targetPhysicsDeltaTimeInMilliseconds - physicsDelta;
-
-    if (sleepTime >= settings.minPhysicsSleepTime) {
-      setTimeout(this.handlePhysics.bind(this), sleepTime);
-    } else {
-      setImmediate(this.handlePhysics.bind(this));
     }
   }
 

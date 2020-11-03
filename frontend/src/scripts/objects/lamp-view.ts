@@ -1,6 +1,6 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { CircleLight, Renderer } from 'sdf-2d';
-import { CommandExecutors, Id, LampBase } from 'shared';
+import { CommandExecutors, Id, LampBase, UpdateProperty } from 'shared';
 import { RenderCommand } from '../commands/types/render';
 import { ViewObject } from './view-object';
 
@@ -15,6 +15,8 @@ export class LampView extends LampBase implements ViewObject {
     super(id, center, color, lightness);
     this.light = new CircleLight(center, color, lightness);
   }
+
+  public updateProperties(update: UpdateProperty[]): void {}
 
   public step(deltaTimeInSeconds: number): void {}
 

@@ -17,7 +17,12 @@ export const moveCircle = (
   tangent?: vec2;
   hitObject?: GameObject;
 } => {
-  const direction = vec2.normalize(vec2.create(), delta);
+  const direction = vec2.clone(delta);
+
+  if (vec2.length(delta) > 0) {
+    vec2.normalize(direction, direction);
+  }
+
   const deltaLength = vec2.length(delta);
   let travelled = 0;
   let rayEnd = vec2.create();

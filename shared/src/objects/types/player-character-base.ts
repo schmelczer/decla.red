@@ -22,15 +22,6 @@ export class PlayerCharacterBase extends GameObject {
 
   public onShoot(strength: number) {}
 
-  public updateCircles(head: Circle, leftFoot: Circle, rightFoot: Circle) {
-    this.head!.center = head.center;
-    this.head!.radius = head.radius;
-    this.leftFoot!.center = leftFoot.center;
-    this.leftFoot!.radius = leftFoot.radius;
-    this.rightFoot!.center = rightFoot.center;
-    this.rightFoot!.radius = rightFoot.radius;
-  }
-
   public setHealth(health: number) {
     this.health = health;
   }

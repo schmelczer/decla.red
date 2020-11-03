@@ -1,7 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import {
   CommandExecutors,
-  CommandReceiver,
   CreateObjectsCommand,
   CreatePlayerCommand,
   DeleteObjectsCommand,
@@ -13,7 +12,6 @@ import {
   SecondaryActionCommand,
   PlayerDiedCommand,
   settings,
-  Circle,
   PlayerInformation,
   CharacterTeam,
   UpdateOtherPlayerDirections,
@@ -23,6 +21,8 @@ import {
   RemoteCallsForObject,
   RemoteCallsForObjects,
   ServerAnnouncement,
+  PropertyUpdatesForObjects,
+  PropertyUpdatesForObject,
 } from 'shared';
 import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
@@ -93,8 +93,12 @@ export class Player extends PlayerBase {
     this.queueCommandSend(new CreatePlayerCommand(this.character!));
   }
 
+  private timeSinceLastMessage = 0;
+  private messageInterval = 1 / 30;
   private timeUntilRespawn = 0;
   public step(deltaTimeInSeconds: number) {
+    this.timeSinceLastMessage += deltaTimeInSeconds;
+
     if (this.character) {
       this.center = this.character?.center;
 
@@ -107,9 +111,12 @@ export class Player extends PlayerBase {
         this.timeUntilRespawn = settings.playerDiedTimeout;
       }
     } else {
-      this.queueCommandSend(
-        new ServerAnnouncement(`Reviving in ${Math.round(this.timeUntilRespawn)}…`),
-      );
+      if (this.timeSinceLastMessage > this.messageInterval) {
+        this.queueCommandSend(
+          new ServerAnnouncement(`Reviving in ${Math.round(this.timeUntilRespawn)}…`),
+        );
+      }
+
       if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
         this.createCharacter();
         this.center = this.character!.center;
@@ -117,33 +124,45 @@ export class Player extends PlayerBase {
       }
     }
 
-    const viewArea = calculateViewArea(this.center, this.aspectRatio, 1.5);
-    const bb = new BoundingBox();
-    bb.topLeft = viewArea.topLeft;
-    bb.size = viewArea.size;
+    if (this.timeSinceLastMessage > this.messageInterval) {
+      const viewArea = calculateViewArea(this.center, this.aspectRatio, 1.5);
+      const bb = new BoundingBox();
+      bb.topLeft = viewArea.topLeft;
+      bb.size = viewArea.size;
 
-    const objectsInViewArea = Array.from(
-      new Set(this.objectContainer.findIntersecting(bb).map((o) => o.gameObject)),
-    );
-
-    const newlyIntersecting = objectsInViewArea.filter(
-      (o) => !this.objectsPreviouslyInViewArea.includes(o),
-    );
-
-    const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
-      (o) => !objectsInViewArea.includes(o),
-    );
-
-    this.objectsPreviouslyInViewArea = objectsInViewArea;
-
-    if (noLongerIntersecting.length > 0) {
-      this.queueCommandSend(
-        new DeleteObjectsCommand(noLongerIntersecting.map((g) => g.id)),
+      const objectsInViewArea = Array.from(
+        new Set(this.objectContainer.findIntersecting(bb).map((o) => o.gameObject)),
       );
-    }
 
-    if (newlyIntersecting.length > 0) {
-      this.queueCommandSend(new CreateObjectsCommand(newlyIntersecting));
+      const newlyIntersecting = objectsInViewArea.filter(
+        (o) => !this.objectsPreviouslyInViewArea.includes(o),
+      );
+
+      const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
+        (o) => !objectsInViewArea.includes(o),
+      );
+
+      this.objectsPreviouslyInViewArea = objectsInViewArea;
+
+      if (noLongerIntersecting.length > 0) {
+        this.queueCommandSend(
+          new DeleteObjectsCommand(noLongerIntersecting.map((g) => g.id)),
+        );
+      }
+
+      if (newlyIntersecting.length > 0) {
+        this.queueCommandSend(new CreateObjectsCommand(newlyIntersecting));
+      }
+
+      this.queueCommandSend(new UpdateOtherPlayerDirections(this.getOtherPlayers()));
+
+      this.queueCommandSend(
+        new PropertyUpdatesForObjects(
+          this.objectsPreviouslyInViewArea
+            .map((o) => o.getPropertyUpdates())
+            .filter((u) => u) as Array<PropertyUpdatesForObject>,
+        ),
+      );
     }
 
     this.queueCommandSend(
@@ -154,7 +173,10 @@ export class Player extends PlayerBase {
       ),
     );
 
-    this.queueCommandSend(new UpdateOtherPlayerDirections(this.getOtherPlayers()));
+    if (this.timeSinceLastMessage > this.messageInterval) {
+      this.sendQueuedCommandsToClient();
+      this.timeSinceLastMessage = 0;
+    }
   }
 
   private getOtherPlayers(): Array<OtherPlayerDirection> {
@@ -179,9 +201,10 @@ export class Player extends PlayerBase {
     return otherPlayers.map(
       (p) =>
         new OtherPlayerDirection(
+          p.character!.id,
           vec2.normalize(
             vec2.create(),
-            vec2.subtract(vec2.create(), p.center, this.character!.center),
+            vec2.subtract(vec2.create(), p.character!.center, this.character!.center),
           ),
           p.team,
         ),
