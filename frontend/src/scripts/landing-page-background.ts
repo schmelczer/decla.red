@@ -13,7 +13,7 @@ import {
 import { settings, rgb, PlanetBase, Random } from 'shared';
 
 const landingPageVertexCount = 9;
-const LangindPagePolygon = NoisyPolygonFactory(
+const LandingPagePolygon = NoisyPolygonFactory(
   landingPageVertexCount,
   rgb(0.5, 0.4, 0.7),
 );
@@ -35,7 +35,7 @@ export class LandingPageBackground {
       canvas,
       [
         {
-          ...LangindPagePolygon.descriptor,
+          ...LandingPagePolygon.descriptor,
           shaderCombinationSteps: [0, 1, 2],
         },
         {
@@ -75,7 +75,7 @@ export class LandingPageBackground {
       0.7 * renderer.canvasSize.y,
     );
 
-    const topPlanet = new LangindPagePolygon(
+    const topPlanet = new LandingPagePolygon(
       PlanetBase.createPlanetVertices(
         topPlanetPosition,
         Random.getRandomInRange(150, 400),
@@ -92,7 +92,7 @@ export class LandingPageBackground {
       0.3 * renderer.canvasSize.y,
     );
 
-    const bottomPlanet = new LangindPagePolygon(
+    const bottomPlanet = new LandingPagePolygon(
       PlanetBase.createPlanetVertices(
         bottomPlanetPosition,
         Random.getRandomInRange(150, 800),
