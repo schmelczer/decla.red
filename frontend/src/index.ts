@@ -28,6 +28,7 @@ import { OptionsHandler } from './scripts/options-handler';
 import { hide } from './scripts/helper/hide';
 import { show } from './scripts/helper/show';
 import { SoundHandler, Sounds } from './scripts/sound-handler';
+import { VibrationHandler } from './scripts/vibration-handler';
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -121,6 +122,10 @@ const main = async () => {
       document.removeEventListener('click', firstClickListener);
     };
     document.addEventListener('click', firstClickListener);
+
+    if (!VibrationHandler.isVibrationEnabledHeuristics) {
+      hide(document.querySelector("label[for='enable-vibration']") as HTMLElement, true);
+    }
 
     handleFullScreen(minimize, maximize);
     toggleSettingsButton.addEventListener('click', toggleSettings);
