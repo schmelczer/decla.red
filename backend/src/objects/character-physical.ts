@@ -7,7 +7,7 @@ import {
   last,
   GameObject,
   Circle,
-  PlayerCharacterBase,
+  CharacterBase,
   CharacterTeam,
   PropertyUpdatesForObject,
   UpdateProperty,
@@ -21,12 +21,14 @@ import { interpolateAngles } from '../helper/interpolate-angles';
 import { forceAtPosition } from '../physics/functions/force-at-position';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { PlanetPhysical } from './planet-physical';
-import { ReactsToCollision } from '../physics/functions/reacts-to-collision';
+import { ReactsToCollision } from './capabilities/reacts-to-collision';
+import { TimeDependent } from './capabilities/time-dependent';
+import { GeneratesPoints } from './capabilities/generates-points';
 
-@serializesTo(PlayerCharacterBase)
-export class PlayerCharacterPhysical
-  extends PlayerCharacterBase
-  implements DynamicPhysical, ReactsToCollision {
+@serializesTo(CharacterBase)
+export class CharacterPhysical
+  extends CharacterBase
+  implements DynamicPhysical, ReactsToCollision, TimeDependent, GeneratesPoints {
   public readonly canCollide = true;
   public readonly canMove = true;
 
@@ -44,32 +46,32 @@ export class PlayerCharacterPhysical
       vec2.create(),
       vec2.add(
         vec2.create(),
-        PlayerCharacterPhysical.desiredHeadOffset,
-        PlayerCharacterPhysical.desiredLeftFootOffset,
+        CharacterPhysical.desiredHeadOffset,
+        CharacterPhysical.desiredLeftFootOffset,
       ),
-      PlayerCharacterPhysical.desiredRightFootOffset,
+      CharacterPhysical.desiredRightFootOffset,
     ),
     1 / 3,
   );
 
   private static readonly headOffset = vec2.subtract(
     vec2.create(),
-    PlayerCharacterPhysical.desiredHeadOffset,
-    PlayerCharacterPhysical.centerOfMass,
+    CharacterPhysical.desiredHeadOffset,
+    CharacterPhysical.centerOfMass,
   );
   private static readonly leftFootOffset = vec2.subtract(
     vec2.create(),
-    PlayerCharacterPhysical.desiredLeftFootOffset,
-    PlayerCharacterPhysical.centerOfMass,
+    CharacterPhysical.desiredLeftFootOffset,
+    CharacterPhysical.centerOfMass,
   );
   private static readonly rightFootOffset = vec2.subtract(
     vec2.create(),
-    PlayerCharacterPhysical.desiredRightFootOffset,
-    PlayerCharacterPhysical.centerOfMass,
+    CharacterPhysical.desiredRightFootOffset,
+    CharacterPhysical.centerOfMass,
   );
 
   public static readonly boundRadius =
-    (PlayerCharacterPhysical.headRadius + PlayerCharacterPhysical.feetRadius * 2) * 2;
+    (CharacterPhysical.headRadius + CharacterPhysical.feetRadius * 2) * 2;
 
   private timeSinceDying = 0;
   private isDestroyed = false;
@@ -102,20 +104,20 @@ export class PlayerCharacterPhysical
   ) {
     super(id(), name, killCount, deathCount, team, settings.playerMaxHealth);
     this.head = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.headOffset),
-      PlayerCharacterPhysical.headRadius,
+      vec2.add(vec2.create(), startPosition, CharacterPhysical.headOffset),
+      CharacterPhysical.headRadius,
       this,
       container,
     );
     this.leftFoot = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.leftFootOffset),
-      PlayerCharacterPhysical.feetRadius,
+      vec2.add(vec2.create(), startPosition, CharacterPhysical.leftFootOffset),
+      CharacterPhysical.feetRadius,
       this,
       container,
     );
     this.rightFoot = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, PlayerCharacterPhysical.rightFootOffset),
-      PlayerCharacterPhysical.feetRadius,
+      vec2.add(vec2.create(), startPosition, CharacterPhysical.rightFootOffset),
+      CharacterPhysical.feetRadius,
       this,
       container,
     );
@@ -125,10 +127,27 @@ export class PlayerCharacterPhysical
 
     this.bound = new CirclePhysical(
       vec2.create(),
-      PlayerCharacterPhysical.boundRadius,
+      CharacterPhysical.boundRadius,
       this,
       container,
     );
+  }
+
+  private hasGeneratedPoints = false;
+  public getPoints(): { decla: number; red: number } {
+    if (!this.isAlive && !this.hasGeneratedPoints) {
+      this.hasGeneratedPoints = true;
+      const decla = this.team === CharacterTeam.decla ? 0 : settings.playerKillPoint;
+      const red = this.team === CharacterTeam.red ? 0 : settings.playerKillPoint;
+      return {
+        decla,
+        red,
+      };
+    }
+    return {
+      decla: 0,
+      red: 0,
+    };
   }
 
   public get isAlive(): boolean {
@@ -154,7 +173,7 @@ export class PlayerCharacterPhysical
       this.health -= other.strength;
       this.remoteCall('setHealth', this.health);
       if (this.health <= 0 && this.isAlive) {
-        this.kill();
+        this.onDie();
         other.originator.addKill();
       }
     }
@@ -231,8 +250,8 @@ export class PlayerCharacterPhysical
   }
 
   private animateScaling(q: number) {
-    this.head.radius = PlayerCharacterPhysical.headRadius * q;
-    this.leftFoot.radius = this.rightFoot.radius = PlayerCharacterPhysical.feetRadius * q;
+    this.head.radius = CharacterPhysical.headRadius * q;
+    this.leftFoot.radius = this.rightFoot.radius = CharacterPhysical.feetRadius * q;
   }
 
   public getPropertyUpdates(): PropertyUpdatesForObject {
@@ -325,7 +344,7 @@ export class PlayerCharacterPhysical
       getBoundingBoxOfCircle(
         new Circle(
           this.center,
-          PlayerCharacterPhysical.boundRadius + settings.maxGravityDistance,
+          CharacterPhysical.boundRadius + settings.maxGravityDistance,
         ),
       ),
     );
@@ -407,25 +426,19 @@ export class PlayerCharacterPhysical
     this.springMove(
       this.leftFoot,
       center,
-      PlayerCharacterPhysical.leftFootOffset,
+      CharacterPhysical.leftFootOffset,
       deltaTime,
       3000,
     );
     this.springMove(
       this.rightFoot,
       center,
-      PlayerCharacterPhysical.rightFootOffset,
+      CharacterPhysical.rightFootOffset,
       deltaTime,
       3000,
     );
 
-    this.springMove(
-      this.head,
-      center,
-      PlayerCharacterPhysical.headOffset,
-      deltaTime,
-      7000,
-    );
+    this.springMove(this.head, center, CharacterPhysical.headOffset, deltaTime, 7000);
   }
 
   private springMove(
@@ -462,7 +475,7 @@ export class PlayerCharacterPhysical
   }
 
   private stepBodyPart(part: CirclePhysical, deltaTime: number) {
-    const { hitObject } = part.step2(deltaTime);
+    const { hitObject } = part.stepManually(deltaTime);
     if (hitObject instanceof PlanetPhysical) {
       this.secondsSinceOnSurface = 0;
       this.currentPlanet = hitObject;
@@ -477,9 +490,9 @@ export class PlayerCharacterPhysical
     );
   }
 
-  public kill() {
+  public onDie() {
     this.isDestroyed = true;
-    this.remoteCall('kill');
+    this.remoteCall('onDie');
   }
 
   private destroy() {

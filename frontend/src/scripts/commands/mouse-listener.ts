@@ -3,11 +3,11 @@ import { CommandGenerator, PrimaryActionCommand, SecondaryActionCommand } from '
 import { Game } from '../game';
 
 export class MouseListener extends CommandGenerator {
-  constructor(private readonly game: Game) {
+  constructor(private target: HTMLElement, private readonly game: Game) {
     super();
 
-    addEventListener('mousedown', this.mouseDownListener);
-    addEventListener('contextmenu', this.contextMenuListener);
+    target.addEventListener('mousedown', this.mouseDownListener);
+    target.addEventListener('contextmenu', this.contextMenuListener);
   }
 
   private mouseDownListener = (event: MouseEvent) => {
@@ -32,7 +32,7 @@ export class MouseListener extends CommandGenerator {
   }
 
   public destroy() {
-    removeEventListener('mousedown', this.mouseDownListener);
-    removeEventListener('contextmenu', this.contextMenuListener);
+    this.target.removeEventListener('mousedown', this.mouseDownListener);
+    this.target.removeEventListener('contextmenu', this.contextMenuListener);
   }
 }

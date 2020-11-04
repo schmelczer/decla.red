@@ -3,11 +3,11 @@ import { CommandReceiver, Circle, PlayerInformation, CharacterTeam } from 'share
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { isCircleIntersecting } from '../physics/functions/is-circle-intersecting';
-import { PlayerCharacterPhysical } from '../objects/player-character-physical';
+import { CharacterPhysical } from '../objects/character-physical';
 import { PlayerContainer } from './player-container';
 
 export abstract class PlayerBase extends CommandReceiver {
-  public character?: PlayerCharacterPhysical | null;
+  public character?: CharacterPhysical | null;
   public center: vec2 = vec2.create();
 
   protected sumKills = 0;
@@ -23,7 +23,7 @@ export abstract class PlayerBase extends CommandReceiver {
   }
 
   protected createCharacter(preferredCenter: vec2) {
-    this.character = new PlayerCharacterPhysical(
+    this.character = new CharacterPhysical(
       this.playerInfo.name.slice(0, 20),
       this.sumKills,
       this.sumDeaths,
@@ -52,7 +52,7 @@ export abstract class PlayerBase extends CommandReceiver {
 
       const playerBoundingCircle = new Circle(
         playerPosition,
-        PlayerCharacterPhysical.boundRadius,
+        CharacterPhysical.boundRadius,
       );
 
       const playerBoundingBox = getBoundingBoxOfCircle(playerBoundingCircle);
@@ -69,6 +69,6 @@ export abstract class PlayerBase extends CommandReceiver {
   }
 
   public destroy() {
-    this.character?.kill();
+    this.character?.onDie();
   }
 }

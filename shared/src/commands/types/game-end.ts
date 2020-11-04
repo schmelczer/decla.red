@@ -1,4 +1,4 @@
-import { CharacterTeam } from '../../objects/types/character-team';
+import { CharacterTeam } from '../../objects/types/character-base';
 import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 

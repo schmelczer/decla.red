@@ -5,7 +5,7 @@ import parser from 'socket.io-msgpack-parser';
 import { SoundHandler, Sounds } from './sound-handler';
 
 export type PlayerDecision = {
-  playerName: string;
+  name: string;
   server: string;
 };
 

@@ -9,5 +9,4 @@ export interface PhysicalBase {
   readonly gameObject: GameObject;
 
   distance(target: vec2): number;
-  step(deltaTime: number): void;
 }

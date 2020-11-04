@@ -1,5 +1,5 @@
 import { rgb255 } from './helper/rgb255';
-import { CharacterTeam } from './objects/types/character-team';
+import { CharacterTeam } from './objects/types/character-base';
 
 const declaColor = rgb255(64, 105, 165);
 const neutralColor = rgb255(82, 165, 64);
@@ -19,6 +19,7 @@ export const settings = {
   worldRadius: 10000,
   objectsOnCircleLength: 0.002,
   planetEdgeCount: 7,
+  playerKillPoint: 10,
   takeControlTimeInSeconds: 4,
   loseControlTimeInSeconds: 24,
   planetPointGenerationInterval: 1.5,

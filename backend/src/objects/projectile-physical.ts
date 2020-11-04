@@ -13,15 +13,15 @@ import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-boundi
 import { CirclePhysical } from './circle-physical';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
-import { PlanetPhysical } from './planet-physical';
-import { ReactsToCollision } from '../physics/functions/reacts-to-collision';
-import { PlayerCharacterPhysical } from './player-character-physical';
+import { ReactsToCollision } from './capabilities/reacts-to-collision';
+import { CharacterPhysical } from './character-physical';
 import { moveCircle } from '../physics/functions/move-circle';
+import { TimeDependent } from './capabilities/time-dependent';
 
 @serializesTo(ProjectileBase)
 export class ProjectilePhysical
   extends ProjectileBase
-  implements DynamicPhysical, ReactsToCollision {
+  implements DynamicPhysical, ReactsToCollision, TimeDependent {
   public readonly canCollide = true;
   public readonly canMove = true;
 
@@ -37,7 +37,7 @@ export class ProjectilePhysical
     public strength: number,
     team: CharacterTeam,
     private velocity: vec2,
-    public readonly originator: PlayerCharacterPhysical,
+    public readonly originator: CharacterPhysical,
     readonly container: PhysicalContainer,
   ) {
     super(id(), center, radius, team, strength);
@@ -60,7 +60,7 @@ export class ProjectilePhysical
     while (wasCollision) {
       const intersecting = this.container
         .findIntersecting(this.boundingBox)
-        .filter((g) => g instanceof PlayerCharacterPhysical && g.team === this.team);
+        .filter((g) => g instanceof CharacterPhysical && g.team === this.team);
       const { hitSurface } = moveCircle(this.object, delta, intersecting, true);
       wasCollision = hitSurface;
     }
@@ -93,7 +93,7 @@ export class ProjectilePhysical
 
   public onCollision(other: GameObject) {
     if (
-      !(other instanceof PlayerCharacterPhysical && other.team === this.team) &&
+      !(other instanceof CharacterPhysical && other.team === this.team) &&
       this.bounceCount++ === settings.projectileMaxBounceCount
     ) {
       this.destroy();
@@ -115,7 +115,7 @@ export class ProjectilePhysical
     }
 
     vec2.copy(this.object.velocity, this.velocity);
-    const { velocity } = this.object.step2(deltaTime);
+    const { velocity } = this.object.stepManually(deltaTime);
     vec2.copy(this.velocity, velocity);
   }
 }

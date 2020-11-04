@@ -4,8 +4,6 @@ import {
   clamp,
   clamp01,
   id,
-  rotate90Deg,
-  rotateMinus90Deg,
   serializesTo,
   settings,
   PlanetBase,
@@ -14,12 +12,14 @@ import {
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { StaticPhysical } from '../physics/physicals/static-physical';
-import { GeneratesPoints } from './generates-points';
+import { ExertsForce } from './capabilities/exerts-force';
+import { GeneratesPoints } from './capabilities/generates-points';
+import { TimeDependent } from './capabilities/time-dependent';
 
 @serializesTo(PlanetBase)
 export class PlanetPhysical
   extends PlanetBase
-  implements StaticPhysical, GeneratesPoints {
+  implements StaticPhysical, GeneratesPoints, ExertsForce, TimeDependent {
   public readonly canCollide = true;
   public readonly canMove = false;
 

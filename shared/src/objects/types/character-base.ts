@@ -2,10 +2,15 @@ import { Id } from '../../communication/id';
 import { Circle } from '../../helper/circle';
 import { serializable } from '../../serialization/serializable';
 import { GameObject } from '../game-object';
-import { CharacterTeam } from './character-team';
+
+export enum CharacterTeam {
+  decla = 'decla',
+  neutral = 'neutral',
+  red = 'red',
+}
 
 @serializable
-export class PlayerCharacterBase extends GameObject {
+export class CharacterBase extends GameObject {
   constructor(
     id: Id,
     public name: string,
@@ -26,7 +31,7 @@ export class PlayerCharacterBase extends GameObject {
     this.health = health;
   }
 
-  public kill() {}
+  public onDie() {}
 
   public setKillCount(killCount: number) {
     this.killCount = killCount;

@@ -2,8 +2,8 @@ import { vec2 } from 'gl-matrix';
 import { settings } from '../../settings';
 import { serializable } from '../../serialization/serializable';
 import { GameObject } from '../game-object';
-import { CharacterTeam } from './character-team';
 import { Id } from '../../communication/id';
+import { CharacterTeam } from './character-base';
 
 @serializable
 export class ProjectileBase extends GameObject {

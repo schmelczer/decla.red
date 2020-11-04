@@ -69,7 +69,7 @@ export class GameServer {
               const commands: Array<Command> = deserialize(json);
               commands.forEach((c) => player.sendCommand(c));
             } catch (e) {
-              console.log('Error while processing command', e);
+              console.error('Error while processing command', e);
             }
           });
 
@@ -169,16 +169,16 @@ export class GameServer {
 
     if (this.deltaTimes.length > framesBetweenDeltaTimeCalculation) {
       this.deltaTimes.sort((a, b) => a - b);
-      console.log(
+      console.info(
         `Median physics time: ${this.deltaTimes[
           Math.floor(framesBetweenDeltaTimeCalculation / 2)
         ].toFixed(2)} ms`,
       );
-      console.log(
+      console.info(
         'Tail times: ',
         this.deltaTimes.slice(-20).map((v) => `${(v * 1000).toFixed(2)} ms`),
       );
-      console.log(
+      console.info(
         `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
       );
       this.deltaTimes = [];

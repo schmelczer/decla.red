@@ -1,17 +1,17 @@
 import { vec2 } from 'gl-matrix';
 import {
   PlayerInformation,
-  CharacterTeam,
   settings,
   Circle,
   Random,
   MoveActionCommand,
+  CharacterTeam,
 } from 'shared';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { PlayerContainer } from './player-container';
 import { PlayerBase } from './player-base';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
-import { PlayerCharacterPhysical } from '../objects/player-character-physical';
+import { CharacterPhysical } from '../objects/character-physical';
 import { PlanetPhysical } from '../objects/planet-physical';
 import { Physical } from '../physics/physicals/physical';
 
@@ -98,22 +98,18 @@ export class NPC extends PlayerBase {
 
   private findNearCharactersSorted(
     nearObjects: Array<Physical>,
-  ): Array<{ character: PlayerCharacterPhysical; distance: number }> {
+  ): Array<{ character: CharacterPhysical; distance: number }> {
     const characters = Array.from(
       new Set(
         nearObjects.filter(
           (o) =>
-            o.gameObject instanceof PlayerCharacterPhysical &&
-            o.gameObject !== this.character,
+            o.gameObject instanceof CharacterPhysical && o.gameObject !== this.character,
         ),
       ),
     ).map((c) => ({
       character: c.gameObject,
-      distance: vec2.distance(
-        this.center,
-        (c.gameObject as PlayerCharacterPhysical).center,
-      ),
-    })) as Array<{ character: PlayerCharacterPhysical; distance: number }>;
+      distance: vec2.distance(this.center, (c.gameObject as CharacterPhysical).center),
+    })) as Array<{ character: CharacterPhysical; distance: number }>;
 
     characters.sort((a, b) => a.distance - b.distance);
 
@@ -139,12 +135,10 @@ export class NPC extends PlayerBase {
     const nearObjects = this.objectContainer.findIntersecting(observableArea);
 
     const enemies = nearObjects.filter(
-      (o) =>
-        o.gameObject instanceof PlayerCharacterPhysical &&
-        o.gameObject.team !== this.team,
+      (o) => o.gameObject instanceof CharacterPhysical && o.gameObject.team !== this.team,
     );
     if (enemies.length > 0) {
-      return (enemies[0].gameObject as PlayerCharacterPhysical).center;
+      return (enemies[0].gameObject as CharacterPhysical).center;
     }
   }
 

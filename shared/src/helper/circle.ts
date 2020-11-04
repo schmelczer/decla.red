@@ -9,10 +9,6 @@ export class Circle {
     return vec2.distance(this.center, target) - this.radius;
   }
 
-  public distanceBetween(target: Circle): number {
-    return vec2.distance(target.center, this.center) - this.radius - target.radius;
-  }
-
   public toArray(): Array<any> {
     return [this.center, this.radius];
   }

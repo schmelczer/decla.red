@@ -9,7 +9,6 @@ import {
   TransportEvents,
   SetAspectRatioActionCommand,
   calculateViewArea,
-  SecondaryActionCommand,
   settings,
   PlayerInformation,
   CharacterTeam,
@@ -26,18 +25,15 @@ import {
 } from 'shared';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
-import { PlayerCharacterPhysical } from '../objects/player-character-physical';
+import { CharacterPhysical } from '../objects/character-physical';
 import { PlayerContainer } from './player-container';
 import { PlayerBase } from './player-base';
-import { DeltaTimeCalculator } from '../helper/delta-time-calculator';
 
 export class Player extends PlayerBase {
+  // default, until the clients sends its real value
   private aspectRatio: number = 16 / 9;
-  private isActive = true;
 
   private objectsPreviouslyInViewArea: Array<GameObject> = [];
-  private pingDeltaTime = new DeltaTimeCalculator();
-  private _latency?: number;
 
   protected commandExecutors: CommandExecutors = {
     [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) =>
@@ -57,29 +53,8 @@ export class Player extends PlayerBase {
     private readonly socket: SocketIO.Socket,
   ) {
     super(playerInfo, playerContainer, objectContainer, team);
-
     this.createCharacter();
-
-    socket.on(
-      TransportEvents.Pong,
-      () => (this._latency = this.pingDeltaTime.getNextDeltaTimeInSeconds()),
-    );
-
-    this.measureLatency();
     this.step(0);
-  }
-
-  public measureLatency() {
-    this.pingDeltaTime.getNextDeltaTimeInSeconds(true);
-    this.socket.emit(TransportEvents.Ping);
-
-    if (this.isActive) {
-      setTimeout(this.measureLatency.bind(this), 10000);
-    }
-  }
-
-  public get latency(): number | undefined {
-    return this._latency;
   }
 
   protected createCharacter() {
@@ -191,7 +166,7 @@ export class Player extends PlayerBase {
     const playersInViewArea = this.objectContainer
       .findIntersecting(bb)
       .map((o) => o.gameObject)
-      .filter((g) => g instanceof PlayerCharacterPhysical);
+      .filter((g) => g instanceof CharacterPhysical);
 
     const otherPlayers = this.playerContainer.players.filter(
       (p) => p.character?.isAlive && playersInViewArea.indexOf(p.character!) < 0,
@@ -222,6 +197,5 @@ export class Player extends PlayerBase {
 
   public destroy() {
     super.destroy();
-    this.isActive = false;
   }
 }

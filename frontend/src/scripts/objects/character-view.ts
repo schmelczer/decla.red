@@ -3,7 +3,7 @@ import { Renderer } from 'sdf-2d';
 import {
   Circle,
   Id,
-  PlayerCharacterBase,
+  CharacterBase,
   CharacterTeam,
   settings,
   UpdateProperty,
@@ -14,7 +14,7 @@ import { SoundHandler, Sounds } from '../sound-handler';
 import { VibrationHandler } from '../vibration-handler';
 import { ViewObject } from './view-object';
 
-export class PlayerCharacterView extends PlayerCharacterBase implements ViewObject {
+export class CharacterView extends CharacterBase implements ViewObject {
   private shape: BlobShape;
   private nameElement: HTMLElement = document.createElement('div');
   private statsElement: HTMLElement = document.createElement('div');
@@ -81,7 +81,7 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     }
   }
 
-  public kill() {
+  public onDie() {
     if (this.isMainCharacter) {
       VibrationHandler.vibrate(150);
     }

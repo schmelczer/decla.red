@@ -28,19 +28,19 @@ const gameServer = new GameServer(io, options);
 
 app.use(
   cors({
-    origin: (origin, callback) => {
+    origin: (_, callback) => {
       callback(null, true);
     },
     credentials: true,
   }),
 );
 
-app.get(serverInformationEndpoint, (req, res) => {
+app.get(serverInformationEndpoint, (_, res) => {
   res.json(gameServer.serverInfo);
 });
 
 server.listen(options.port, () => {
-  console.log(`server started at http://localhost:${options.port}`);
+  console.info(`Server started on port ${options.port}`);
 });
 
 gameServer.start();

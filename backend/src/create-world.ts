@@ -67,8 +67,8 @@ export const createWorld = (objectContainer: PhysicalContainer, worldRadius: num
       }
     }
   }
-  console.log('Generated planet count', objects.length);
-  console.log('Generated light count', lights.length);
+  console.info('Generated planet count', objects.length);
+  console.info('Generated light count', lights.length);
 
   [...objects, ...lights].forEach((o) => objectContainer.addObject(o));
 };

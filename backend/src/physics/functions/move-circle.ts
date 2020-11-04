@@ -1,7 +1,7 @@
 import { vec2 } from 'gl-matrix';
 import { Circle, GameObject, rotate90Deg } from 'shared';
 import { CirclePhysical } from '../../objects/circle-physical';
-import { reactsToCollision } from './reacts-to-collision';
+import { reactsToCollision } from '../../objects/capabilities/reacts-to-collision';
 import { evaluateSdf } from './evaluate-sdf';
 import { Physical } from '../physicals/physical';
 
@@ -11,10 +11,8 @@ export const moveCircle = (
   possibleIntersectors: Array<Physical>,
   ignoreCollision = false,
 ): {
-  realDelta: vec2;
   hitSurface: boolean;
   normal?: vec2;
-  tangent?: vec2;
   hitObject?: GameObject;
 } => {
   const direction = vec2.clone(delta);
@@ -78,16 +76,10 @@ export const moveCircle = (
         ]);
       const normal = vec2.fromValues(dx, dy);
       vec2.normalize(normal, normal);
-      const rotatedNormal = rotate90Deg(normal);
       return {
-        realDelta: delta,
         hitSurface: true,
         normal,
         hitObject: intersecting?.gameObject,
-        tangent:
-          vec2.dot(rotatedNormal, delta) < 0
-            ? vec2.scale(rotatedNormal, rotatedNormal, -1)
-            : rotatedNormal,
       };
     }
 
@@ -97,7 +89,6 @@ export const moveCircle = (
   vec2.add(circle.center, circle.center, delta);
 
   return {
-    realDelta: delta,
     hitSurface: false,
   };
 };

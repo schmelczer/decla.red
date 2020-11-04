@@ -1,15 +1,11 @@
 import { vec2 } from 'gl-matrix';
-import { Circle, GameObject, serializesTo, settings } from 'shared';
-import { PhysicalBase } from '../physics/physicals/physical-base';
+import { Circle, GameObject, serializesTo } from 'shared';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
 import { moveCircle } from '../physics/functions/move-circle';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
-import {
-  ReactsToCollision,
-  reactsToCollision,
-} from '../physics/functions/reacts-to-collision';
+import { ReactsToCollision, reactsToCollision } from './capabilities/reacts-to-collision';
 
 @serializesTo(Circle)
 export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollision {
@@ -17,8 +13,9 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
   readonly canMove = true;
 
   public velocity = vec2.create();
+  public lastNormal = vec2.fromValues(0, 1);
+
   private _boundingBox: BoundingBox;
-  public lastNormal = vec2.fromValues(1, 0);
 
   constructor(
     private _center: vec2,
@@ -67,18 +64,6 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
     return vec2.distance(target, this.center) - this.radius;
   }
 
-  public distanceBetween(target: Circle): number {
-    return vec2.distance(target.center, this.center) - this.radius - target.radius;
-  }
-
-  public areIntersecting(other: PhysicalBase): boolean {
-    return other.distance(this.center) < this.radius;
-  }
-
-  public isInside(other: PhysicalBase): boolean {
-    return other.distance(this.center) < -this.radius;
-  }
-
   private recalculateBoundingBox() {
     this._boundingBox.xMin = this.center.x - this._radius;
     this._boundingBox.xMax = this.center.x + this._radius;
@@ -94,9 +79,7 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
     );
   }
 
-  public step(_: number) {}
-
-  public step2(
+  public stepManually(
     deltaTimeInSeconds: number,
   ): { hitObject: GameObject | undefined; velocity: vec2 } {
     let delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);

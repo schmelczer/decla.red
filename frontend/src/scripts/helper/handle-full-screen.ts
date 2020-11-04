@@ -1,4 +1,4 @@
-import { SoundHandler, Sounds } from './sound-handler';
+import { SoundHandler, Sounds } from '../sound-handler';
 
 export const handleFullScreen = (
   minimizeButton: HTMLElement,

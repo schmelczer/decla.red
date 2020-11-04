@@ -11,12 +11,12 @@ import {
 } from 'shared';
 import { Game } from '../game';
 import { Camera } from './camera';
-import { PlayerCharacterView } from './player-character-view';
+import { CharacterView } from './character-view';
 import { ViewObject } from './view-object';
 
 export class GameObjectContainer extends CommandReceiver {
   protected objects: Map<Id, ViewObject> = new Map();
-  public player!: PlayerCharacterView;
+  public player!: CharacterView;
   public camera!: Camera;
 
   protected commandExecutors: CommandExecutors = {
@@ -25,7 +25,7 @@ export class GameObjectContainer extends CommandReceiver {
         this.deleteObject(this.camera.id);
       }
 
-      this.player = c.character as PlayerCharacterView;
+      this.player = c.character as CharacterView;
       this.player.isMainCharacter = true;
 
       this.camera = new Camera(this.game);

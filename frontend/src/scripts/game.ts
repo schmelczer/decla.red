@@ -1,5 +1,12 @@
 import { vec2 } from 'gl-matrix';
-import { Renderer, renderNoise } from 'sdf-2d';
+import {
+  CircleLight,
+  FilteringOptions,
+  Renderer,
+  renderNoise,
+  runAnimation,
+  WrapOptions,
+} from 'sdf-2d';
 import {
   deserialize,
   TransportEvents,
@@ -9,22 +16,23 @@ import {
   clamp,
   UpdateGameState,
   GameEndCommand,
-  CharacterTeam,
   ServerAnnouncement,
   GameStartCommand,
   CommandReceiver,
   CommandExecutors,
   Command,
+  settings,
 } from 'shared';
 import io from 'socket.io-client';
 import { KeyboardListener } from './commands/keyboard-listener';
 import { MouseListener } from './commands/mouse-listener';
 import { TouchListener } from './commands/touch-listener';
 import { CommandSocket } from './commands/command-socket';
-import { startAnimation } from './start-animation';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
 import parser from 'socket.io-msgpack-parser';
+import { BlobShape } from './shapes/blob-shape';
+import { PlanetShape } from './shapes/planet-shape';
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
@@ -59,8 +67,8 @@ export class Game extends CommandReceiver {
     this.progressBar.appendChild(this.redPlanetCountElement);
 
     this.keyboardListener = new KeyboardListener();
-    this.mouseListener = new MouseListener(this);
-    this.touchListener = new TouchListener(this.overlay, this.overlay, this);
+    this.mouseListener = new MouseListener(this.canvas, this);
+    this.touchListener = new TouchListener(this.canvas, this.overlay, this);
   }
 
   private initialize() {
@@ -111,9 +119,7 @@ export class Game extends CommandReceiver {
 
     this.isBetweenGames = false;
 
-    this.socket.emit(TransportEvents.PlayerJoining, {
-      name: this.playerDecision.playerName,
-    } as PlayerInformation);
+    this.socket.emit(TransportEvents.PlayerJoining, this.playerDecision);
   }
 
   protected defaultCommandExecutor(c: Command) {
@@ -200,7 +206,35 @@ export class Game extends CommandReceiver {
 
     this.initialize();
 
-    await startAnimation(this.canvas, this.gameLoop.bind(this), noiseTexture);
+    await runAnimation(
+      this.canvas,
+      [
+        PlanetShape.descriptor,
+        BlobShape.descriptor,
+        {
+          ...CircleLight.descriptor,
+          shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
+        },
+      ],
+      this.gameLoop.bind(this),
+      {
+        shadowTraceCount: 16,
+        paletteSize: settings.palette.length,
+        colorPalette: settings.palette,
+        enableHighDpiRendering: true,
+        lightCutoffDistance: settings.lightCutoffDistance,
+        textures: {
+          noiseTexture: {
+            source: noiseTexture,
+            overrides: {
+              maxFilter: FilteringOptions.LINEAR,
+              wrapS: WrapOptions.MIRRORED_REPEAT,
+              wrapT: WrapOptions.MIRRORED_REPEAT,
+            },
+          },
+        },
+      },
+    );
     this.socket.close();
     this.overlay.innerHTML = '';
     this.keyboardListener.destroy();

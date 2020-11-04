@@ -3,7 +3,7 @@ import {
   LampBase,
   overrideDeserialization,
   PlanetBase,
-  PlayerCharacterBase,
+  CharacterBase,
   ProjectileBase,
 } from 'shared';
 import { LampView } from './scripts/objects/lamp-view';
@@ -17,9 +17,9 @@ import '../static/favicons/favicon-32x32.png';
 import '../static/favicons/favicon.ico';
 import { LandingPageBackground } from './scripts/landing-page-background';
 import { JoinFormHandler } from './scripts/join-form-handler';
-import { handleFullScreen } from './scripts/handle-full-screen';
+import { handleFullScreen } from './scripts/helper/handle-full-screen';
 import { Game } from './scripts/game';
-import { PlayerCharacterView } from './scripts/objects/player-character-view';
+import { CharacterView } from './scripts/objects/character-view';
 import { handleInsights } from './scripts/handle-insights';
 import { getInsightsFromRenderer } from './scripts/get-insights-from-renderer';
 import { Renderer } from 'sdf-2d';
@@ -32,12 +32,13 @@ import { VibrationHandler } from './scripts/vibration-handler';
 
 glMatrix.setMatrixArrayType(Array);
 
-overrideDeserialization(PlayerCharacterBase, PlayerCharacterView);
+overrideDeserialization(CharacterBase, CharacterView);
 overrideDeserialization(PlanetBase, PlanetView);
 overrideDeserialization(LampBase, LampView);
 overrideDeserialization(ProjectileBase, ProjectileView);
 
 const landingUI = document.querySelector('#landing-ui') as HTMLElement;
+const nameInput = document.querySelector('#name') as HTMLInputElement;
 const joinGameForm = document.querySelector('#join-game-form') as HTMLFormElement;
 const serverContainer = document.querySelector('#server-container') as HTMLElement;
 const canvas = document.querySelector('canvas') as HTMLCanvasElement;
@@ -114,6 +115,11 @@ const main = async () => {
   try {
     let game: Game;
 
+    const storedUserName = localStorage?.getItem('userName');
+    if (storedUserName) {
+      nameInput.value = JSON.parse(storedUserName);
+    }
+
     const firstClickListener = () => {
       SoundHandler.initialize(
         () => {
@@ -166,6 +172,9 @@ const main = async () => {
       hide(spinner);
 
       const playerDecision = await joinHandler.getPlayerDecision();
+
+      localStorage?.setItem('userName', JSON.stringify(playerDecision.name));
+
       if (!history.state) {
         history.pushState(true, '');
       }

@@ -1,12 +1,14 @@
 import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
-
 import { BoundingBoxList } from './bounding-box-list';
 import { BoundingBoxTree } from './bounding-box-tree';
-
 import { Physical } from '../physicals/physical';
 import { StaticPhysical } from '../physicals/static-physical';
 import { DynamicPhysical } from '../physicals/dynamic-physical';
-import { GeneratesPoints, generatesPoints } from '../../objects/generates-points';
+import {
+  GeneratesPoints,
+  generatesPoints,
+} from '../../objects/capabilities/generates-points';
+import { timeDependent } from '../../objects/capabilities/time-dependent';
 
 export class PhysicalContainer {
   private isTreeInitialized = false;
@@ -40,7 +42,7 @@ export class PhysicalContainer {
   }
 
   public stepObjects(deltaTime: number) {
-    this.objects.forEach((o) => o.step(deltaTime));
+    this.objects.forEach((o) => timeDependent(o) && o.step(deltaTime));
   }
 
   public resetRemoteCalls() {
