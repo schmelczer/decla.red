@@ -15,7 +15,6 @@ export const settings = {
   maxVelocityX: 1000,
   maxVelocityY: 1000,
   radiusSteps: 500,
-  gravityScalingForProjectiles: 5,
   spawnDespawnTime: 0.7,
   worldRadius: 10000,
   objectsOnCircleLength: 0.002,
@@ -112,5 +111,5 @@ export const settings = {
   palette: [declaColor, neutralColor, redColor],
   paletteDim: [declaColorDim, neutralColor, redColorDim],
   targetPhysicsDeltaTimeInSeconds: 1 / 100,
-  inViewAreaSize: 1920 * 1080 * 3,
+  inViewAreaSize: 1920 * 1080 * 4,
 };

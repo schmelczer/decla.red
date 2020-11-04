@@ -1,9 +1,9 @@
 import { CharacterTeam } from '../../objects/types/character-team';
-import { serializable } from '../../transport/serialization/serializable';
+import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 
 @serializable
-export class GameEnd extends Command {
+export class GameEndCommand extends Command {
   constructor(
     public readonly winningTeam: CharacterTeam,
     public readonly endCardLengthInSeconds: number,

@@ -9,7 +9,7 @@ import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import {
   ReactsToCollision,
   reactsToCollision,
-} from '../physics/physicals/reacts-to-collision';
+} from '../physics/functions/reacts-to-collision';
 
 @serializesTo(Circle)
 export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollision {

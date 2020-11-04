@@ -21,7 +21,7 @@ import { interpolateAngles } from '../helper/interpolate-angles';
 import { forceAtPosition } from '../physics/functions/force-at-position';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { PlanetPhysical } from './planet-physical';
-import { ReactsToCollision } from '../physics/physicals/reacts-to-collision';
+import { ReactsToCollision } from '../physics/functions/reacts-to-collision';
 
 @serializesTo(PlayerCharacterBase)
 export class PlayerCharacterPhysical
@@ -479,6 +479,7 @@ export class PlayerCharacterPhysical
 
   public kill() {
     this.isDestroyed = true;
+    this.remoteCall('kill');
   }
 
   private destroy() {

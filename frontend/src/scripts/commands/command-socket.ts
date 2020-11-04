@@ -1,6 +1,6 @@
 import { Command, CommandReceiver, serialize, TransportEvents } from 'shared';
 
-export class CommandReceiverSocket extends CommandReceiver {
+export class CommandSocket extends CommandReceiver {
   constructor(private readonly socket: SocketIOClient.Socket) {
     super();
   }

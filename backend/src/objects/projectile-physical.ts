@@ -14,7 +14,7 @@ import { CirclePhysical } from './circle-physical';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { PlanetPhysical } from './planet-physical';
-import { ReactsToCollision } from '../physics/physicals/reacts-to-collision';
+import { ReactsToCollision } from '../physics/functions/reacts-to-collision';
 import { PlayerCharacterPhysical } from './player-character-physical';
 import { moveCircle } from '../physics/functions/move-circle';
 
@@ -113,24 +113,6 @@ export class ProjectilePhysical
       this.destroy();
       return;
     }
-
-    const gravity = vec2.create();
-    const intersecting = this.container.findIntersecting(this.boundingBox);
-    intersecting.forEach((i) => {
-      if (i instanceof PlanetPhysical) {
-        vec2.add(gravity, gravity, i.getForce(this.center));
-      }
-    });
-
-    vec2.add(
-      this.velocity,
-      this.velocity,
-      vec2.scale(
-        vec2.create(),
-        gravity,
-        deltaTime * settings.gravityScalingForProjectiles,
-      ),
-    );
 
     vec2.copy(this.object.velocity, this.velocity);
     const { velocity } = this.object.step2(deltaTime);

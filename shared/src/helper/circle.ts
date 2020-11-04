@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { serializable } from '../transport/serialization/serializable';
+import { serializable } from '../serialization/serializable';
 
 @serializable
 export class Circle {

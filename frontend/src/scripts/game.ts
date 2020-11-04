@@ -1,28 +1,26 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer, renderNoise } from 'sdf-2d';
 import {
-  broadcastCommands,
   deserialize,
   TransportEvents,
   SetAspectRatioActionCommand,
   PlayerInformation,
-  PlayerDiedCommand,
   UpdateOtherPlayerDirections,
   clamp,
   UpdateGameState,
-  GameEnd,
+  GameEndCommand,
   CharacterTeam,
   ServerAnnouncement,
-  GameStart,
+  GameStartCommand,
   CommandReceiver,
   CommandExecutors,
   Command,
 } from 'shared';
 import io from 'socket.io-client';
-import { KeyboardListener } from './commands/generators/keyboard-listener';
-import { MouseListener } from './commands/generators/mouse-listener';
-import { TouchJoystickListener } from './commands/generators/touch-joystick-listener';
-import { CommandReceiverSocket } from './commands/receivers/command-receiver-socket';
+import { KeyboardListener } from './commands/keyboard-listener';
+import { MouseListener } from './commands/mouse-listener';
+import { TouchListener } from './commands/touch-listener';
+import { CommandSocket } from './commands/command-socket';
 import { startAnimation } from './start-animation';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
@@ -38,12 +36,16 @@ export class Game extends CommandReceiver {
   public started: Promise<void>;
   private resolveStarted!: () => unknown;
 
+  private keyboardListener: KeyboardListener;
+  private mouseListener: MouseListener;
+  private touchListener: TouchListener;
+
   private declaPlanetCountElement = document.createElement('div');
   private redPlanetCountElement = document.createElement('div');
   private announcementText = document.createElement('h2');
   private progressBar = document.createElement('div');
   private arrows: { [id: number]: HTMLElement } = {};
-  private socketReceiver!: CommandReceiverSocket;
+  private socketReceiver!: CommandSocket;
 
   constructor(
     private readonly playerDecision: PlayerDecision,
@@ -56,6 +58,10 @@ export class Game extends CommandReceiver {
     this.progressBar.className = 'planet-progress';
     this.progressBar.appendChild(this.declaPlanetCountElement);
     this.progressBar.appendChild(this.redPlanetCountElement);
+
+    this.keyboardListener = new KeyboardListener();
+    this.mouseListener = new MouseListener(this);
+    this.touchListener = new TouchListener(this.overlay, this);
   }
 
   private initialize() {
@@ -96,15 +102,13 @@ export class Game extends CommandReceiver {
       commands.forEach((c) => this.sendCommand(c));
     });
 
-    this.socketReceiver = new CommandReceiverSocket(this.socket);
-    broadcastCommands(
-      [
-        new KeyboardListener(document.body),
-        new MouseListener(this.canvas, this),
-        new TouchJoystickListener(this.canvas, this.overlay, this),
-      ],
-      [this.socketReceiver],
-    );
+    this.socketReceiver = new CommandSocket(this.socket);
+    this.keyboardListener.clearSubscribers();
+    this.keyboardListener.subscribe(this.socketReceiver);
+    this.mouseListener.clearSubscribers();
+    this.mouseListener.subscribe(this.socketReceiver);
+    this.touchListener.clearSubscribers();
+    this.touchListener.subscribe(this.socketReceiver);
 
     this.isBetweenGames = false;
 
@@ -123,16 +127,15 @@ export class Game extends CommandReceiver {
   protected commandExecutors: CommandExecutors = {
     [ServerAnnouncement.type]: (c: ServerAnnouncement) =>
       (this.lastAnnouncementText = c.text),
-    [PlayerDiedCommand.type]: (c: PlayerDiedCommand) => VibrationHandler.vibrate(150),
     [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
-    [GameEnd.type]: (c: GameEnd) => {
+    [GameEndCommand.type]: (c: GameEndCommand) => {
       const team = `<span class="${c.winningTeam}">${c.winningTeam}</span>`;
       this.lastAnnouncementText = `Team ${team} won 🎉`;
       this.isEnding = true;
     },
     [UpdateOtherPlayerDirections.type]: (c: UpdateOtherPlayerDirections) =>
       (this.lastOtherPlayerDirections = c),
-    [GameStart.type]: this.initialize.bind(this),
+    [GameStartCommand.type]: this.initialize.bind(this),
   };
 
   private lastOtherPlayerDirections?: UpdateOtherPlayerDirections;
@@ -195,18 +198,19 @@ export class Game extends CommandReceiver {
 
   public async start(): Promise<void> {
     const noiseTexture = await renderNoise([256, 256], 2, 1);
+
     this.initialize();
+
     await startAnimation(this.canvas, this.gameLoop.bind(this), noiseTexture);
     this.socket.close();
     this.overlay.innerHTML = '';
+    this.keyboardListener.destroy();
+    this.mouseListener.destroy();
+    this.touchListener.destroy();
   }
 
   public displayToWorldCoordinates(p: vec2): vec2 {
-    const result = this.renderer?.displayToWorldCoordinates(p);
-    if (!result) {
-      return vec2.create();
-    }
-    return result;
+    return this.renderer?.displayToWorldCoordinates(p) ?? vec2.create();
   }
 
   public aspectRatioChanged(aspectRatio: number) {

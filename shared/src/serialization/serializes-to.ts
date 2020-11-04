@@ -1,3 +1,4 @@
+import { mangledTypeKey } from './mangled-type-key';
 import { SerializableClass } from './serializable-class';
 import { serializableMapping } from './serializable-mapping';
 
@@ -10,8 +11,8 @@ export const serializesTo = (target: SerializableClass) => {
       });
     }
 
-    Object.defineProperty(actual, '__serializable_type', { value: target.name });
-    Object.defineProperty(actual.prototype, '__serializable_type', {
+    Object.defineProperty(actual, mangledTypeKey, { value: target.name });
+    Object.defineProperty(actual.prototype, mangledTypeKey, {
       value: target.name,
     });
 

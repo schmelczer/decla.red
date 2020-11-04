@@ -1,7 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import { CommandExecutors, Id, Random, PlanetBase, UpdateProperty } from 'shared';
-import { RenderCommand } from '../commands/types/render';
+import { Id, Random, PlanetBase, UpdateProperty } from 'shared';
 import { PlanetShape } from '../shapes/planet-shape';
 import { ViewObject } from './view-object';
 
@@ -16,10 +15,6 @@ type FallingPoint = {
 export class PlanetView extends PlanetBase implements ViewObject {
   private shape: PlanetShape;
   private ownershipProgess: HTMLElement;
-
-  protected commandExecutors: CommandExecutors = {
-    [RenderCommand.type]: (c: RenderCommand) => c.renderer.addDrawable(this.shape),
-  };
 
   constructor(id: Id, vertices: Array<vec2>, ownership: number) {
     super(id, vertices);

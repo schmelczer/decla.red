@@ -1,9 +1,9 @@
 import { vec2 } from 'gl-matrix';
 import { Random } from '../../helper/random';
 import { settings } from '../../settings';
-import { Id } from '../../transport/identity';
-import { serializable } from '../../transport/serialization/serializable';
+import { serializable } from '../../serialization/serializable';
 import { GameObject } from '../game-object';
+import { Id } from '../../communication/id';
 
 @serializable
 export class PlanetBase extends GameObject {

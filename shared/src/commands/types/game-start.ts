@@ -1,8 +1,8 @@
-import { serializable } from '../../transport/serialization/serializable';
+import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 
 @serializable
-export class GameStart extends Command {
+export class GameStartCommand extends Command {
   constructor() {
     super();
   }

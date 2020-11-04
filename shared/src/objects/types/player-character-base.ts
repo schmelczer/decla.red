@@ -1,6 +1,6 @@
+import { Id } from '../../communication/id';
 import { Circle } from '../../helper/circle';
-import { Id } from '../../transport/identity';
-import { serializable } from '../../transport/serialization/serializable';
+import { serializable } from '../../serialization/serializable';
 import { GameObject } from '../game-object';
 import { CharacterTeam } from './character-team';
 
@@ -25,6 +25,8 @@ export class PlayerCharacterBase extends GameObject {
   public setHealth(health: number) {
     this.health = health;
   }
+
+  public kill() {}
 
   public setKillCount(killCount: number) {
     this.killCount = killCount;

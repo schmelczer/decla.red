@@ -1,6 +1,7 @@
 import { vec2 } from 'gl-matrix';
 
-export class BoundingBoxBase {
+// axes aligned
+export abstract class BoundingBoxBase {
   constructor(
     protected _xMin: number = 0,
     protected _xMax: number = 0,

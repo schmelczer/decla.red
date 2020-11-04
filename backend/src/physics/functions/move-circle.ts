@@ -1,7 +1,7 @@
 import { vec2 } from 'gl-matrix';
 import { Circle, GameObject, rotate90Deg } from 'shared';
 import { CirclePhysical } from '../../objects/circle-physical';
-import { reactsToCollision } from '../physicals/reacts-to-collision';
+import { reactsToCollision } from './reacts-to-collision';
 import { evaluateSdf } from './evaluate-sdf';
 import { Physical } from '../physicals/physical';
 

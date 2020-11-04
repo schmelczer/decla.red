@@ -1,11 +1,10 @@
 import { vec2 } from 'gl-matrix';
 import { Random, PlanetBase, hsl, settings } from 'shared';
-import { LampPhysical } from '../objects/lamp-physical';
-
-import { PlanetPhysical } from '../objects/planet-physical';
-import { PhysicalContainer } from '../physics/containers/physical-container';
-import { evaluateSdf } from '../physics/functions/evaluate-sdf';
-import { Physical } from '../physics/physicals/physical';
+import { LampPhysical } from './objects/lamp-physical';
+import { PlanetPhysical } from './objects/planet-physical';
+import { PhysicalContainer } from './physics/containers/physical-container';
+import { evaluateSdf } from './physics/functions/evaluate-sdf';
+import { Physical } from './physics/physicals/physical';
 
 export const createWorld = (objectContainer: PhysicalContainer, worldRadius: number) => {
   const objects: Array<Physical> = [];

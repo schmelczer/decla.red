@@ -14,7 +14,7 @@ export abstract class CommandReceiver {
     const commandType = command.type;
 
     if (Object.prototype.hasOwnProperty.call(this.commandExecutors, commandType)) {
-      this.commandExecutors[commandType](command);
+      this.commandExecutors[commandType]!(command);
     } else {
       this.defaultCommandExecutor(command);
     }

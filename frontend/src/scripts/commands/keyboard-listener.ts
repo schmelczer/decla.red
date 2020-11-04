@@ -4,21 +4,28 @@ import { CommandGenerator, MoveActionCommand } from 'shared';
 export class KeyboardListener extends CommandGenerator {
   private keysDown: Set<string> = new Set();
 
-  constructor(target: HTMLElement) {
+  constructor() {
     super();
 
-    target.addEventListener('keydown', (event: KeyboardEvent) => {
-      const key = this.normalize(event.key);
-      this.keysDown.add(key);
-      this.generateCommands();
-    });
-
-    target.addEventListener('keyup', (event: KeyboardEvent) => {
-      const key = this.normalize(event.key);
-      this.keysDown.delete(key);
-      this.generateCommands();
-    });
+    addEventListener('keydown', this.keyDownListener);
+    addEventListener('keyup', this.keyUpListener);
+    addEventListener('blur', this.blurListener);
   }
+
+  private keyDownListener = (event: KeyboardEvent) => {
+    this.keysDown.add(event.key.toLowerCase());
+    this.generateCommands();
+  };
+
+  private keyUpListener = (event: KeyboardEvent) => {
+    this.keysDown.delete(event.key.toLowerCase());
+    this.generateCommands();
+  };
+
+  private blurListener = () => {
+    this.keysDown.clear();
+    this.generateCommands();
+  };
 
   private generateCommands() {
     const up = ~~(
@@ -34,10 +41,13 @@ export class KeyboardListener extends CommandGenerator {
     if (vec2.squaredLength(movement) > 0) {
       vec2.normalize(movement, movement);
     }
+
     this.sendCommandToSubscribers(new MoveActionCommand(movement));
   }
 
-  private normalize(key: string): string {
-    return key.toLowerCase();
+  public destroy() {
+    removeEventListener('keydown', this.keyDownListener);
+    removeEventListener('keyup', this.keyUpListener);
+    removeEventListener('blur', this.blurListener);
   }
 }

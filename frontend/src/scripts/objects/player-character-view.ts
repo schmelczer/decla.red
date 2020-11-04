@@ -19,7 +19,6 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
   private nameElement: HTMLElement = document.createElement('div');
   private statsElement: HTMLElement = document.createElement('div');
   private healthElement: HTMLElement = document.createElement('div');
-  private previousHealth;
 
   public isMainCharacter = false;
 
@@ -45,7 +44,6 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
     this.rightFootExtrapolator = new CircleExtrapolator(this.rightFoot!);
     this.headExtrapolator = new CircleExtrapolator(this.head!);
 
-    this.previousHealth = this.health;
     this.nameElement.className = 'player-tag ' + this.team;
     this.nameElement.innerText = this.name;
     this.nameElement.appendChild(this.healthElement);
@@ -77,17 +75,19 @@ export class PlayerCharacterView extends PlayerCharacterBase implements ViewObje
       Sounds.hit,
       (0.4 * 2 * (previousHealth - health)) / settings.playerMaxStrength,
     );
+
+    if (this.isMainCharacter) {
+      VibrationHandler.vibrate(Math.min(200, (previousHealth - this.health) * 4));
+    }
+  }
+
+  public kill() {
+    if (this.isMainCharacter) {
+      VibrationHandler.vibrate(150);
+    }
   }
 
   public step(deltaTimeInSeconds: number): void {
-    if (this.previousHealth > this.health) {
-      if (this.isMainCharacter) {
-        VibrationHandler.vibrate(Math.min(200, (this.previousHealth - this.health) * 4));
-      }
-
-      this.previousHealth = this.health;
-    }
-
     this.head! = this.headExtrapolator.getValue(deltaTimeInSeconds);
     this.leftFoot! = this.leftFootExtrapolator.getValue(deltaTimeInSeconds);
     this.rightFoot! = this.rightFootExtrapolator.getValue(deltaTimeInSeconds);

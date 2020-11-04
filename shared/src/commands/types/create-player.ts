@@ -1,5 +1,5 @@
 import { PlayerCharacterBase } from '../../objects/types/player-character-base';
-import { serializable } from '../../transport/serialization/serializable';
+import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 
 @serializable

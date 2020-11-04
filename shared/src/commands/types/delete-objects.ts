@@ -1,5 +1,5 @@
-import { Id } from '../../transport/identity';
-import { serializable } from '../../transport/serialization/serializable';
+import { Id } from '../../communication/id';
+import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 
 @serializable

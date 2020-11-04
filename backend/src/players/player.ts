@@ -10,7 +10,6 @@ import {
   SetAspectRatioActionCommand,
   calculateViewArea,
   SecondaryActionCommand,
-  PlayerDiedCommand,
   settings,
   PlayerInformation,
   CharacterTeam,
@@ -23,21 +22,21 @@ import {
   ServerAnnouncement,
   PropertyUpdatesForObjects,
   PropertyUpdatesForObject,
+  PrimaryActionCommand,
 } from 'shared';
-import { getTimeInMilliseconds } from '../helper/get-time-in-milliseconds';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { PlayerCharacterPhysical } from '../objects/player-character-physical';
 import { PlayerContainer } from './player-container';
 import { PlayerBase } from './player-base';
+import { DeltaTimeCalculator } from '../helper/delta-time-calculator';
 
 export class Player extends PlayerBase {
   private aspectRatio: number = 16 / 9;
   private isActive = true;
 
   private objectsPreviouslyInViewArea: Array<GameObject> = [];
-
-  private pingTime?: number;
+  private pingDeltaTime = new DeltaTimeCalculator();
   private _latency?: number;
 
   protected commandExecutors: CommandExecutors = {
@@ -45,7 +44,7 @@ export class Player extends PlayerBase {
       (this.aspectRatio = v.aspectRatio),
     [MoveActionCommand.type]: (c: MoveActionCommand) =>
       this.character?.handleMovementAction(c),
-    [SecondaryActionCommand.type]: (c: SecondaryActionCommand) => {
+    [PrimaryActionCommand.type]: (c: PrimaryActionCommand) => {
       this.character?.shootTowards(c.position);
     },
   };
@@ -63,7 +62,7 @@ export class Player extends PlayerBase {
 
     socket.on(
       TransportEvents.Pong,
-      () => (this._latency = getTimeInMilliseconds() - this.pingTime!),
+      () => (this._latency = this.pingDeltaTime.getNextDeltaTimeInSeconds()),
     );
 
     this.measureLatency();
@@ -71,8 +70,9 @@ export class Player extends PlayerBase {
   }
 
   public measureLatency() {
-    this.pingTime = getTimeInMilliseconds();
+    this.pingDeltaTime.getNextDeltaTimeInSeconds(true);
     this.socket.emit(TransportEvents.Ping);
+
     if (this.isActive) {
       setTimeout(this.measureLatency.bind(this), 10000);
     }
@@ -106,7 +106,6 @@ export class Player extends PlayerBase {
         this.sumDeaths++;
         this.sumKills = this.character.killCount;
 
-        this.queueCommandSend(new PlayerDiedCommand(settings.playerDiedTimeout));
         this.character = null;
         this.timeUntilRespawn = settings.playerDiedTimeout;
       }

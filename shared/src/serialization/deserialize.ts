@@ -6,8 +6,7 @@ export const deserialize = (json: string): any => {
       const possibleType = v[0];
       const overridableConstructor = serializableMapping.get(possibleType);
       if (overridableConstructor) {
-        v.shift();
-        return new overridableConstructor.constructor(...v);
+        return new overridableConstructor.constructor(...v.slice(1));
       }
       return v;
     }

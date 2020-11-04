@@ -1,6 +1,6 @@
 import { ServerInformation, serverInformationEndpoint, TransportEvents } from 'shared';
 import io from 'socket.io-client';
-import { Configuration } from './config/configuration';
+import { Configuration } from './configuration';
 import parser from 'socket.io-msgpack-parser';
 import { SoundHandler, Sounds } from './sound-handler';
 

@@ -1,6 +1,6 @@
 import { Command } from '../commands/command';
-import { Id } from '../transport/identity';
-import { serializable } from '../transport/serialization/serializable';
+import { Id } from '../communication/id';
+import { serializable } from '../serialization/serializable';
 
 @serializable
 export class RemoteCall {
@@ -30,17 +30,6 @@ export class PropertyUpdatesForObject {
 
   public toArray(): Array<any> {
     return [this.id, this.updates];
-  }
-}
-
-@serializable
-export class PropertyUpdatesForObjects extends Command {
-  constructor(public readonly updates: Array<PropertyUpdatesForObject>) {
-    super();
-  }
-
-  public toArray(): Array<any> {
-    return [this.updates];
   }
 }
 

@@ -7,14 +7,12 @@ import {
   ServerInformation,
   PlayerInformation,
   UpdateGameState,
-  serialize,
   CharacterTeam,
-  GameEnd,
-  GameStart,
+  GameEndCommand,
+  GameStartCommand,
   Command,
-  last,
 } from 'shared';
-import { createWorld } from './map/create-world';
+import { createWorld } from './create-world';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { Options } from './options';
 import { PlayerContainer } from './players/player-container';
@@ -52,7 +50,7 @@ export class GameServer {
     this.redPoints = 0;
     this.isInEndGame = false;
     this.timeScaling = 1;
-    previousPlayers?.queueCommandForEachClient(new GameStart());
+    previousPlayers?.queueCommandForEachClient(new GameStartCommand());
     previousPlayers?.sendQueuedCommands();
   }
 
@@ -119,7 +117,7 @@ export class GameServer {
     this.isInEndGame = true;
     const endTitleLength = 6000;
     this.players.queueCommandForEachClient(
-      new GameEnd(winningTeam, endTitleLength / 1000, true),
+      new GameEndCommand(winningTeam, endTitleLength / 1000, true),
     );
     setTimeout(() => this.destroy(), endTitleLength * 1.1);
   }
