@@ -93,14 +93,20 @@ const toggleSettings = () => {
 };
 
 const applyServerContainerShadows = () => {
+  const topShadow = 'inset 0 -8px 8px -8px rgba(0, 0, 0, 0.4)';
+  const bottomShadow = 'inset 0 8px 8px -8px rgba(0, 0, 0, 0.4)';
+
   const { scrollHeight, clientHeight, scrollTop } = serverContainer;
   if (scrollHeight > clientHeight) {
-    serverContainer.className = 'scroll';
-    if (scrollTop === 0) {
-      serverContainer.className += ' top';
-    } else if (scrollTop + clientHeight === scrollHeight) {
-      serverContainer.className += ' bottom';
+    if (scrollTop <= 0) {
+      serverContainer.style.boxShadow = topShadow;
+    } else if (scrollTop + clientHeight >= scrollHeight) {
+      serverContainer.style.boxShadow = bottomShadow;
+    } else {
+      serverContainer.style.boxShadow = topShadow + ',' + bottomShadow;
     }
+  } else {
+    serverContainer.style.boxShadow = '';
   }
 };
 

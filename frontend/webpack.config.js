@@ -20,7 +20,7 @@ module.exports = {
     new MiniCssExtractPlugin(),
     new HtmlWebpackPlugin({
       template: './src/index.html',
-      inlineSource: '.(css)$',
+      //inlineSource: '.(css)$',
     }),
     new HtmlWebpackInlineSourcePlugin(HtmlWebpackPlugin),
     new HtmlWebpackInlineSVGPlugin({

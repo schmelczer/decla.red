@@ -1,8 +1,6 @@
 import {
   CircleLight,
-  ColorfulCircle,
   FilteringOptions,
-  Flashlight,
   Renderer,
   runAnimation,
   WrapOptions,
@@ -19,25 +17,11 @@ export const startAnimation = async (
   await runAnimation(
     canvas,
     [
-      {
-        ...PlanetShape.descriptor,
-        shaderCombinationSteps: [0, 1, 2, 3],
-      },
-      {
-        ...BlobShape.descriptor,
-        shaderCombinationSteps: [0, 1, 2, 8],
-      },
-      {
-        ...ColorfulCircle.descriptor,
-        shaderCombinationSteps: [0, 2, 16],
-      },
+      PlanetShape.descriptor,
+      BlobShape.descriptor,
       {
         ...CircleLight.descriptor,
         shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
-      },
-      {
-        ...Flashlight.descriptor,
-        shaderCombinationSteps: [0],
       },
     ],
     draw,

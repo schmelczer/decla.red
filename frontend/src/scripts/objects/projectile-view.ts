@@ -1,11 +1,10 @@
 import { vec2 } from 'gl-matrix';
-import { CircleLight, ColorfulCircle, Renderer } from 'sdf-2d';
+import { CircleLight, Renderer } from 'sdf-2d';
 import { CharacterTeam, Id, ProjectileBase, settings, UpdateProperty } from 'shared';
 import { Vec2Extrapolator } from '../helper/vec2-extrapolator';
 import { ViewObject } from './view-object';
 
 export class ProjectileView extends ProjectileBase implements ViewObject {
-  private circle: ColorfulCircle;
   private light: CircleLight;
 
   private centerExtrapolator: Vec2Extrapolator;
@@ -18,7 +17,6 @@ export class ProjectileView extends ProjectileBase implements ViewObject {
     strength: number,
   ) {
     super(id, center, radius, team, strength);
-    this.circle = new ColorfulCircle(center, radius / 2, settings.colorIndices[team]);
     this.light = new CircleLight(
       center,
       settings.paletteDim[settings.colorIndices[team]],
@@ -37,7 +35,6 @@ export class ProjectileView extends ProjectileBase implements ViewObject {
     super.step(deltaTimeInSeconds);
 
     this.center = this.centerExtrapolator.getValue(deltaTimeInSeconds);
-    this.circle.center = this.center;
     this.light.center = this.center;
     this.light.intensity = (0.15 * this.strength) / settings.projectileMaxStrength;
   }
@@ -49,7 +46,6 @@ export class ProjectileView extends ProjectileBase implements ViewObject {
     overlay: HTMLElement,
     shouldChangeLayout: boolean,
   ): void {
-    renderer.addDrawable(this.circle);
     renderer.addDrawable(this.light);
   }
 }

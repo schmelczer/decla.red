@@ -75,7 +75,7 @@ export class BlobShape extends Drawable {
       color: 'blobColors',
     },
     uniformCountMacroName: 'BLOB_COUNT',
-    shaderCombinationSteps: [],
+    shaderCombinationSteps: [0, 1, 2, 8],
     empty: new BlobShape(0),
   };
 

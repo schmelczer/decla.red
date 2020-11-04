@@ -25,7 +25,6 @@ import { startAnimation } from './start-animation';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
 import parser from 'socket.io-msgpack-parser';
-import { VibrationHandler } from './vibration-handler';
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
@@ -61,7 +60,7 @@ export class Game extends CommandReceiver {
 
     this.keyboardListener = new KeyboardListener();
     this.mouseListener = new MouseListener(this);
-    this.touchListener = new TouchListener(this.overlay, this);
+    this.touchListener = new TouchListener(this.overlay, this.overlay, this);
   }
 
   private initialize() {

@@ -124,7 +124,7 @@ export class Player extends PlayerBase {
     }
 
     if (this.timeSinceLastMessage > this.messageInterval) {
-      const viewArea = calculateViewArea(this.center, this.aspectRatio, 1.5);
+      const viewArea = calculateViewArea(this.center, this.aspectRatio, 1.2);
       const bb = new BoundingBox();
       bb.topLeft = viewArea.topLeft;
       bb.size = viewArea.size;

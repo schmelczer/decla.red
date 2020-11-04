@@ -1,10 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import {
-  CommandGenerator,
-  SecondaryActionCommand,
-  MoveActionCommand,
-  last,
-} from 'shared';
+import { CommandGenerator, MoveActionCommand, last, PrimaryActionCommand } from 'shared';
 import { Game } from '../game';
 
 export class TouchListener extends CommandGenerator {
@@ -16,7 +11,11 @@ export class TouchListener extends CommandGenerator {
   private isJoystickActive = false;
   private touchStartPosition!: vec2;
 
-  constructor(private overlay: HTMLElement, private readonly game: Game) {
+  constructor(
+    private target: HTMLElement,
+    private overlay: HTMLElement,
+    private readonly game: Game,
+  ) {
     super();
 
     this.joystick = document.createElement('div');
@@ -24,9 +23,9 @@ export class TouchListener extends CommandGenerator {
     this.joystickButton = document.createElement('div');
     this.joystick.appendChild(this.joystickButton);
 
-    addEventListener('touchstart', this.touchStartListener);
-    addEventListener('touchmove', this.touchMoveListener);
-    addEventListener('touchend', this.touchEndListener);
+    target.addEventListener('touchstart', this.touchStartListener);
+    target.addEventListener('touchmove', this.touchMoveListener);
+    target.addEventListener('touchend', this.touchEndListener);
   }
 
   private touchStartListener = (event: TouchEvent) => {
@@ -37,7 +36,7 @@ export class TouchListener extends CommandGenerator {
         last(event.touches)!.clientY,
       );
       this.sendCommandToSubscribers(
-        new SecondaryActionCommand(this.game.displayToWorldCoordinates(center)),
+        new PrimaryActionCommand(this.game.displayToWorldCoordinates(center)),
       );
     } else {
       this.touchStartPosition = vec2.fromValues(
@@ -87,7 +86,7 @@ export class TouchListener extends CommandGenerator {
         event.changedTouches[0].clientY,
       );
       this.sendCommandToSubscribers(
-        new SecondaryActionCommand(this.game.displayToWorldCoordinates(center)),
+        new PrimaryActionCommand(this.game.displayToWorldCoordinates(center)),
       );
     } else if (event.touches.length === 0) {
       this.isJoystickActive = false;
@@ -97,8 +96,8 @@ export class TouchListener extends CommandGenerator {
   };
 
   public destroy() {
-    removeEventListener('touchstart', this.touchStartListener);
-    removeEventListener('touchmove', this.touchMoveListener);
-    removeEventListener('touchend', this.touchEndListener);
+    this.target.removeEventListener('touchstart', this.touchStartListener);
+    this.target.removeEventListener('touchmove', this.touchMoveListener);
+    this.target.removeEventListener('touchend', this.touchEndListener);
   }
 }

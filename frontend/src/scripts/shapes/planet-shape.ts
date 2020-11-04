@@ -107,7 +107,7 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
       colorMixQ: 'planetColorMixQ',
     },
     uniformCountMacroName: `PLANET_COUNT`,
-    shaderCombinationSteps: [0, 1, 2, 3, 8, 16],
+    shaderCombinationSteps: [0, 1, 2, 3],
     empty: new PlanetShape(new Array(settings.planetEdgeCount).fill(vec2.create()), 0),
   };
 
