@@ -4,10 +4,11 @@ const TsConfigWebpackPlugin = require('ts-config-webpack-plugin');
 const HtmlWebpackInlineSVGPlugin = require('html-webpack-inline-svg-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const TerserJSPlugin = require('terser-webpack-plugin');
+// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 const Sass = require('sass');
 
-module.exports = {
+module.exports = (env, argv) => ({
   devServer: {
     host: '0.0.0.0',
     disableHostCheck: true,
@@ -18,9 +19,10 @@ module.exports = {
   plugins: [
     new CleanWebpackPlugin(),
     new MiniCssExtractPlugin(),
+    //new BundleAnalyzerPlugin(),
     new HtmlWebpackPlugin({
       template: './src/index.html',
-      //inlineSource: '.(css)$',
+      inlineSource: argv.mode === 'development' ? '' : '.(css)$',
     }),
     new HtmlWebpackInlineSourcePlugin(HtmlWebpackPlugin),
     new HtmlWebpackInlineSVGPlugin({
@@ -31,7 +33,6 @@ module.exports = {
         },
       ],
     }),
-
     new TsConfigWebpackPlugin(),
   ],
   optimization: {
@@ -106,4 +107,4 @@ module.exports = {
       },
     ],
   },
-};
+});

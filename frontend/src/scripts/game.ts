@@ -81,6 +81,7 @@ export class Game extends CommandReceiver {
     this.lastAnnouncementText = '';
     this.overlay.appendChild(this.progressBar);
     this.announcementText.innerText = '';
+    this.timeScaling = 1;
     this.overlay.appendChild(this.announcementText);
 
     this.socket = io(this.playerDecision.server, {
@@ -128,16 +129,16 @@ export class Game extends CommandReceiver {
 
   private lastGameState?: UpdateGameState;
   private isEnding = false;
+  private timeScaling = 1;
+
   private lastAnnouncementText = '';
   protected commandExecutors: CommandExecutors = {
-    [ServerAnnouncement.type]: (c: ServerAnnouncement) =>
-      (this.lastAnnouncementText = c.text),
-    [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
-    [GameEndCommand.type]: (c: GameEndCommand) => {
-      const team = `<span class="${c.winningTeam}">${c.winningTeam}</span>`;
-      this.lastAnnouncementText = `Team ${team} won 🎉`;
-      this.isEnding = true;
+    [ServerAnnouncement.type]: (c: ServerAnnouncement) => {
+      this.lastAnnouncementText = c.text;
+      this.timeSinceLastAnnouncement = 0;
     },
+    [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
+    [GameEndCommand.type]: () => (this.isEnding = true),
     [UpdateOtherPlayerDirections.type]: (c: UpdateOtherPlayerDirections) =>
       (this.lastOtherPlayerDirections = c),
     [GameStartCommand.type]: this.initialize.bind(this),
@@ -255,6 +256,7 @@ export class Game extends CommandReceiver {
     this.isActive = false;
   }
 
+  private timeSinceLastAnnouncement = 0;
   private framesSinceLastLayoutUpdate = 0;
   private gameLoop(
     renderer: Renderer,
@@ -271,10 +273,19 @@ export class Game extends CommandReceiver {
       this.draw();
     }
 
+    if ((this.timeSinceLastAnnouncement += deltaTime) > 0.5) {
+      this.lastAnnouncementText = '';
+    }
+
+    if (this.isEnding) {
+      this.timeScaling *= Math.pow(settings.endGameDeltaScaling, deltaTime);
+      deltaTime /= this.timeScaling;
+    }
+
     this.renderer = renderer;
 
     this.socketReceiver.sendQueuedCommands();
-    this.gameObjects.stepObjects(this.isEnding ? 0 : deltaTime);
+    this.gameObjects.stepObjects(deltaTime);
     this.gameObjects.drawObjects(this.renderer, this.overlay, shouldChangeLayout);
 
     return this.isActive;

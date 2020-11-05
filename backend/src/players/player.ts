@@ -32,7 +32,8 @@ import { PlayerBase } from './player-base';
 export class Player extends PlayerBase {
   // default, until the clients sends its real value
   private aspectRatio: number = 16 / 9;
-
+  private timeUntilRespawn = 0;
+  private timeSinceLastMessage = 0;
   private objectsPreviouslyInViewArea: Array<GameObject> = [];
 
   protected commandExecutors: CommandExecutors = {
@@ -68,12 +69,12 @@ export class Player extends PlayerBase {
     this.queueCommandSend(new CreatePlayerCommand(this.character!));
   }
 
-  private timeSinceLastMessage = 0;
-  private messageInterval = 1 / 30;
-  private timeUntilRespawn = 0;
-  public step(deltaTimeInSeconds: number) {
-    this.timeSinceLastMessage += deltaTimeInSeconds;
+  private winnerTeam?: CharacterTeam;
+  public onGameEnded(winnerTeam: CharacterTeam) {
+    this.winnerTeam = winnerTeam;
+  }
 
+  public step(deltaTimeInSeconds: number) {
     if (this.character) {
       this.center = this.character?.center;
 
@@ -85,72 +86,60 @@ export class Player extends PlayerBase {
         this.timeUntilRespawn = settings.playerDiedTimeout;
       }
     } else {
-      if (this.timeSinceLastMessage > this.messageInterval) {
-        this.queueCommandSend(
-          new ServerAnnouncement(`Reviving in ${Math.round(this.timeUntilRespawn)}…`),
-        );
-      }
-
       if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
         this.createCharacter();
         this.center = this.character!.center;
-        this.queueCommandSend(new ServerAnnouncement(''));
       }
     }
 
-    if (this.timeSinceLastMessage > this.messageInterval) {
-      const viewArea = calculateViewArea(this.center, this.aspectRatio, 1.2);
-      const bb = new BoundingBox();
-      bb.topLeft = viewArea.topLeft;
-      bb.size = viewArea.size;
+    const remoteCalls = this.objectsPreviouslyInViewArea
+      .map((g) => new RemoteCallsForObject(g.id, g.getRemoteCalls()))
+      .filter((c) => c.calls.length > 0);
 
-      const objectsInViewArea = Array.from(
-        new Set(this.objectContainer.findIntersecting(bb).map((o) => o.gameObject)),
-      );
-
-      const newlyIntersecting = objectsInViewArea.filter(
-        (o) => !this.objectsPreviouslyInViewArea.includes(o),
-      );
-
-      const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
-        (o) => !objectsInViewArea.includes(o),
-      );
-
-      this.objectsPreviouslyInViewArea = objectsInViewArea;
-
-      if (noLongerIntersecting.length > 0) {
-        this.queueCommandSend(
-          new DeleteObjectsCommand(noLongerIntersecting.map((g) => g.id)),
-        );
-      }
-
-      if (newlyIntersecting.length > 0) {
-        this.queueCommandSend(new CreateObjectsCommand(newlyIntersecting));
-      }
-
-      this.queueCommandSend(new UpdateOtherPlayerDirections(this.getOtherPlayers()));
-
-      this.queueCommandSend(
-        new PropertyUpdatesForObjects(
-          this.objectsPreviouslyInViewArea
-            .map((o) => o.getPropertyUpdates())
-            .filter((u) => u) as Array<PropertyUpdatesForObject>,
-        ),
-      );
+    if (remoteCalls.length > 0) {
+      this.queueCommandSend(new RemoteCallsForObjects(remoteCalls));
     }
+  }
 
-    this.queueCommandSend(
-      new RemoteCallsForObjects(
-        this.objectsPreviouslyInViewArea.map(
-          (g) => new RemoteCallsForObject(g.id, g.getRemoteCalls()),
-        ),
-      ),
+  private handleViewAreaUpdate() {
+    const viewArea = calculateViewArea(this.center, this.aspectRatio, 1.2);
+    const bb = new BoundingBox();
+    bb.topLeft = viewArea.topLeft;
+    bb.size = viewArea.size;
+
+    const objectsInViewArea = Array.from(
+      new Set(this.objectContainer.findIntersecting(bb).map((o) => o.gameObject)),
     );
 
-    if (this.timeSinceLastMessage > this.messageInterval) {
-      this.sendQueuedCommandsToClient();
-      this.timeSinceLastMessage = 0;
+    const newlyIntersecting = objectsInViewArea.filter(
+      (o) => !this.objectsPreviouslyInViewArea.includes(o),
+    );
+
+    const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
+      (o) => !objectsInViewArea.includes(o),
+    );
+
+    this.objectsPreviouslyInViewArea = objectsInViewArea;
+
+    if (noLongerIntersecting.length > 0) {
+      this.queueCommandSend(
+        new DeleteObjectsCommand(noLongerIntersecting.map((g) => g.id)),
+      );
     }
+
+    if (newlyIntersecting.length > 0) {
+      this.queueCommandSend(new CreateObjectsCommand(newlyIntersecting));
+    }
+
+    this.queueCommandSend(new UpdateOtherPlayerDirections(this.getOtherPlayers()));
+
+    this.queueCommandSend(
+      new PropertyUpdatesForObjects(
+        this.objectsPreviouslyInViewArea
+          .map((o) => o.getPropertyUpdates())
+          .filter((u) => u) as Array<PropertyUpdatesForObject>,
+      ),
+    );
   }
 
   private getOtherPlayers(): Array<OtherPlayerDirection> {
@@ -190,9 +179,31 @@ export class Player extends PlayerBase {
     this.commandsToBeSent.push(command);
   }
 
+  public stepCommunications(deltaTime: number) {
+    if ((this.timeSinceLastMessage += deltaTime) > settings.updateMessageInterval) {
+      this.handleAnnouncements();
+      this.handleViewAreaUpdate();
+      this.sendQueuedCommandsToClient();
+      this.timeSinceLastMessage = 0;
+    }
+  }
+
   public sendQueuedCommandsToClient() {
     this.socket.emit(TransportEvents.ServerToPlayer, serialize(this.commandsToBeSent));
     this.commandsToBeSent = [];
+  }
+
+  private handleAnnouncements() {
+    let announcement = '';
+    if (this.winnerTeam) {
+      announcement = `Team <span class="${this.winnerTeam}">${this.winnerTeam}</span> won 🎉`;
+    } else if (!this.character) {
+      announcement = `Reviving in ${Math.round(this.timeUntilRespawn)}…`;
+    }
+
+    if (announcement) {
+      this.queueCommandSend(new ServerAnnouncement(announcement));
+    }
   }
 
   public destroy() {

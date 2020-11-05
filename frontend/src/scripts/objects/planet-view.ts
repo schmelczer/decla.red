@@ -14,18 +14,16 @@ type FallingPoint = {
 
 export class PlanetView extends PlanetBase implements ViewObject {
   private shape: PlanetShape;
-  private ownershipProgess: HTMLElement;
+  private ownershipProgress: HTMLElement;
 
   constructor(id: Id, vertices: Array<vec2>, ownership: number) {
     super(id, vertices);
     this.shape = new PlanetShape(vertices, ownership);
     (this.shape as any).randomOffset = Random.getRandom();
 
-    this.ownershipProgess = document.createElement('div');
-    this.ownershipProgess.className = 'ownership';
+    this.ownershipProgress = document.createElement('div');
+    this.ownershipProgress.className = 'ownership';
   }
-
-  public updateProperties(update: UpdateProperty[]): void {}
 
   public step(deltaTimeInSeconds: number): void {
     this.shape.randomOffset += deltaTimeInSeconds / 4;
@@ -56,10 +54,16 @@ export class PlanetView extends PlanetBase implements ViewObject {
   }
 
   public beforeDestroy(): void {
-    this.ownershipProgess.parentElement?.removeChild(this.ownershipProgess);
+    this.ownershipProgress.parentElement?.removeChild(this.ownershipProgress);
     this.generatedPointElements.forEach((p) =>
       p.element.parentElement?.removeChild(p.element),
     );
+  }
+
+  public updateProperties(update: UpdateProperty[]): void {
+    update.forEach((u) => {
+      this.ownership = u.propertyValue;
+    });
   }
 
   public draw(
@@ -68,8 +72,8 @@ export class PlanetView extends PlanetBase implements ViewObject {
     shouldChangeLayout: boolean,
   ): void {
     if (shouldChangeLayout) {
-      if (!this.ownershipProgess.parentElement) {
-        overlay.appendChild(this.ownershipProgess);
+      if (!this.ownershipProgress.parentElement) {
+        overlay.appendChild(this.ownershipProgress);
       }
 
       const screenPosition = renderer.worldToDisplayCoordinates(this.center);
@@ -94,8 +98,8 @@ export class PlanetView extends PlanetBase implements ViewObject {
         (p) => p.timeToLive > 0,
       );
 
-      this.ownershipProgess.style.transform = `translateX(${screenPosition.x}px) translateY(${screenPosition.y}px) translateX(-50%) translateY(-50%)`;
-      this.ownershipProgess.style.background = this.getGradient();
+      this.ownershipProgress.style.transform = `translateX(${screenPosition.x}px) translateY(${screenPosition.y}px) translateX(-50%) translateY(-50%)`;
+      this.ownershipProgress.style.background = this.getGradient();
 
       if (this.lastGeneratedPoint !== undefined) {
         const element = document.createElement('div');

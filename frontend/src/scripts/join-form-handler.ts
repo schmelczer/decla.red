@@ -15,19 +15,20 @@ export class JoinFormHandler {
   private waitingForDecision: Promise<PlayerDecision>;
   private resolvePlayerDecision!: (d: PlayerDecision) => void;
   private pollServersTimer: any;
+  private keyUpListener = (e: KeyboardEvent) => {
+    if (e.key === 'enter') {
+      this.form.submit();
+    }
+  };
 
-  constructor(form: HTMLFormElement, private readonly container: HTMLElement) {
+  constructor(private form: HTMLFormElement, private readonly container: HTMLElement) {
     this.joinButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
     this.joinButton.disabled = true;
     this.waitingForDecision = new Promise((r) => (this.resolvePlayerDecision = r));
 
     new FormData(form);
 
-    document.addEventListener('keyup', (e) => {
-      if (e.key === 'enter') {
-        form.submit();
-      }
-    });
+    addEventListener('keyup', this.keyUpListener);
 
     form.onsubmit = (e) => {
       SoundHandler.play(Sounds.click);
@@ -54,6 +55,7 @@ export class JoinFormHandler {
   }
 
   private destroy() {
+    removeEventListener('keyup', this.keyUpListener);
     clearInterval(this.pollServersTimer);
     this.servers.forEach((s) => s.destroy());
   }

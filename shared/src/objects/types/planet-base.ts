@@ -19,10 +19,6 @@ export class PlanetBase extends GameObject {
     vec2.scale(this.center, this.center, 1 / vertices.length);
   }
 
-  public setOwnership(value: number) {
-    this.ownership = value;
-  }
-
   public generatedPoints(value: number) {}
 
   public static createPlanetVertices(

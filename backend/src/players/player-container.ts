@@ -22,7 +22,7 @@ export class PlayerContainer {
       this.npcMaxCount - this._npcs.length,
     );
     for (let i = 0; i < newNpcCount; i++) {
-      const name = `BOT ${Random.choose(settings.npcNames)}`;
+      const name = `🤖 ${Random.choose(settings.npcNames)}`;
       this._npcs.push(
         new NPC({ name }, this, this.objects, this.getTeamOfNextPlayer(true)),
       );
@@ -58,6 +58,14 @@ export class PlayerContainer {
 
   public step(deltaTimeInSeconds: number) {
     this.players.forEach((p) => p.step(deltaTimeInSeconds));
+  }
+
+  public stepCommunication(deltaTimeInSeconds: number) {
+    this._players.forEach((p) => p.stepCommunications(deltaTimeInSeconds));
+  }
+
+  public endGame(winner: CharacterTeam) {
+    this._players.forEach((p) => p.onGameEnded(winner));
   }
 
   public queueCommandForEachClient(command: Command) {

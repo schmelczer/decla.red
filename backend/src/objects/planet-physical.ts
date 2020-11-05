@@ -8,6 +8,8 @@ import {
   settings,
   PlanetBase,
   CharacterTeam,
+  PropertyUpdatesForObject,
+  UpdateProperty,
 } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
@@ -102,10 +104,14 @@ export class PlanetPhysical
 
   public step(deltaTime: number): void {
     this.timeSinceLastPointGeneration += deltaTime;
-
     // In reverse order, so that teams can achieve a 100% control.
-    this.remoteCall('setOwnership', this.ownership);
     this.takeControl(CharacterTeam.neutral, deltaTime);
+  }
+
+  public getPropertyUpdates(): PropertyUpdatesForObject {
+    return new PropertyUpdatesForObject(this.id, [
+      new UpdateProperty('ownership', this.ownership, 0),
+    ]);
   }
 
   public takeControl(team: CharacterTeam, deltaTime: number) {

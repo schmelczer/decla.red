@@ -1,4 +1,3 @@
-import { Command } from '../commands/command';
 import { Id } from '../communication/id';
 import { serializable } from '../serialization/serializable';
 

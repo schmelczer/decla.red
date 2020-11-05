@@ -115,11 +115,12 @@ export class GameServer {
 
   private endGame(winningTeam: CharacterTeam) {
     this.isInEndGame = true;
-    const endTitleLength = 6000;
+    const endTitleLength = 6;
+    this.players.endGame(winningTeam);
     this.players.queueCommandForEachClient(
-      new GameEndCommand(winningTeam, endTitleLength / 1000, true),
+      new GameEndCommand(winningTeam, endTitleLength, true),
     );
-    setTimeout(() => this.destroy(), endTitleLength * 1.1);
+    setTimeout(() => this.destroy(), endTitleLength * 1000 * 1.1);
   }
 
   private destroy() {
@@ -147,15 +148,17 @@ export class GameServer {
         );
       }
 
+      let scaledDelta = delta;
       if (this.isInEndGame) {
         this.timeScaling *= Math.pow(settings.endGameDeltaScaling, delta);
-        delta /= this.timeScaling;
+        scaledDelta /= this.timeScaling;
       } else {
         this.updatePoints();
       }
 
-      this.objects.stepObjects(delta);
-      this.players.step(delta);
+      this.objects.stepObjects(scaledDelta);
+      this.players.step(scaledDelta);
+      this.players.stepCommunication(delta);
       this.objects.resetRemoteCalls();
 
       this.deltaTimes.push(this.deltaTimeCalculator.getNextDeltaTimeInSeconds());
@@ -165,7 +168,7 @@ export class GameServer {
   }
 
   private handleStats() {
-    const framesBetweenDeltaTimeCalculation = 1000;
+    const framesBetweenDeltaTimeCalculation = 10000;
 
     if (this.deltaTimes.length > framesBetweenDeltaTimeCalculation) {
       this.deltaTimes.sort((a, b) => a - b);

@@ -7,7 +7,6 @@ import { ViewObject } from './view-object';
 
 export class Camera extends GameObject implements ViewObject {
   public center: vec2 = vec2.create();
-
   private aspectRatio?: number;
 
   constructor(private game: Game) {
@@ -15,12 +14,10 @@ export class Camera extends GameObject implements ViewObject {
   }
 
   public updateProperties(update: UpdateProperty[]): void {}
-
+  public step(deltaTimeInSeconds: number): void {}
   public beforeDestroy(): void {}
 
-  public step(deltaTimeInSeconds: number): void {}
-
-  public draw(renderer: Renderer, overlay: HTMLElement, shouldChangeLayout: boolean) {
+  public draw(renderer: Renderer) {
     const canvasAspectRatio = renderer.canvasSize.x / renderer.canvasSize.y;
     if (canvasAspectRatio !== this.aspectRatio) {
       this.aspectRatio = canvasAspectRatio;
