@@ -91,14 +91,6 @@ export class Player extends PlayerBase {
         this.center = this.character!.center;
       }
     }
-
-    const remoteCalls = this.objectsPreviouslyInViewArea
-      .map((g) => new RemoteCallsForObject(g.id, g.getRemoteCalls()))
-      .filter((c) => c.calls.length > 0);
-
-    if (remoteCalls.length > 0) {
-      this.queueCommandSend(new RemoteCallsForObjects(remoteCalls));
-    }
   }
 
   private handleViewAreaUpdate() {
@@ -180,6 +172,14 @@ export class Player extends PlayerBase {
   }
 
   public stepCommunications(deltaTime: number) {
+    const remoteCalls = this.objectsPreviouslyInViewArea
+      .map((g) => new RemoteCallsForObject(g.id, g.getRemoteCalls()))
+      .filter((c) => c.calls.length > 0);
+
+    if (remoteCalls.length > 0) {
+      this.queueCommandSend(new RemoteCallsForObjects(remoteCalls));
+    }
+
     if ((this.timeSinceLastMessage += deltaTime) > settings.updateMessageInterval) {
       this.handleAnnouncements();
       this.handleViewAreaUpdate();
