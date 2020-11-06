@@ -1,9 +1,9 @@
 import { vec2 } from 'gl-matrix';
 import { Circle, GameObject, rotate90Deg } from 'shared';
 import { CirclePhysical } from '../../objects/circle-physical';
-import { reactsToCollision } from '../../objects/capabilities/reacts-to-collision';
 import { evaluateSdf } from './evaluate-sdf';
 import { Physical } from '../physicals/physical';
+import { ReactToCollisionCommand } from '../../commands/react-to-collision';
 
 export const moveCircle = (
   circle: CirclePhysical,
@@ -43,13 +43,8 @@ export const moveCircle = (
       if (ignoreCollision) {
         circle.center = vec2.add(circle.center, circle.center, delta);
       } else {
-        if (reactsToCollision(intersecting)) {
-          intersecting.onCollision(circle.gameObject);
-        }
-
-        if (reactsToCollision(circle)) {
-          circle.onCollision(intersecting.gameObject);
-        }
+        intersecting.handleCommand(new ReactToCollisionCommand(circle.gameObject));
+        circle.handleCommand(new ReactToCollisionCommand(intersecting.gameObject));
       }
 
       vec2.add(

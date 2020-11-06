@@ -8,20 +8,19 @@ import {
   CharacterTeam,
   PropertyUpdatesForObject,
   UpdatePropertyCommand,
+  CommandExecutors,
 } from 'shared';
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { CirclePhysical } from './circle-physical';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
-import { ReactsToCollision } from './capabilities/reacts-to-collision';
 import { CharacterPhysical } from './character-physical';
 import { moveCircle } from '../physics/functions/move-circle';
-import { TimeDependent } from './capabilities/time-dependent';
+import { StepCommand } from '../commands/step';
+import { ReactToCollisionCommand } from '../commands/react-to-collision';
 
 @serializesTo(ProjectileBase)
-export class ProjectilePhysical
-  extends ProjectileBase
-  implements DynamicPhysical, ReactsToCollision, TimeDependent {
+export class ProjectilePhysical extends ProjectileBase implements DynamicPhysical {
   public readonly canCollide = true;
   public readonly canMove = true;
 
@@ -30,6 +29,11 @@ export class ProjectilePhysical
   private _boundingBox?: ImmutableBoundingBox;
 
   public object: CirclePhysical;
+
+  protected commandExecutors: CommandExecutors = {
+    [StepCommand.type]: this.handleStep.bind(this),
+    [ReactToCollisionCommand.type]: this.onCollision.bind(this),
+  };
 
   constructor(
     center: vec2,
@@ -91,7 +95,7 @@ export class ProjectilePhysical
     }
   }
 
-  public onCollision(other: GameObject) {
+  public onCollision({ other }: ReactToCollisionCommand) {
     if (
       !(other instanceof CharacterPhysical && other.team === this.team) &&
       this.bounceCount++ === settings.projectileMaxBounceCount
@@ -106,8 +110,8 @@ export class ProjectilePhysical
     ]);
   }
 
-  public step(deltaTime: number) {
-    super.step(deltaTime);
+  private handleStep({ deltaTimeInSeconds }: StepCommand) {
+    super.step(deltaTimeInSeconds);
 
     if (this.strength <= 0) {
       this.destroy();
@@ -115,7 +119,7 @@ export class ProjectilePhysical
     }
 
     vec2.copy(this.object.velocity, this.velocity);
-    const { velocity } = this.object.stepManually(deltaTime);
+    const { velocity } = this.object.stepManually(deltaTimeInSeconds);
     vec2.copy(this.velocity, velocity);
   }
 }

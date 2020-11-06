@@ -10,30 +10,28 @@ import {
   CharacterTeam,
   PropertyUpdatesForObject,
   UpdatePropertyCommand,
+  CommandExecutors,
+  CommandReceiver,
 } from 'shared';
+import { GeneratePointsCommand } from '../commands/generate-points';
+import { StepCommand } from '../commands/step';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { StaticPhysical } from '../physics/physicals/static-physical';
-import { ExertsForce } from './capabilities/exerts-force';
-import { GeneratesPoints } from './capabilities/generates-points';
-import { TimeDependent } from './capabilities/time-dependent';
 
 @serializesTo(PlanetBase)
-export class PlanetPhysical
-  extends PlanetBase
-  implements StaticPhysical, GeneratesPoints, ExertsForce, TimeDependent {
+export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   public readonly canCollide = true;
   public readonly canMove = false;
 
-  public static neutralPlanetCount = 0;
-  public static declaPlanetCount = 0;
-  public static redPlanetCount = 0;
-
   private _boundingBox?: ImmutableBoundingBox;
+
+  protected commandExecutors: CommandExecutors = {
+    [StepCommand.type]: this.step.bind(this),
+  };
 
   constructor(vertices: Array<vec2>) {
     super(id(), vertices);
-    PlanetPhysical.neutralPlanetCount++;
   }
 
   public distance(target: vec2): number {
@@ -79,33 +77,27 @@ export class PlanetPhysical
   }
 
   private timeSinceLastPointGeneration = 0;
-  public getPoints(): {
-    decla: number;
-    red: number;
-  } {
+  private getPoints(game: CommandReceiver) {
     if (this.timeSinceLastPointGeneration > settings.planetPointGenerationInterval) {
       this.timeSinceLastPointGeneration = 0;
       if (this.team !== CharacterTeam.neutral) {
         this.remoteCall('generatedPoints', settings.planetPointGenerationValue);
       }
 
-      return {
-        decla:
+      game.handleCommand(
+        new GeneratePointsCommand(
           this.team === CharacterTeam.decla ? settings.planetPointGenerationValue : 0,
-        red: this.team === CharacterTeam.red ? settings.planetPointGenerationValue : 0,
-      };
+          this.team === CharacterTeam.red ? settings.planetPointGenerationValue : 0,
+        ),
+      );
     }
-
-    return {
-      decla: 0,
-      red: 0,
-    };
   }
 
-  public step(deltaTime: number): void {
-    this.timeSinceLastPointGeneration += deltaTime;
+  private step({ deltaTimeInSeconds, game }: StepCommand) {
+    this.timeSinceLastPointGeneration += deltaTimeInSeconds;
     // In reverse order, so that teams can achieve a 100% control.
-    this.takeControl(CharacterTeam.neutral, deltaTime);
+    this.getPoints(game);
+    this.takeControl(CharacterTeam.neutral, deltaTimeInSeconds);
   }
 
   public getPropertyUpdates(): PropertyUpdatesForObject {

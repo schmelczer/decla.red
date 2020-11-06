@@ -1,8 +1,8 @@
 import { vec2 } from 'gl-matrix';
-import { GameObject } from 'shared';
+import { CommandReceiver, GameObject } from 'shared';
 import { BoundingBoxBase } from '../bounding-boxes/bounding-box-base';
 
-export interface PhysicalBase {
+export interface PhysicalBase extends CommandReceiver {
   readonly canCollide: boolean;
   readonly canMove: boolean;
   readonly boundingBox: BoundingBoxBase;

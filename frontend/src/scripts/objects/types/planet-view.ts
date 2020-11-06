@@ -33,7 +33,7 @@ export class PlanetView extends PlanetBase {
     this.ownershipProgress.className = 'ownership';
   }
 
-  private step(deltaTimeInSeconds: number): void {
+  private step({ deltaTimeInSeconds }: StepCommand): void {
     this.shape.randomOffset += deltaTimeInSeconds / 4;
     this.shape.colorMixQ = this.ownership;
 

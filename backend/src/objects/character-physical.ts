@@ -11,6 +11,8 @@ import {
   CharacterTeam,
   PropertyUpdatesForObject,
   UpdatePropertyCommand,
+  CommandExecutors,
+  CommandReceiver,
 } from 'shared';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { CirclePhysical } from './circle-physical';
@@ -21,14 +23,12 @@ import { interpolateAngles } from '../helper/interpolate-angles';
 import { forceAtPosition } from '../physics/functions/force-at-position';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { PlanetPhysical } from './planet-physical';
-import { ReactsToCollision } from './capabilities/reacts-to-collision';
-import { TimeDependent } from './capabilities/time-dependent';
-import { GeneratesPoints } from './capabilities/generates-points';
+import { StepCommand } from '../commands/step';
+import { ReactToCollisionCommand } from '../commands/react-to-collision';
+import { GeneratePointsCommand } from '../commands/generate-points';
 
 @serializesTo(CharacterBase)
-export class CharacterPhysical
-  extends CharacterBase
-  implements DynamicPhysical, ReactsToCollision, TimeDependent, GeneratesPoints {
+export class CharacterPhysical extends CharacterBase implements DynamicPhysical {
   public readonly canCollide = true;
   public readonly canMove = true;
 
@@ -94,6 +94,11 @@ export class CharacterPhysical
   private leftFootVelocity = new Circle(vec2.create(), 0);
   private rightFootVelocity = new Circle(vec2.create(), 0);
 
+  protected commandExecutors: CommandExecutors = {
+    [StepCommand.type]: this.step.bind(this),
+    [ReactToCollisionCommand.type]: this.onCollision.bind(this),
+  };
+
   constructor(
     name: string,
     killCount: number,
@@ -134,20 +139,14 @@ export class CharacterPhysical
   }
 
   private hasGeneratedPoints = false;
-  public getPoints(): { decla: number; red: number } {
+  private getPoints(game: CommandReceiver) {
     if (!this.isAlive && !this.hasGeneratedPoints) {
       this.hasGeneratedPoints = true;
       const decla = this.team === CharacterTeam.decla ? 0 : settings.playerKillPoint;
       const red = this.team === CharacterTeam.red ? 0 : settings.playerKillPoint;
-      return {
-        decla,
-        red,
-      };
+
+      game.handleCommand(new GeneratePointsCommand(decla, red));
     }
-    return {
-      decla: 0,
-      red: 0,
-    };
   }
 
   public get isAlive(): boolean {
@@ -163,7 +162,7 @@ export class CharacterPhysical
     this.remoteCall('setKillCount', this.killCount);
   }
 
-  public onCollision(other: GameObject) {
+  public onCollision({ other }: ReactToCollisionCommand) {
     if (
       other instanceof ProjectilePhysical &&
       other.team !== this.team &&
@@ -298,7 +297,8 @@ export class CharacterPhysical
     this.animateScaling(1);
   }
 
-  public step(deltaTime: number) {
+  private step({ deltaTimeInSeconds, game }: StepCommand) {
+    this.getPoints(game);
     const oldHead = new Circle(vec2.clone(this.head.center), this.head.radius);
     const oldLeftFoot = new Circle(
       vec2.clone(this.leftFoot.center),
@@ -310,35 +310,36 @@ export class CharacterPhysical
     );
 
     if (this.isDestroyed) {
-      if ((this.timeSinceDying += deltaTime) > settings.spawnDespawnTime) {
+      if ((this.timeSinceDying += deltaTimeInSeconds) > settings.spawnDespawnTime) {
         this.destroy();
       } else {
         this.animateScaling(1 - this.timeSinceDying / settings.spawnDespawnTime);
       }
-      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTime);
+      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
       return;
     }
 
     if (this.hasJustBorn) {
-      if ((this.timeSinceBorn += deltaTime) > settings.spawnDespawnTime) {
+      if ((this.timeSinceBorn += deltaTimeInSeconds) > settings.spawnDespawnTime) {
         this.hasJustBorn = false;
       } else {
         this.animateScaling(this.timeSinceBorn / settings.spawnDespawnTime);
       }
-      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTime);
+      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
       return;
     }
 
-    if ((this.secondsSinceOnSurface += deltaTime) > 0.5) {
+    if ((this.secondsSinceOnSurface += deltaTimeInSeconds) > 0.5) {
       this.currentPlanet = undefined;
     }
 
     this.projectileStrength = Math.min(
       settings.playerMaxStrength,
-      this.projectileStrength + settings.playerStrengthRegenerationPerSeconds * deltaTime,
+      this.projectileStrength +
+        settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
     );
 
-    this.currentPlanet?.takeControl(this.team, deltaTime);
+    this.currentPlanet?.takeControl(this.team, deltaTimeInSeconds);
 
     const intersectingWithForceField = this.container.findIntersecting(
       getBoundingBoxOfCircle(
@@ -351,8 +352,8 @@ export class CharacterPhysical
 
     const direction = this.averageAndResetMovementActions();
     const movementForce = vec2.scale(direction, direction, settings.maxAcceleration);
-    this.applyForce(this.leftFoot, movementForce, deltaTime);
-    this.applyForce(this.rightFoot, movementForce, deltaTime);
+    this.applyForce(this.leftFoot, movementForce, deltaTimeInSeconds);
+    this.applyForce(this.rightFoot, movementForce, deltaTimeInSeconds);
 
     if (!this.currentPlanet) {
       const leftFootGravity = forceAtPosition(
@@ -364,14 +365,14 @@ export class CharacterPhysical
         intersectingWithForceField,
       );
 
-      this.applyForce(this.leftFoot, leftFootGravity, deltaTime);
-      this.applyForce(this.rightFoot, rightFootGravity, deltaTime);
+      this.applyForce(this.leftFoot, leftFootGravity, deltaTimeInSeconds);
+      this.applyForce(this.rightFoot, rightFootGravity, deltaTimeInSeconds);
 
       const sumForce = vec2.subtract(vec2.create(), leftFootGravity, movementForce);
 
       this.setDirection(
         vec2.length(sumForce) === 0 ? vec2.fromValues(0, -1) : sumForce,
-        deltaTime,
+        deltaTimeInSeconds,
       );
     } else {
       const leftFootGravity = this.currentPlanet!.getForce(this.leftFoot.center);
@@ -389,7 +390,7 @@ export class CharacterPhysical
         this.leftFoot.lastNormal,
         vec2.dot(this.leftFoot.lastNormal, gravity),
       );
-      this.applyForce(this.leftFoot, scaledLeftFootGravity, deltaTime);
+      this.applyForce(this.leftFoot, scaledLeftFootGravity, deltaTimeInSeconds);
 
       const scaledRightFootGravity = vec2.scale(
         vec2.create(),
@@ -397,20 +398,20 @@ export class CharacterPhysical
         vec2.dot(this.rightFoot.lastNormal, gravity),
       );
 
-      this.applyForce(this.rightFoot, scaledRightFootGravity, deltaTime);
+      this.applyForce(this.rightFoot, scaledRightFootGravity, deltaTimeInSeconds);
 
       if (vec2.length(gravity) <= 100) {
         this.currentPlanet = undefined;
       }
-      this.setDirection(gravity, deltaTime);
+      this.setDirection(gravity, deltaTimeInSeconds);
     }
 
-    this.keepPosture(deltaTime);
-    this.stepBodyPart(this.leftFoot, deltaTime);
-    this.stepBodyPart(this.rightFoot, deltaTime);
-    this.stepBodyPart(this.head, deltaTime);
+    this.keepPosture(deltaTimeInSeconds);
+    this.stepBodyPart(this.leftFoot, deltaTimeInSeconds);
+    this.stepBodyPart(this.rightFoot, deltaTimeInSeconds);
+    this.stepBodyPart(this.head, deltaTimeInSeconds);
 
-    this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTime);
+    this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
   }
 
   private setDirection(direction: vec2, deltaTime: number) {

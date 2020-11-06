@@ -11,15 +11,19 @@ import {
   GameEndCommand,
   GameStartCommand,
   Command,
+  CommandReceiver,
+  CommandExecutors,
 } from 'shared';
 import { createWorld } from './create-world';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { Options } from './options';
 import { PlayerContainer } from './players/player-container';
+import { StepCommand } from './commands/step';
+import { GeneratePointsCommand } from './commands/generate-points';
 
 const gameStateSubscribedRoom = 'gameStateSubscribedRoom';
 
-export class GameServer {
+export class GameServer extends CommandReceiver {
   private objects!: PhysicalContainer;
   private players!: PlayerContainer;
   private deltaTimes!: Array<number>;
@@ -54,7 +58,13 @@ export class GameServer {
     previousPlayers?.sendQueuedCommands();
   }
 
+  protected commandExecutors: CommandExecutors = {
+    [GeneratePointsCommand.type]: this.addPoints.bind(this),
+  };
+
   constructor(private readonly io: ioserver.Server, private options: Options) {
+    super();
+
     this.serverName = options.name;
     this.playerLimit = options.playerLimit;
 
@@ -102,8 +112,11 @@ export class GameServer {
     this.handlePhysics();
   }
 
-  private updatePoints() {
-    const { decla, red } = this.objects.getPointsGenerated();
+  private addPoints({ decla, red }: GeneratePointsCommand) {
+    if (this.isInEndGame) {
+      return;
+    }
+
     this.declaPoints += decla;
     this.redPoints += red;
     if (this.declaPoints >= this.options.scoreLimit) {
@@ -152,11 +165,9 @@ export class GameServer {
       if (this.isInEndGame) {
         this.timeScaling *= Math.pow(settings.endGameDeltaScaling, delta);
         scaledDelta /= this.timeScaling;
-      } else {
-        this.updatePoints();
       }
 
-      this.objects.stepObjects(scaledDelta);
+      this.objects.handleCommand(new StepCommand(scaledDelta, this));
       this.players.step(scaledDelta);
       this.players.stepCommunication(delta);
       this.objects.resetRemoteCalls();

@@ -1,14 +1,14 @@
 import { vec2 } from 'gl-matrix';
-import { Circle, GameObject, serializesTo } from 'shared';
+import { Circle, CommandReceiver, GameObject, serializesTo } from 'shared';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
 import { moveCircle } from '../physics/functions/move-circle';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
-import { ReactsToCollision, reactsToCollision } from './capabilities/reacts-to-collision';
+import { ReactToCollisionCommand } from '../commands/react-to-collision';
 
 @serializesTo(Circle)
-export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollision {
+export class CirclePhysical extends CommandReceiver implements Circle, DynamicPhysical {
   readonly canCollide = true;
   readonly canMove = true;
 
@@ -24,6 +24,7 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
     private readonly container: PhysicalContainer,
     private restitution = 0,
   ) {
+    super();
     this._boundingBox = new BoundingBox();
     this.recalculateBoundingBox();
   }
@@ -41,10 +42,8 @@ export class CirclePhysical implements Circle, DynamicPhysical, ReactsToCollisio
     this.recalculateBoundingBox();
   }
 
-  public onCollision(other: GameObject) {
-    if (reactsToCollision(this.owner)) {
-      this.owner.onCollision(other);
-    }
+  public onCollision(c: ReactToCollisionCommand) {
+    this.owner.handleCommand(c);
   }
 
   public get gameObject(): GameObject {
