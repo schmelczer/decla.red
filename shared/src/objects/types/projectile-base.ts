@@ -4,6 +4,7 @@ import { serializable } from '../../serialization/serializable';
 import { GameObject } from '../game-object';
 import { Id } from '../../communication/id';
 import { CharacterTeam } from './character-base';
+import { CommandExecutors } from '../../commands/command-executors';
 
 @serializable
 export class ProjectileBase extends GameObject {

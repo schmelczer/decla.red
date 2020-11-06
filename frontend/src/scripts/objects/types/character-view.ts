@@ -6,15 +6,18 @@ import {
   CharacterBase,
   CharacterTeam,
   settings,
-  UpdateProperty,
+  CommandExecutors,
+  UpdatePropertyCommand,
 } from 'shared';
-import { CircleExtrapolator } from '../helper/circle-extrapolator';
-import { BlobShape } from '../shapes/blob-shape';
-import { SoundHandler, Sounds } from '../sound-handler';
-import { VibrationHandler } from '../vibration-handler';
-import { ViewObject } from './view-object';
+import { BeforeDestroyCommand } from '../../commands/types/before-destroy';
+import { RenderCommand } from '../../commands/types/render';
+import { StepCommand } from '../../commands/types/step';
+import { CircleExtrapolator } from '../../helper/circle-extrapolator';
+import { BlobShape } from '../../shapes/blob-shape';
+import { SoundHandler, Sounds } from '../../sound-handler';
+import { VibrationHandler } from '../../vibration-handler';
 
-export class CharacterView extends CharacterBase implements ViewObject {
+export class CharacterView extends CharacterBase {
   private shape: BlobShape;
   private nameElement: HTMLElement = document.createElement('div');
   private statsElement: HTMLElement = document.createElement('div');
@@ -25,6 +28,13 @@ export class CharacterView extends CharacterBase implements ViewObject {
   private leftFootExtrapolator: CircleExtrapolator;
   private rightFootExtrapolator: CircleExtrapolator;
   private headExtrapolator: CircleExtrapolator;
+
+  protected commandExecutors: CommandExecutors = {
+    [RenderCommand.type]: this.draw.bind(this),
+    [StepCommand.type]: this.step.bind(this),
+    [BeforeDestroyCommand.type]: this.beforeDestroy.bind(this),
+    [UpdatePropertyCommand.type]: this.updateProperty.bind(this),
+  };
 
   constructor(
     id: Id,
@@ -54,18 +64,20 @@ export class CharacterView extends CharacterBase implements ViewObject {
     return this.head!.center;
   }
 
-  public updateProperties(update: Array<UpdateProperty>) {
-    update.forEach((u) => {
-      if (u.propertyKey === 'head') {
-        this.headExtrapolator.addFrame(u.propertyValue, u.rateOfChange);
-      }
-      if (u.propertyKey === 'leftFoot') {
-        this.leftFootExtrapolator.addFrame(u.propertyValue, u.rateOfChange);
-      }
-      if (u.propertyKey === 'rightFoot') {
-        this.rightFootExtrapolator.addFrame(u.propertyValue, u.rateOfChange);
-      }
-    });
+  private updateProperty({
+    propertyKey,
+    propertyValue,
+    rateOfChange,
+  }: UpdatePropertyCommand) {
+    if (propertyKey === 'head') {
+      this.headExtrapolator.addFrame(propertyValue, rateOfChange);
+    }
+    if (propertyKey === 'leftFoot') {
+      this.leftFootExtrapolator.addFrame(propertyValue, rateOfChange);
+    }
+    if (propertyKey === 'rightFoot') {
+      this.rightFootExtrapolator.addFrame(propertyValue, rateOfChange);
+    }
   }
 
   public setHealth(health: number) {
@@ -87,7 +99,7 @@ export class CharacterView extends CharacterBase implements ViewObject {
     }
   }
 
-  public step(deltaTimeInSeconds: number): void {
+  private step({ deltaTimeInSeconds }: StepCommand): void {
     this.head! = this.headExtrapolator.getValue(deltaTimeInSeconds);
     this.leftFoot! = this.leftFootExtrapolator.getValue(deltaTimeInSeconds);
     this.rightFoot! = this.rightFootExtrapolator.getValue(deltaTimeInSeconds);
@@ -97,15 +109,11 @@ export class CharacterView extends CharacterBase implements ViewObject {
     SoundHandler.play(Sounds.shoot, (0.6 * strength) / settings.playerMaxStrength);
   }
 
-  public beforeDestroy(): void {
+  private beforeDestroy(): void {
     this.nameElement.parentElement?.removeChild(this.nameElement);
   }
 
-  public draw(
-    renderer: Renderer,
-    overlay: HTMLElement,
-    shouldChangeLayout: boolean,
-  ): void {
+  private draw({ renderer, overlay, shouldChangeLayout }: RenderCommand): void {
     if (shouldChangeLayout) {
       if (!this.nameElement.parentElement) {
         overlay.appendChild(this.nameElement);

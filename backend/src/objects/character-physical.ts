@@ -10,7 +10,7 @@ import {
   CharacterBase,
   CharacterTeam,
   PropertyUpdatesForObject,
-  UpdateProperty,
+  UpdatePropertyCommand,
 } from 'shared';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { CirclePhysical } from './circle-physical';
@@ -256,9 +256,9 @@ export class CharacterPhysical
 
   public getPropertyUpdates(): PropertyUpdatesForObject {
     return new PropertyUpdatesForObject(this.id, [
-      new UpdateProperty('head', this.head, this.headVelocity),
-      new UpdateProperty('leftFoot', this.leftFoot, this.leftFootVelocity),
-      new UpdateProperty('rightFoot', this.rightFoot, this.rightFootVelocity),
+      new UpdatePropertyCommand('head', this.head, this.headVelocity),
+      new UpdatePropertyCommand('leftFoot', this.leftFoot, this.leftFootVelocity),
+      new UpdatePropertyCommand('rightFoot', this.rightFoot, this.rightFootVelocity),
     ]);
   }
 

@@ -6,9 +6,6 @@ import {
   CharacterBase,
   ProjectileBase,
 } from 'shared';
-import { LampView } from './scripts/objects/lamp-view';
-import { ProjectileView } from './scripts/objects/projectile-view';
-import { PlanetView } from './scripts/objects/planet-view';
 import './main.scss';
 import '../static/og-image.png';
 import '../static/favicons/apple-touch-icon.png';
@@ -19,7 +16,6 @@ import { LandingPageBackground } from './scripts/landing-page-background';
 import { JoinFormHandler } from './scripts/join-form-handler';
 import { handleFullScreen } from './scripts/helper/handle-full-screen';
 import { Game } from './scripts/game';
-import { CharacterView } from './scripts/objects/character-view';
 import { handleInsights } from './scripts/handle-insights';
 import { getInsightsFromRenderer } from './scripts/get-insights-from-renderer';
 import { Renderer } from 'sdf-2d';
@@ -29,6 +25,10 @@ import { hide } from './scripts/helper/hide';
 import { show } from './scripts/helper/show';
 import { SoundHandler, Sounds } from './scripts/sound-handler';
 import { VibrationHandler } from './scripts/vibration-handler';
+import { CharacterView } from './scripts/objects/types/character-view';
+import { LampView } from './scripts/objects/types/lamp-view';
+import { PlanetView } from './scripts/objects/types/planet-view';
+import { ProjectileView } from './scripts/objects/types/projectile-view';
 
 glMatrix.setMatrixArrayType(Array);
 

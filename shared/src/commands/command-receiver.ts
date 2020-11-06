@@ -4,13 +4,9 @@ import { Command } from './command';
 export abstract class CommandReceiver {
   protected commandExecutors: CommandExecutors = {};
 
-  public reactsToCommand(commandType: string): boolean {
-    return Object.prototype.hasOwnProperty.call(this.commandExecutors, commandType);
-  }
-
   protected defaultCommandExecutor(_: Command) {}
 
-  public sendCommand(command: Command) {
+  public handleCommand(command: Command) {
     const commandType = command.type;
 
     if (Object.prototype.hasOwnProperty.call(this.commandExecutors, commandType)) {

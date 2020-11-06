@@ -13,6 +13,6 @@ export abstract class CommandGenerator {
   }
 
   protected sendCommandToSubscribers(command: Command): void {
-    this.subscribers.forEach((s) => s.sendCommand(command));
+    this.subscribers.forEach((s) => s.handleCommand(command));
   }
 }

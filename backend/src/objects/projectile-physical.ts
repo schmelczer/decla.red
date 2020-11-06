@@ -7,7 +7,7 @@ import {
   GameObject,
   CharacterTeam,
   PropertyUpdatesForObject,
-  UpdateProperty,
+  UpdatePropertyCommand,
 } from 'shared';
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { CirclePhysical } from './circle-physical';
@@ -102,7 +102,7 @@ export class ProjectilePhysical
 
   public getPropertyUpdates(): PropertyUpdatesForObject {
     return new PropertyUpdatesForObject(this.id, [
-      new UpdateProperty('center', this.center, this.velocity),
+      new UpdatePropertyCommand('center', this.center, this.velocity),
     ]);
   }
 

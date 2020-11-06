@@ -1,8 +1,9 @@
 import { vec2 } from 'gl-matrix';
-import { Renderer } from 'sdf-2d';
-import { Id, Random, PlanetBase, UpdateProperty } from 'shared';
-import { PlanetShape } from '../shapes/planet-shape';
-import { ViewObject } from './view-object';
+import { Id, Random, PlanetBase, UpdatePropertyCommand, CommandExecutors } from 'shared';
+import { BeforeDestroyCommand } from '../../commands/types/before-destroy';
+import { RenderCommand } from '../../commands/types/render';
+import { StepCommand } from '../../commands/types/step';
+import { PlanetShape } from '../../shapes/planet-shape';
 
 type FallingPoint = {
   velocity: vec2;
@@ -12,9 +13,16 @@ type FallingPoint = {
   timeToLive: number;
 };
 
-export class PlanetView extends PlanetBase implements ViewObject {
+export class PlanetView extends PlanetBase {
   private shape: PlanetShape;
   private ownershipProgress: HTMLElement;
+
+  protected commandExecutors: CommandExecutors = {
+    [RenderCommand.type]: this.draw.bind(this),
+    [StepCommand.type]: this.step.bind(this),
+    [BeforeDestroyCommand.type]: this.beforeDestroy.bind(this),
+    [UpdatePropertyCommand.type]: this.updateProperty.bind(this),
+  };
 
   constructor(id: Id, vertices: Array<vec2>, ownership: number) {
     super(id, vertices);
@@ -25,7 +33,7 @@ export class PlanetView extends PlanetBase implements ViewObject {
     this.ownershipProgress.className = 'ownership';
   }
 
-  public step(deltaTimeInSeconds: number): void {
+  private step(deltaTimeInSeconds: number): void {
     this.shape.randomOffset += deltaTimeInSeconds / 4;
     this.shape.colorMixQ = this.ownership;
 
@@ -53,24 +61,18 @@ export class PlanetView extends PlanetBase implements ViewObject {
     this.lastGeneratedPoint = value;
   }
 
-  public beforeDestroy(): void {
+  private beforeDestroy(): void {
     this.ownershipProgress.parentElement?.removeChild(this.ownershipProgress);
     this.generatedPointElements.forEach((p) =>
       p.element.parentElement?.removeChild(p.element),
     );
   }
 
-  public updateProperties(update: UpdateProperty[]): void {
-    update.forEach((u) => {
-      this.ownership = u.propertyValue;
-    });
+  private updateProperty({ propertyValue }: UpdatePropertyCommand): void {
+    this.ownership = propertyValue;
   }
 
-  public draw(
-    renderer: Renderer,
-    overlay: HTMLElement,
-    shouldChangeLayout: boolean,
-  ): void {
+  private draw({ renderer, overlay, shouldChangeLayout }: RenderCommand): void {
     if (shouldChangeLayout) {
       if (!this.ownershipProgress.parentElement) {
         overlay.appendChild(this.ownershipProgress);

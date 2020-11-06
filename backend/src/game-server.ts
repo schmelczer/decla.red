@@ -67,7 +67,7 @@ export class GameServer {
           socket.on(TransportEvents.PlayerToServer, (json: string) => {
             try {
               const commands: Array<Command> = deserialize(json);
-              commands.forEach((c) => player.sendCommand(c));
+              commands.forEach((c) => player.handleCommand(c));
             } catch (e) {
               console.error('Error while processing command', e);
             }

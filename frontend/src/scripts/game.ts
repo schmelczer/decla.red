@@ -33,6 +33,8 @@ import { GameObjectContainer } from './objects/game-object-container';
 import parser from 'socket.io-msgpack-parser';
 import { BlobShape } from './shapes/blob-shape';
 import { PlanetShape } from './shapes/planet-shape';
+import { RenderCommand } from './commands/types/render';
+import { StepCommand } from './commands/types/step';
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
@@ -107,7 +109,7 @@ export class Game extends CommandReceiver {
 
     this.socket.on(TransportEvents.ServerToPlayer, (serializedCommands: string) => {
       const commands: Array<Command> = deserialize(serializedCommands);
-      commands.forEach((c) => this.sendCommand(c));
+      commands.forEach((c) => this.handleCommand(c));
     });
 
     this.socketReceiver = new CommandSocket(this.socket);
@@ -124,7 +126,7 @@ export class Game extends CommandReceiver {
   }
 
   protected defaultCommandExecutor(c: Command) {
-    this.gameObjects.sendCommand(c);
+    this.gameObjects.handleCommand(c);
   }
 
   private lastGameState?: UpdateGameState;
@@ -248,7 +250,7 @@ export class Game extends CommandReceiver {
   }
 
   public aspectRatioChanged(aspectRatio: number) {
-    this.socketReceiver.sendCommand(new SetAspectRatioActionCommand(aspectRatio));
+    this.socketReceiver.handleCommand(new SetAspectRatioActionCommand(aspectRatio));
   }
 
   private isActive = true;
@@ -284,9 +286,12 @@ export class Game extends CommandReceiver {
 
     this.renderer = renderer;
 
+    this.gameObjects.handleCommand(new StepCommand(deltaTime));
+    this.gameObjects.handleCommand(
+      new RenderCommand(this.renderer, this.overlay, shouldChangeLayout),
+    );
+
     this.socketReceiver.sendQueuedCommands();
-    this.gameObjects.stepObjects(deltaTime);
-    this.gameObjects.drawObjects(this.renderer, this.overlay, shouldChangeLayout);
 
     return this.isActive;
   }

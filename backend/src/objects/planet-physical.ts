@@ -9,7 +9,7 @@ import {
   PlanetBase,
   CharacterTeam,
   PropertyUpdatesForObject,
-  UpdateProperty,
+  UpdatePropertyCommand,
 } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
@@ -110,7 +110,7 @@ export class PlanetPhysical
 
   public getPropertyUpdates(): PropertyUpdatesForObject {
     return new PropertyUpdatesForObject(this.id, [
-      new UpdateProperty('ownership', this.ownership, 0),
+      new UpdatePropertyCommand('ownership', this.ownership, 0),
     ]);
   }
 

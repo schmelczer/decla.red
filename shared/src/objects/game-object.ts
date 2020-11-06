@@ -1,3 +1,5 @@
+import { Command } from '../commands/command';
+import { CommandReceiver } from '../commands/command-receiver';
 import { Id } from '../communication/id';
 import { serializable } from '../serialization/serializable';
 
@@ -11,12 +13,14 @@ export class RemoteCall {
 }
 
 @serializable
-export class UpdateProperty {
+export class UpdatePropertyCommand extends Command {
   constructor(
     public readonly propertyKey: string,
     public readonly propertyValue: any,
     public readonly rateOfChange: any,
-  ) {}
+  ) {
+    super();
+  }
 
   public toArray(): Array<any> {
     return [this.propertyKey, this.propertyValue, this.rateOfChange];
@@ -25,17 +29,22 @@ export class UpdateProperty {
 
 @serializable
 export class PropertyUpdatesForObject {
-  constructor(public readonly id: Id, public readonly updates: Array<UpdateProperty>) {}
+  constructor(
+    public readonly id: Id,
+    public readonly updates: Array<UpdatePropertyCommand>,
+  ) {}
 
   public toArray(): Array<any> {
     return [this.id, this.updates];
   }
 }
 
-export abstract class GameObject {
+export abstract class GameObject extends CommandReceiver {
   private remoteCalls: Array<RemoteCall> = [];
 
-  constructor(public readonly id: Id) {}
+  constructor(public readonly id: Id) {
+    super();
+  }
 
   public processRemoteCalls(remoteCalls: Array<RemoteCall>) {
     remoteCalls.forEach((r) =>

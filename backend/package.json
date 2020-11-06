@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "npx webpack --mode production",
-    "start": "npx concurrently --kill-others-on-fail \"npx webpack --mode development -w\" \"npx nodemon --legacy-watch dist/main.js\"",
+    "start": "concurrently --kill-others-on-fail \"webpack --mode development -w\" \"nodemon --legacy-watch dist/main.js\"",
     "try-build": "npm run build && cd dist && node main.js && cd -"
   },
   "dependencies": {

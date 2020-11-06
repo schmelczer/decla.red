@@ -1,11 +1,15 @@
 import { vec2 } from 'gl-matrix';
-import { Renderer } from 'sdf-2d';
-import { calculateViewArea, GameObject, mixRgb, settings, UpdateProperty } from 'shared';
+import {
+  calculateViewArea,
+  CommandExecutors,
+  GameObject,
+  mixRgb,
+  settings,
+} from 'shared';
+import { RenderCommand } from '../../commands/types/render';
+import { Game } from '../../game';
 
-import { Game } from '../game';
-import { ViewObject } from './view-object';
-
-export class Camera extends GameObject implements ViewObject {
+export class Camera extends GameObject {
   public center: vec2 = vec2.create();
   private aspectRatio?: number;
 
@@ -13,11 +17,11 @@ export class Camera extends GameObject implements ViewObject {
     super(null);
   }
 
-  public updateProperties(update: UpdateProperty[]): void {}
-  public step(deltaTimeInSeconds: number): void {}
-  public beforeDestroy(): void {}
+  protected commandExecutors: CommandExecutors = {
+    [RenderCommand.type]: this.draw.bind(this),
+  };
 
-  public draw(renderer: Renderer) {
+  private draw({ renderer }: RenderCommand) {
     const canvasAspectRatio = renderer.canvasSize.x / renderer.canvasSize.y;
     if (canvasAspectRatio !== this.aspectRatio) {
       this.aspectRatio = canvasAspectRatio;
