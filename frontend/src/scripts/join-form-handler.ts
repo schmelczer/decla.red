@@ -82,15 +82,17 @@ export class JoinFormHandler {
 
       if (response?.ok) {
         const content: ServerInformation = await response.json();
-        const server = new ServerChooserOption(
-          content,
-          url,
-          this.removeServer.bind(this),
-          this.servers.length === 0,
-        );
-        this.servers.push(server);
-        this.joinButton.disabled = false;
-        this.container.appendChild(server.element);
+        if (!this.servers.find((s) => s.url === url)) {
+          const server = new ServerChooserOption(
+            content,
+            url,
+            this.removeServer.bind(this),
+            this.servers.length === 0,
+          );
+          this.servers.push(server);
+          this.joinButton.disabled = false;
+          this.container.appendChild(server.element);
+        }
       }
     });
   }

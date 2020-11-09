@@ -1,6 +1,6 @@
 {
   "name": "declared-server",
-  "version": "0.0.13",
+  "version": "0.0.15",
   "description": "Game server for decla.red",
   "keywords": [],
   "author": "András Schmelczer <andras@schmelczer.dev> (https://schmelczer.dev/)",

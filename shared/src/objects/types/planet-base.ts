@@ -8,6 +8,7 @@ import { Id } from '../../communication/id';
 @serializable
 export class PlanetBase extends GameObject {
   public readonly center: vec2;
+  public readonly radius: number;
 
   constructor(
     id: Id,
@@ -17,6 +18,9 @@ export class PlanetBase extends GameObject {
     super(id);
     this.center = vertices.reduce((sum, v) => vec2.add(sum, sum, v), vec2.create());
     vec2.scale(this.center, this.center, 1 / vertices.length);
+    this.radius =
+      vertices.reduce((sum, v) => sum + vec2.distance(this.center, v), 0) /
+      this.vertices.length;
   }
 
   public generatedPoints(value: number) {}

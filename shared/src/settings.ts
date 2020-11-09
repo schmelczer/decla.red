@@ -27,7 +27,7 @@ export const settings = {
   maxGravityQ: 5000,
   planetControlThreshold: 0.2,
   playerMaxHealth: 100,
-  maxGravityStrength: 10000,
+  maxGravityStrength: 50000,
   maxAcceleration: 120000,
   playerMaxStrength: 80,
   endGameDeltaScaling: 2,

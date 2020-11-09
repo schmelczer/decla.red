@@ -1,5 +1,11 @@
 import { vec2 } from 'gl-matrix';
-import { Circle, CommandReceiver, GameObject, serializesTo } from 'shared';
+import {
+  Circle,
+  CommandExecutors,
+  CommandReceiver,
+  GameObject,
+  serializesTo,
+} from 'shared';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
 import { moveCircle } from '../physics/functions/move-circle';
@@ -16,6 +22,10 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
   public lastNormal = vec2.fromValues(0, 1);
 
   private _boundingBox: BoundingBox;
+
+  protected commandExecutors: CommandExecutors = {
+    [ReactToCollisionCommand.type]: this.onCollision.bind(this),
+  };
 
   constructor(
     private _center: vec2,

@@ -153,7 +153,7 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
   public getForce(position: vec2): vec2 {
     const diff = vec2.subtract(vec2.create(), this.center, position);
-    const dist = Math.max(0, vec2.length(diff) - 600);
+    const dist = Math.max(0, vec2.length(diff) - this.radius);
     vec2.normalize(diff, diff);
     const scale = clamp(
       settings.maxGravityQ * ((settings.maxGravityDistance / dist) ** 1.5 - 1),
