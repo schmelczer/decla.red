@@ -10,7 +10,7 @@ import {
 } from 'shared';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
-import { Vec2Extrapolator } from '../../helper/vec2-extrapolator';
+import { Vec2Extrapolator } from '../../helper/extrapolators/vec2-extrapolator';
 
 export class ProjectileView extends ProjectileBase {
   private light: CircleLight;

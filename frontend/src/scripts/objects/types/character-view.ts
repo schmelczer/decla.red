@@ -12,7 +12,7 @@ import {
 import { BeforeDestroyCommand } from '../../commands/types/before-destroy';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
-import { CircleExtrapolator } from '../../helper/circle-extrapolator';
+import { CircleExtrapolator } from '../../helper/extrapolators/circle-extrapolator';
 import { BlobShape } from '../../shapes/blob-shape';
 import { SoundHandler, Sounds } from '../../sound-handler';
 import { VibrationHandler } from '../../vibration-handler';

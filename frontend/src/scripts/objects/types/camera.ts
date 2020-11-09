@@ -2,19 +2,19 @@ import { vec2 } from 'gl-matrix';
 import {
   calculateViewArea,
   CommandExecutors,
-  GameObject,
+  CommandReceiver,
   mixRgb,
   settings,
 } from 'shared';
 import { RenderCommand } from '../../commands/types/render';
 import { Game } from '../../game';
 
-export class Camera extends GameObject {
+export class Camera extends CommandReceiver {
   public center: vec2 = vec2.create();
   private aspectRatio?: number;
 
   constructor(private game: Game) {
-    super(null);
+    super();
   }
 
   protected commandExecutors: CommandExecutors = {

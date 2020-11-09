@@ -1,4 +1,3 @@
-import { Renderer } from 'sdf-2d';
 import {
   Command,
   CommandExecutors,
@@ -20,28 +19,20 @@ import { CharacterView } from './types/character-view';
 export class GameObjectContainer extends CommandReceiver {
   protected objects: Map<Id, GameObject> = new Map();
   public player!: CharacterView;
-  public camera!: Camera;
+  public camera: Camera = new Camera(this.game);
 
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
-      if (this.camera) {
-        this.deleteObject(this.camera.id);
-      }
-
       this.player = c.character as CharacterView;
       this.player.isMainCharacter = true;
-
-      this.camera = new Camera(this.game);
-
       this.addObject(this.player);
-      this.addObject(this.camera);
     },
 
     [CreateObjectsCommand.type]: (c: CreateObjectsCommand) =>
       c.objects.forEach((o) => this.addObject(o as GameObject)),
 
     [StepCommand.type]: (c: StepCommand) => {
-      this.objects.forEach((o) => o.handleCommand(c));
+      this.defaultCommandExecutor(c);
 
       if (this.player) {
         this.camera.center = this.player.position;
@@ -68,6 +59,7 @@ export class GameObjectContainer extends CommandReceiver {
 
   protected defaultCommandExecutor(c: Command) {
     this.objects.forEach((o) => o.handleCommand(c));
+    this.camera.handleCommand(c);
   }
 
   private addObject(object: GameObject) {
