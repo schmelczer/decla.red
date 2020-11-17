@@ -1,4 +1,3 @@
-import { vec2 } from 'gl-matrix';
 import { Circle } from 'shared';
 import { LinearExtrapolator } from './linear-extrapolator';
 import { Vec2Extrapolator } from './vec2-extrapolator';

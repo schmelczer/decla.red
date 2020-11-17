@@ -1,4 +1,3 @@
-import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
 import { Command } from 'shared';
 

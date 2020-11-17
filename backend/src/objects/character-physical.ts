@@ -5,7 +5,6 @@ import {
   MoveActionCommand,
   serializesTo,
   last,
-  GameObject,
   Circle,
   CharacterBase,
   CharacterTeam,
@@ -370,10 +369,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
 
       const sumForce = vec2.subtract(vec2.create(), leftFootGravity, movementForce);
 
-      this.setDirection(
-        vec2.length(sumForce) === 0 ? vec2.fromValues(0, -1) : sumForce,
-        deltaTimeInSeconds,
-      );
+      this.setDirection(vec2.length(sumForce) === 0 ? vec2.fromValues(0, -1) : sumForce);
     } else {
       const leftFootGravity = this.currentPlanet!.getForce(this.leftFoot.center);
       const rightFootGravity = this.currentPlanet!.getForce(this.rightFoot.center);
@@ -403,7 +399,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       if (vec2.length(gravity) <= 100) {
         this.currentPlanet = undefined;
       }
-      this.setDirection(gravity, deltaTimeInSeconds);
+      this.setDirection(gravity);
     }
 
     this.keepPosture(deltaTimeInSeconds);
@@ -414,7 +410,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
   }
 
-  private setDirection(direction: vec2, deltaTime: number) {
+  private setDirection(direction: vec2) {
     this.direction = interpolateAngles(
       this.direction,
       Math.atan2(direction.y, direction.x) + Math.PI / 2,
@@ -423,7 +419,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   }
 
   private keepPosture(deltaTime: number) {
-    let center = this.center;
+    const center = this.center;
     this.springMove(
       this.leftFoot,
       center,

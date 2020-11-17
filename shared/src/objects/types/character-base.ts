@@ -25,6 +25,7 @@ export class CharacterBase extends GameObject {
     super(id);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public onShoot(strength: number) {}
 
   public setHealth(health: number) {

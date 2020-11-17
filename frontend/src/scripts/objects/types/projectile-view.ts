@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { CircleLight, Renderer } from 'sdf-2d';
+import { CircleLight } from 'sdf-2d';
 import {
   CharacterTeam,
   CommandExecutors,

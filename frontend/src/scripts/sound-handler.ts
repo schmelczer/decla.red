@@ -52,7 +52,7 @@ export abstract class SoundHandler {
     return sound;
   }
 
-  public static play(sound: Sounds, volume: number = 1) {
+  public static play(sound: Sounds, volume = 1) {
     if (!this.initialized || !OptionsHandler.options.soundsEnabled) {
       return;
     }

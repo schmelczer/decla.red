@@ -1,6 +1,6 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { CircleLight, Renderer } from 'sdf-2d';
-import { CommandExecutors, Id, LampBase, UpdatePropertyCommand } from 'shared';
+import { CircleLight } from 'sdf-2d';
+import { CommandExecutors, Id, LampBase } from 'shared';
 import { RenderCommand } from '../../commands/types/render';
 
 export class LampView extends LampBase {

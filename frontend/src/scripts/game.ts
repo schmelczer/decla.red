@@ -11,7 +11,6 @@ import {
   deserialize,
   TransportEvents,
   SetAspectRatioActionCommand,
-  PlayerInformation,
   UpdateOtherPlayerDirections,
   clamp,
   UpdateGameState,
@@ -193,7 +192,7 @@ export class Game extends CommandReceiver {
       }px) translateX(-50%) translateY(-50%) rotate(${-angle + Math.PI / 2}rad) `;
     });
 
-    for (let id in this.arrows) {
+    for (const id in this.arrows) {
       if (
         Object.prototype.hasOwnProperty.call(this.arrows, id) &&
         command.otherPlayerDirections.find((v) => v.id?.toString() === id) === undefined

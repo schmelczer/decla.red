@@ -99,7 +99,7 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
       .filter((b) => b.gameObject !== this.gameObject && b.canCollide);
     this.radius -= vec2.length(delta);
 
-    let { normal, hitSurface, hitObject } = moveCircle(this, delta, intersecting);
+    const { normal, hitSurface, hitObject } = moveCircle(this, delta, intersecting);
 
     if (hitSurface) {
       vec2.copy(this.lastNormal, normal!);

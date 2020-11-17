@@ -117,7 +117,7 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
     super(vertices);
   }
 
-  protected getObjectToSerialize(transform2d: mat2d, transform1d: number): any {
+  protected getObjectToSerialize(transform2d: mat2d, _: number): any {
     const transformedVertices = (this as any).actualVertices.map((v: vec2) =>
       vec2.transformMat2d(vec2.create(), v, transform2d),
     );

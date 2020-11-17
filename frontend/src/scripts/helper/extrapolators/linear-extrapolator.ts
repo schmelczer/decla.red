@@ -1,5 +1,3 @@
-import { clamp } from 'shared';
-
 export class LinearExtrapolator {
   private velocity = 0;
   private compensationVelocity = 0;

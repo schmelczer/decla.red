@@ -4,7 +4,6 @@ import {
   settings,
   serializesTo,
   ProjectileBase,
-  GameObject,
   CharacterTeam,
   PropertyUpdatesForObject,
   UpdatePropertyCommand,

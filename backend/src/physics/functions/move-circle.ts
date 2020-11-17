@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { Circle, GameObject, rotate90Deg } from 'shared';
+import { GameObject } from 'shared';
 import { CirclePhysical } from '../../objects/circle-physical';
 import { evaluateSdf } from './evaluate-sdf';
 import { Physical } from '../physicals/physical';
@@ -23,7 +23,7 @@ export const moveCircle = (
 
   const deltaLength = vec2.length(delta);
   let travelled = 0;
-  let rayEnd = vec2.create();
+  const rayEnd = vec2.create();
   let prevMinDistance = 0;
   while (travelled < deltaLength) {
     travelled += prevMinDistance;

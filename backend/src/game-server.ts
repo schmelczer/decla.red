@@ -143,7 +143,7 @@ export class GameServer extends CommandReceiver {
   private timeSinceLastPointUpdate = 0;
 
   private handlePhysics() {
-    let delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds();
+    const delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds();
     if (delta > settings.targetPhysicsDeltaTimeInSeconds) {
       this.deltaTimeCalculator.getNextDeltaTimeInSeconds(true);
 

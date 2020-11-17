@@ -23,6 +23,7 @@ export class PlanetBase extends GameObject {
       this.vertices.length;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public generatedPoints(value: number) {}
 
   public static createPlanetVertices(
