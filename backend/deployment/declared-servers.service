@@ -1,0 +1,11 @@
+[Unit]
+Description=declared-server
+
+Requires=basic.target network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/sh /root/declared-servers.sh
+
+[Install]
+WantedBy=multi-user.target
