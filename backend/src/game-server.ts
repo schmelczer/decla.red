@@ -143,39 +143,40 @@ export class GameServer extends CommandReceiver {
   private timeSinceLastPointUpdate = 0;
 
   private handlePhysics() {
-    const delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds();
-    if (delta > settings.targetPhysicsDeltaTimeInSeconds) {
-      this.deltaTimeCalculator.getNextDeltaTimeInSeconds(true);
+    const delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds({ setAsBase: true });
+    this.deltaTimes.push(delta);
 
-      this.handleStats();
+    this.handleStats();
 
-      if ((this.timeSinceLastServerStateUpdate += delta) > 4) {
-        this.timeSinceLastServerStateUpdate = 0;
-        this.sendServerStateUpdate();
-      }
-
-      if ((this.timeSinceLastPointUpdate += delta) > 0.5) {
-        this.timeSinceLastPointUpdate = 0;
-        this.players.queueCommandForEachClient(
-          new UpdateGameState(this.declaPoints, this.redPoints, this.options.scoreLimit),
-        );
-      }
-
-      let scaledDelta = delta;
-      if (this.isInEndGame) {
-        this.timeScaling *= Math.pow(settings.endGameDeltaScaling, delta);
-        scaledDelta /= this.timeScaling;
-      }
-
-      this.objects.handleCommand(new StepCommand(scaledDelta, this));
-      this.players.step(scaledDelta);
-      this.players.stepCommunication(delta);
-      this.objects.resetRemoteCalls();
-
-      this.deltaTimes.push(this.deltaTimeCalculator.getNextDeltaTimeInSeconds());
+    if ((this.timeSinceLastServerStateUpdate += delta) > 4) {
+      this.timeSinceLastServerStateUpdate = 0;
+      this.sendServerStateUpdate();
     }
 
-    setImmediate(this.handlePhysics.bind(this));
+    if ((this.timeSinceLastPointUpdate += delta) > 0.5) {
+      this.timeSinceLastPointUpdate = 0;
+      this.players.queueCommandForEachClient(
+        new UpdateGameState(this.declaPoints, this.redPoints, this.options.scoreLimit),
+      );
+    }
+
+    let scaledDelta = delta;
+    if (this.isInEndGame) {
+      this.timeScaling *= Math.pow(settings.endGameDeltaScaling, delta);
+      scaledDelta /= this.timeScaling;
+    }
+
+    this.objects.handleCommand(new StepCommand(scaledDelta, this));
+    this.players.step(scaledDelta);
+    this.players.stepCommunication(delta);
+    this.objects.resetRemoteCalls();
+
+    const physicsDelta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds();
+
+    setTimeout(
+      this.handlePhysics.bind(this),
+      Math.max(0, settings.targetPhysicsDeltaTimeInSeconds - physicsDelta) * 1000,
+    );
   }
 
   private handleStats() {
@@ -184,9 +185,9 @@ export class GameServer extends CommandReceiver {
     if (this.deltaTimes.length > framesBetweenDeltaTimeCalculation) {
       this.deltaTimes.sort((a, b) => a - b);
       console.info(
-        `Median physics time: ${this.deltaTimes[
-          Math.floor(framesBetweenDeltaTimeCalculation / 2)
-        ].toFixed(2)} ms`,
+        `Median physics time: ${(
+          this.deltaTimes[Math.floor(framesBetweenDeltaTimeCalculation / 2)] * 1000
+        ).toFixed(2)} ms`,
       );
       console.info(
         'Tail times: ',

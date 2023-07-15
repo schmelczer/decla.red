@@ -1,7 +1,9 @@
 export class DeltaTimeCalculator {
   private previousTime: [number, number] = process.hrtime();
 
-  public getNextDeltaTimeInSeconds(setAsBase = false): number {
+  public getNextDeltaTimeInSeconds(
+    { setAsBase = false }: { setAsBase: boolean } = { setAsBase: false },
+  ): number {
     const [seconds, nanoSeconds] = process.hrtime(this.previousTime);
     if (setAsBase) {
       this.previousTime = process.hrtime();
