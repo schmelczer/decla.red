@@ -48,11 +48,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Docker CLI
+      - name: Ensure Docker CLI
+        # The `docker` runner usually already ships the CLI, so skip the install
+        # when it's present (same guard life-towers uses for its e2e job). When
+        # it isn't, prefer the static binary but fall back to the distro package:
+        # the runner can't always reach download.docker.com, but it can reach apt
+        # (the website job installs rsync the same way).
         run: |
-          ARCH=$(uname -m)
-          curl -fsSL "https://download.docker.com/linux/static/stable/${ARCH}/docker-27.5.1.tgz" \
-            | tar xz --strip-components=1 -C /usr/local/bin docker/docker
+          set -eux
+          if ! command -v docker >/dev/null 2>&1; then
+            ARCH=$(uname -m)
+            if ! curl -fsSL --retry 3 --retry-connrefused --connect-timeout 10 \
+                 "https://download.docker.com/linux/static/stable/${ARCH}/docker-27.5.1.tgz" \
+                 | tar xz --strip-components=1 -C /usr/local/bin docker/docker; then
+              apt-get update
+              apt-get install -y --no-install-recommends docker.io
+            fi
+          fi
           docker --version
 
       - name: Set up Docker Buildx
