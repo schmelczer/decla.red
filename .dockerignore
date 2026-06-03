@@ -1,0 +1,14 @@
+# The server image only needs `shared/` and `backend/`.
+**/node_modules
+**/dist
+**/lib
+.git
+.github
+.forgejo
+.devcontainer
+.vscode
+frontend
+media
+*.log
+Dockerfile
+.dockerignore
