@@ -22,7 +22,7 @@ import {
   Command,
   settings,
 } from 'shared';
-import io from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import { KeyboardListener } from './commands/keyboard-listener';
 import { MouseListener } from './commands/mouse-listener';
 import { TouchListener } from './commands/touch-listener';
@@ -38,7 +38,7 @@ import { StepCommand } from './commands/types/step';
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
   public renderer?: Renderer;
-  private socket!: SocketIOClient.Socket;
+  private socket!: Socket;
   private isBetweenGames = false;
 
   public started: Promise<void>;
@@ -92,7 +92,9 @@ export class Game extends CommandReceiver {
       parser,
     } as any);
 
-    this.socket.on('reconnect_attempt', () => {
+    // In socket.io-client v4 reconnection events are emitted by the Manager
+    // (`socket.io`), not the Socket itself.
+    this.socket.io.on('reconnect_attempt', () => {
       this.socket.io.opts.transports = ['polling', 'websocket'];
     });
 

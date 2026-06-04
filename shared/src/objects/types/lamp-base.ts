@@ -4,7 +4,12 @@ import { GameObject } from '../game-object';
 
 @serializable
 export class LampBase extends GameObject {
-  constructor(id: Id, public center: vec2, public color: vec3, public lightness: number) {
+  constructor(
+    id: Id,
+    public center: vec2,
+    public color: vec3,
+    public lightness: number,
+  ) {
     super(id);
   }
 

@@ -1,7 +1,8 @@
 import { Command, CommandReceiver, serialize, TransportEvents } from 'shared';
+import { Socket } from 'socket.io-client';
 
 export class CommandSocket extends CommandReceiver {
-  constructor(private readonly socket: SocketIOClient.Socket) {
+  constructor(private readonly socket: Socket) {
     super();
   }
 

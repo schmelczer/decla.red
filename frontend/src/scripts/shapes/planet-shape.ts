@@ -89,8 +89,8 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
               if (dist < minDistance) {
                 minDistance = dist;
                 color = mix(${colorToString(settings.declaPlanetColor)}, ${colorToString(
-        settings.redPlanetColor,
-      )}, planetColorMixQ[j]);
+                  settings.redPlanetColor,
+                )}, planetColorMixQ[j]);
               }
             }
 
@@ -113,7 +113,10 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
 
   public randomOffset = 0;
 
-  constructor(public vertices: Array<vec2>, public colorMixQ: number) {
+  constructor(
+    public vertices: Array<vec2>,
+    public colorMixQ: number,
+  ) {
     super(vertices);
   }
 

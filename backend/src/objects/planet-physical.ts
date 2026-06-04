@@ -72,8 +72,8 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
     return Math.abs(this.ownership - 0.5) < 0.1
       ? CharacterTeam.neutral
       : this.ownership < 0.5
-      ? CharacterTeam.decla
-      : CharacterTeam.red;
+        ? CharacterTeam.decla
+        : CharacterTeam.red;
   }
 
   private timeSinceLastPointGeneration = 0;

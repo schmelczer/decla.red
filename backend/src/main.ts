@@ -1,4 +1,4 @@
-import ioserver from 'socket.io';
+import { Server as IoServer } from 'socket.io';
 import express from 'express';
 import { Server } from 'http';
 import cors from 'cors';
@@ -22,7 +22,13 @@ Random.seed = options.seed;
 
 const app = express();
 const server = new Server(app);
-const io = ioserver(server, { parser } as any);
+const io = new IoServer(server, {
+  parser,
+  cors: {
+    origin: true,
+    credentials: true,
+  },
+} as any);
 
 const gameServer = new GameServer(io, options);
 

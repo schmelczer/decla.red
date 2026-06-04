@@ -1,4 +1,5 @@
 import { CharacterTeam, PlayerInformation, Random, settings, Command } from 'shared';
+import { Socket } from 'socket.io';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { NPC } from './npc';
 import { Player } from './player';
@@ -29,7 +30,7 @@ export class PlayerContainer {
     }
   }
 
-  public createPlayer(playerInfo: PlayerInformation, socket: SocketIO.Socket): Player {
+  public createPlayer(playerInfo: PlayerInformation, socket: Socket): Player {
     if (this._players.length === this.playerMaxCount) {
       throw new Error('Too many players');
     }

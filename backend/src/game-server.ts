@@ -1,5 +1,5 @@
 import { PhysicalContainer } from './physics/containers/physical-container';
-import ioserver from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import {
   TransportEvents,
   deserialize,
@@ -62,7 +62,10 @@ export class GameServer extends CommandReceiver {
     [GeneratePointsCommand.type]: this.addPoints.bind(this),
   };
 
-  constructor(private readonly io: ioserver.Server, private options: Options) {
+  constructor(
+    private readonly io: Server,
+    private options: Options,
+  ) {
     super();
 
     this.serverName = options.name;
@@ -70,7 +73,7 @@ export class GameServer extends CommandReceiver {
 
     this.initialize();
 
-    io.on('connection', (socket: SocketIO.Socket) => {
+    io.on('connection', (socket: Socket) => {
       socket.on(TransportEvents.PlayerJoining, (playerInfo: PlayerInformation) => {
         try {
           const player = this.players.createPlayer(playerInfo, socket);

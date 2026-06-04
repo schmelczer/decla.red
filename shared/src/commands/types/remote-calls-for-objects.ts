@@ -4,7 +4,10 @@ import { Command } from '../command';
 
 @serializable
 export class RemoteCallsForObject {
-  constructor(public readonly id: Id, public readonly calls: Array<RemoteCall>) {}
+  constructor(
+    public readonly id: Id,
+    public readonly calls: Array<RemoteCall>,
+  ) {}
 
   public toArray(): Array<any> {
     return [this.id, this.calls];

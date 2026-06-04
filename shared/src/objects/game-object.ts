@@ -5,7 +5,10 @@ import { serializable } from '../serialization/serializable';
 
 @serializable
 export class RemoteCall {
-  constructor(public readonly functionName: string, public readonly args: Array<any>) {}
+  constructor(
+    public readonly functionName: string,
+    public readonly args: Array<any>,
+  ) {}
 
   public toArray(): Array<any> {
     return [this.functionName, this.args];
@@ -48,9 +51,9 @@ export abstract class GameObject extends CommandReceiver {
 
   public processRemoteCalls(remoteCalls: Array<RemoteCall>) {
     remoteCalls.forEach((r) =>
-      ((this[r.functionName as keyof this] as unknown) as (
-        ...args: Array<any>
-      ) => unknown)(...r.args),
+      (this[r.functionName as keyof this] as unknown as (...args: Array<any>) => unknown)(
+        ...r.args,
+      ),
     );
   }
 

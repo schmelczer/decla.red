@@ -23,6 +23,7 @@ import {
   PropertyUpdatesForObject,
   PrimaryActionCommand,
 } from 'shared';
+import { Socket } from 'socket.io';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { CharacterPhysical } from '../objects/character-physical';
@@ -51,7 +52,7 @@ export class Player extends PlayerBase {
     playerContainer: PlayerContainer,
     objectContainer: PhysicalContainer,
     team: CharacterTeam,
-    private readonly socket: SocketIO.Socket,
+    private readonly socket: Socket,
   ) {
     super(playerInfo, playerContainer, objectContainer, team);
     this.createCharacter();

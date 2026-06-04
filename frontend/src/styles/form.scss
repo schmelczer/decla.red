@@ -1,10 +1,11 @@
+@use 'sass:math';
 @use 'vars' as *;
 @use 'mixins' as *;
 
 form {
   @include background;
 
-  padding: $small-padding / 2 $small-padding $small-padding $small-padding;
+  padding: math.div($small-padding, 2) $small-padding $small-padding $small-padding;
   border-radius: $border-radius;
 
   input:-webkit-autofill,
@@ -38,7 +39,7 @@ form {
       position: relative;
       padding: 15px 0 0;
       margin-top: 10px;
-      margin: 10px $small-padding / 2 $small-padding $small-padding / 2;
+      margin: 10px math.div($small-padding, 2) $small-padding math.div($small-padding, 2);
 
       input {
         font-family: inherit;
@@ -99,7 +100,7 @@ form {
 
         cursor: pointer;
         margin: $border-width-focused - $border-width $border-width-focused -
-          $border-width + $small-padding / 2;
+          $border-width + math.div($small-padding, 2);
 
         .completion {
           font-size: 0.7em;
@@ -115,7 +116,7 @@ form {
       &:checked + label {
         border-color: $accent;
         border-width: $border-width-focused;
-        margin: 0 $small-padding / 2;
+        margin: 0 math.div($small-padding, 2);
       }
     }
   }

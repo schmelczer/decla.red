@@ -56,9 +56,8 @@ export abstract class PlayerBase extends CommandReceiver {
       );
 
       const playerBoundingBox = getBoundingBoxOfCircle(playerBoundingCircle);
-      const possibleIntersectors = this.objectContainer.findIntersecting(
-        playerBoundingBox,
-      );
+      const possibleIntersectors =
+        this.objectContainer.findIntersecting(playerBoundingBox);
       if (!isCircleIntersecting(playerBoundingCircle, possibleIntersectors)) {
         return playerPosition;
       }

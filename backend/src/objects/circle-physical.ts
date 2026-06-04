@@ -88,9 +88,10 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
     );
   }
 
-  public stepManually(
-    deltaTimeInSeconds: number,
-  ): { hitObject: GameObject | undefined; velocity: vec2 } {
+  public stepManually(deltaTimeInSeconds: number): {
+    hitObject: GameObject | undefined;
+    velocity: vec2;
+  } {
     let delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
 
     this.radius += vec2.length(delta);

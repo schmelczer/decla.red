@@ -15,9 +15,9 @@ export abstract class OptionsHandler {
     musicEnabled: true,
   };
 
-  public static initialize(
-    inputElements: { [k in Extract<keyof Options, string>]: HTMLInputElement },
-  ) {
+  public static initialize(inputElements: {
+    [k in Extract<keyof Options, string>]: HTMLInputElement;
+  }) {
     if (localStorage.getItem('options')) {
       const stored: Partial<Options> | null = JSON.parse(
         localStorage.getItem('options')!,
@@ -44,7 +44,11 @@ export abstract class OptionsHandler {
         }
 
         if (k === 'musicEnabled') {
-          this.checked ? SoundHandler.playAmbient() : SoundHandler.stopAmbient();
+          if (this.checked) {
+            SoundHandler.playAmbient();
+          } else {
+            SoundHandler.stopAmbient();
+          }
         }
 
         if (this.checked && k === 'vibrationEnabled') {

@@ -5,7 +5,10 @@ import { StaticPhysical } from '../physicals/static-physical';
 class Node {
   public left: Node | null = null;
   public right: Node | null = null;
-  constructor(public object: StaticPhysical, public parent: Node | null) {}
+  constructor(
+    public object: StaticPhysical,
+    public parent: Node | null,
+  ) {}
 }
 
 export class BoundingBoxTree {

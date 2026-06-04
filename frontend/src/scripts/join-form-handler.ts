@@ -1,5 +1,5 @@
 import { ServerInformation, serverInformationEndpoint, TransportEvents } from 'shared';
-import io from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import { Configuration } from './configuration';
 import parser from 'socket.io-msgpack-parser';
 import { SoundHandler, Sounds } from './sound-handler';
@@ -21,7 +21,10 @@ export class JoinFormHandler {
     }
   };
 
-  constructor(private form: HTMLFormElement, private readonly container: HTMLElement) {
+  constructor(
+    private form: HTMLFormElement,
+    private readonly container: HTMLElement,
+  ) {
     this.joinButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
     this.joinButton.disabled = true;
     this.waitingForDecision = new Promise((r) => (this.resolvePlayerDecision = r));
@@ -32,9 +35,9 @@ export class JoinFormHandler {
 
     form.onsubmit = (e) => {
       SoundHandler.play(Sounds.click);
-      const result: PlayerDecision = (Array.from(
-        (new FormData(form) as any).entries(),
-      ) as Array<[string, any]>).reduce((result, [name, value]) => {
+      const result: PlayerDecision = (
+        Array.from((new FormData(form) as any).entries()) as Array<[string, any]>
+      ).reduce((result, [name, value]) => {
         (result as any)[name] = value;
         return result;
       }, {}) as any;
@@ -116,7 +119,7 @@ class ServerChooserOption {
   private serverNameElement = document.createElement('span');
   private completionElement = document.createElement('span');
 
-  private socket: SocketIOClient.Socket;
+  private socket: Socket;
 
   constructor(
     private content: ServerInformation,
@@ -145,8 +148,9 @@ class ServerChooserOption {
       parser,
     } as any);
 
+    // `connect_timeout` was removed in socket.io-client v3+; connection
+    // timeouts now surface through `connect_error` (reconnection is disabled).
     this.socket.on('connect_error', this.destroy.bind(this));
-    this.socket.on('connect_timeout', this.destroy.bind(this));
     this.socket.on('disconnect', this.destroy.bind(this));
     this.socket.emit(TransportEvents.SubscribeForServerInfoUpdates);
     this.socket.on(

@@ -32,9 +32,9 @@ module.exports = (env, argv) => ({
     minimize: argv.mode !== 'development',
     minimizer: [
       new TerserJSPlugin({
-        sourceMap: false,
-        test: /\.js$/,
         exclude: /node_modules/,
+        // The custom serialization protocol keys on class names, so they must
+        // survive minification (see shared/src/serialization).
         terserOptions: {
           keep_classnames: true,
         },
@@ -50,16 +50,6 @@ module.exports = (env, argv) => ({
   ],
   module: {
     rules: [
-      {
-        test: /\.html$/,
-        use: {
-          loader: 'file-loader',
-          query: {
-            outputPath: '/',
-            name: '[name].[ext]',
-          },
-        },
-      },
       {
         test: /\.ts$/,
         use: {

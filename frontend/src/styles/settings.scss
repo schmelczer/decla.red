@@ -1,3 +1,4 @@
+@use 'sass:math';
 @use 'vars' as *;
 @use 'mixins' as *;
 
@@ -107,7 +108,7 @@
 
         $height: 4px;
         width: $height;
-        top: $height / 2;
+        top: math.div($height, 2);
 
         right: 0;
         transform-origin: top right;
@@ -119,7 +120,7 @@
         @media (max-width: $breakpoint) {
           $height: 2px;
           width: $height;
-          top: $height / 2;
+          top: math.div($height, 2);
         }
       }
 
@@ -152,11 +153,11 @@
   label:not(:first-child) {
     input[type='checkbox']:after {
       $height: 4px;
-      top: $height / 2 + $small-padding;
+      top: math.div($height, 2) + $small-padding;
 
       @media (max-width: $breakpoint) {
         right: $small-padding;
-        top: $height / 2;
+        top: math.div($height, 2);
       }
     }
   }

@@ -3,7 +3,10 @@ import { CommandGenerator, PrimaryActionCommand, SecondaryActionCommand } from '
 import { Game } from '../game';
 
 export class MouseListener extends CommandGenerator {
-  constructor(private target: HTMLElement, private readonly game: Game) {
+  constructor(
+    private target: HTMLElement,
+    private readonly game: Game,
+  ) {
     super();
 
     target.addEventListener('mousedown', this.mouseDownListener);
