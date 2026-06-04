@@ -18,6 +18,6 @@
     "build": "cd shared && npm run build && cd ../frontend && npm run build && cd ../backend && npm run build",
     "lint": "eslint ./**/src/**/*.{js,ts,json} --fix && prettier --write ./**/src/**/*.{js,ts,json}",
     "init": "cd shared && npm install && cd ../frontend && npm install && cd ../backend && npm install",
-    "start": "concurrently --kill-others-on-fail \"cd shared && npm start\"  \"cd backend && npm start\"  \"cd frontend && npm start\""
+    "dev": "concurrently --kill-others-on-fail \"cd shared && npm dev\"  \"cd backend && npm dev\"  \"cd frontend && npm dev\""
   }
 }

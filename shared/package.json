@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "npx webpack --mode production",
-    "start": "npx webpack --mode development --watch",
+    "dev": "npx webpack --mode development --watch",
     "try-build-before": "npx webpack --mode production"
   },
   "devDependencies": {

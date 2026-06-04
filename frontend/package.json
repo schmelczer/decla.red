@@ -10,7 +10,7 @@
   "main": "index.js",
   "scripts": {
     "build": "npx webpack --mode production",
-    "start": "npx webpack-dev-server --mode development",
+    "dev": "npx webpack-dev-server --mode development",
     "try-build": "npm run build && cd dist && python3 -m http.server 8080"
   },
   "browserslist": [
