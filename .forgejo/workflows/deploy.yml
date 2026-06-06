@@ -34,9 +34,10 @@ jobs:
 
       - name: Deploy to host pages mount
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          apt-get update && apt-get install -y rsync
-          rsync -a --delete frontend/dist/ /pages/declared
+        uses: http://forgejo:3000/andras/ci-actions/deploy-pages@main
+        with:
+          source: frontend/dist
+          target: declared
 
   # ---- Server Docker image -> Forgejo container registry --------------------
   server-image:
@@ -48,75 +49,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Ensure Docker CLI
-        # The `docker` runner usually already ships the CLI, so skip the install
-        # when it's present (same guard life-towers uses for its e2e job). When
-        # it isn't, prefer the static binary but fall back to the distro package:
-        # the runner can't always reach download.docker.com, but it can reach apt
-        # (the website job installs rsync the same way).
-        run: |
-          set -eux
-          if ! command -v docker >/dev/null 2>&1; then
-            ARCH=$(uname -m)
-            if ! curl -fsSL --retry 3 --retry-connrefused --connect-timeout 10 \
-                 "https://download.docker.com/linux/static/stable/${ARCH}/docker-27.5.1.tgz" \
-                 | tar xz --strip-components=1 -C /usr/local/bin docker/docker; then
-              apt-get update
-              apt-get install -y --no-install-recommends docker.io
-            fi
-          fi
-          docker --version
-
-      - name: Set up Docker Buildx
-        uses: https://github.com/docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-
-      - name: Resolve registry vars
-        id: registry
-        env:
-          CONTAINER_REGISTRY_HOST: ${{ vars.CONTAINER_REGISTRY_HOST }}
-        run: |
-          host="${CONTAINER_REGISTRY_HOST:-${{ gitea.server_url }}}"
-          host="${host#https://}"
-          host="${host#http://}"
-          host="${host%/}"
-          if [ "$host" = "forgejo:3000" ]; then
-            host="127.0.0.1:13000"
-          fi
-          repo=$(echo "${{ gitea.repository }}" | tr '[:upper:]' '[:lower:]')
-          owner="${repo%%/*}"
-          {
-            echo "host=${host}"
-            echo "owner=${owner}"
-            echo "image=${host}/${repo}-server"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Log in to Forgejo Container Registry
-        uses: https://github.com/docker/login-action@v3
-        with:
-          registry: ${{ steps.registry.outputs.host }}
-          username: ${{ steps.registry.outputs.owner }}
-          password: ${{ secrets.FORGEJO_PACKAGE_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: https://github.com/docker/metadata-action@v5
-        with:
-          images: ${{ steps.registry.outputs.image }}
-          tags: |
-            type=sha,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-
-      - name: Build and push
-        uses: https://github.com/docker/build-push-action@v6
+      - name: Build and publish server image
+        uses: http://forgejo:3000/andras/ci-actions/docker-publish@main
         with:
           context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ steps.registry.outputs.image }}:buildcache
-          cache-to: type=registry,ref=${{ steps.registry.outputs.image }}:buildcache,mode=max
+          image-suffix: -server
+          token: ${{ secrets.FORGEJO_PACKAGE_TOKEN }}
