@@ -15,6 +15,7 @@ import { StepCommand } from '../commands/types/step';
 import { Game } from '../game';
 import { Camera } from './types/camera';
 import { CharacterView } from './types/character-view';
+import { PlanetView } from './types/planet-view';
 
 export class GameObjectContainer extends CommandReceiver {
   protected objects: Map<Id, GameObject> = new Map();
@@ -55,6 +56,16 @@ export class GameObjectContainer extends CommandReceiver {
 
   constructor(private game: Game) {
     super();
+  }
+
+  public get planets(): Array<PlanetView> {
+    const planets: Array<PlanetView> = [];
+    this.objects.forEach((o) => {
+      if (o instanceof PlanetView) {
+        planets.push(o);
+      }
+    });
+    return planets;
   }
 
   protected defaultCommandExecutor(c: Command) {

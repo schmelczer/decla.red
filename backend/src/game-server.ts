@@ -13,6 +13,7 @@ import {
   Command,
   CommandReceiver,
   CommandExecutors,
+  ServerAnnouncement,
 } from 'shared';
 import { createWorld } from './create-world';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
@@ -31,6 +32,7 @@ export class GameServer extends CommandReceiver {
 
   private declaPoints = 0;
   private redPoints = 0;
+  private matchPointAnnounced: Partial<Record<CharacterTeam, boolean>> = {};
 
   private isInEndGame = false;
   private timeScaling = 1;
@@ -52,6 +54,7 @@ export class GameServer extends CommandReceiver {
     this.deltaTimes = [];
     this.declaPoints = 0;
     this.redPoints = 0;
+    this.matchPointAnnounced = {};
     this.isInEndGame = false;
     this.timeScaling = 1;
     previousPlayers?.queueCommandForEachClient(new GameStartCommand());
@@ -126,6 +129,23 @@ export class GameServer extends CommandReceiver {
       this.endGame(CharacterTeam.decla);
     } else if (this.redPoints >= this.options.scoreLimit) {
       this.endGame(CharacterTeam.red);
+    } else {
+      this.announceMatchPointOnce(CharacterTeam.decla, this.declaPoints);
+      this.announceMatchPointOnce(CharacterTeam.red, this.redPoints);
+    }
+  }
+
+  private announceMatchPointOnce(team: CharacterTeam, points: number) {
+    if (
+      !this.matchPointAnnounced[team] &&
+      points >= this.options.scoreLimit * settings.matchPointScoreRatio
+    ) {
+      this.matchPointAnnounced[team] = true;
+      this.players.queueCommandForEachClient(
+        new ServerAnnouncement(
+          `Match point — team <span class="${team}">${team}</span>!`,
+        ),
+      );
     }
   }
 

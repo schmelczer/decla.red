@@ -122,8 +122,6 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
   };
 
   public randomOffset = 0;
-  // Radians the surface noise is rotated by; advanced over time by PlanetView so
-  // the planet's textured surface slowly spins.
   public rotation = 0;
 
   constructor(

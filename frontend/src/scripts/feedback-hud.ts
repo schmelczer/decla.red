@@ -1,11 +1,6 @@
 import { settings } from 'shared';
 import { Pointer } from './helper/pointer';
 
-// Lightweight, self-managing combat-feedback overlay for the local player:
-// hitmarkers, a personal killfeed, multi-kill callouts and a points popup. It
-// owns a single fixed, click-through root under <body> and auto-expires every
-// element it creates, so callers (CharacterView remote-call handlers) just fire
-// and forget — no wiring through the game loop.
 export abstract class FeedbackHud {
   private static root?: HTMLElement;
   private static killfeed?: HTMLElement;
@@ -24,8 +19,6 @@ export abstract class FeedbackHud {
     return { root: this.root, killfeed: this.killfeed };
   }
 
-  // Where transient marks/popups appear: the cursor on desktop, screen centre on
-  // touch (where the local character fires along its facing).
   private static focusPoint(): { x: number; y: number } {
     const cursor = Pointer.getDisplayPosition();
     if (cursor) {
@@ -40,7 +33,6 @@ export abstract class FeedbackHud {
     setTimeout(() => element.parentElement?.removeChild(element), lifetimeMs);
   }
 
-  // A non-lethal hit landed: a quick crosshair tick at the focus point.
   public static hitMarker() {
     const { x, y } = this.focusPoint();
     const marker = document.createElement('div');
@@ -50,7 +42,6 @@ export abstract class FeedbackHud {
     this.addTransient(marker, 250);
   }
 
-  // A kill was confirmed: killfeed line, points popup and (for streaks) a callout.
   public static killConfirmed(victimName?: string, streak = 1) {
     const { killfeed } = this.ensureRoot();
 

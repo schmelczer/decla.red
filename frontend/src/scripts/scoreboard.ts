@@ -49,6 +49,11 @@ export class Scoreboard {
     this.declaFill.style.width = fraction(declaCount) + '%';
     this.redFill.style.width = fraction(redCount) + '%';
 
+    const isMatchPoint = (count: number) =>
+      count / limit >= settings.matchPointScoreRatio;
+    this.declaFill.classList.toggle('match-point', isMatchPoint(declaCount));
+    this.redFill.classList.toggle('match-point', isMatchPoint(redCount));
+
     this.declaScore.innerText = String(Math.round(declaCount));
     this.redScore.innerText = String(Math.round(redCount));
 

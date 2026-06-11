@@ -4,6 +4,7 @@ import {
   clamp,
   clamp01,
   id,
+  mix,
   serializesTo,
   settings,
   PlanetBase,
@@ -18,20 +19,38 @@ import { StepCommand } from '../commands/step';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { StaticPhysical } from '../physics/physicals/static-physical';
+import { LampPhysical } from './lamp-physical';
 
 @serializesTo(PlanetBase)
 export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   public readonly canCollide = true;
   public readonly canMove = false;
 
+  public readonly sizePointMultiplier: number;
+
   private _boundingBox?: ImmutableBoundingBox;
+
+  private readonly lamps: Array<LampPhysical> = [];
+
+  private lastTeam: CharacterTeam = CharacterTeam.neutral;
 
   protected commandExecutors: CommandExecutors = {
     [StepCommand.type]: this.step.bind(this),
   };
 
+  public addLamp(lamp: LampPhysical) {
+    this.lamps.push(lamp);
+  }
+
   constructor(vertices: Array<vec2>) {
     super(id(), vertices);
+
+    const sizeClass = clamp01(
+      (this.radius - settings.planetMinReferenceRadius) /
+      (settings.planetMaxReferenceRadius - settings.planetMinReferenceRadius),
+    );
+
+    this.sizePointMultiplier = mix(1, settings.planetSizePointMultiplierMax, sizeClass);
   }
 
   public distance(target: vec2): number {
@@ -80,14 +99,14 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   private getPoints(game: CommandReceiver) {
     if (this.timeSinceLastPointGeneration > settings.planetPointGenerationInterval) {
       this.timeSinceLastPointGeneration = 0;
-      if (this.team !== CharacterTeam.neutral) {
-        this.remoteCall('generatedPoints', settings.planetPointGenerationValue);
-      }
 
+      const value = Math.round(
+        settings.planetPointGenerationValue * this.sizePointMultiplier,
+      );
       game.handleCommand(
         new GeneratePointsCommand(
-          this.team === CharacterTeam.decla ? settings.planetPointGenerationValue : 0,
-          this.team === CharacterTeam.red ? settings.planetPointGenerationValue : 0,
+          this.team === CharacterTeam.decla ? value : 0,
+          this.team === CharacterTeam.red ? value : 0,
         ),
       );
     }
@@ -95,9 +114,40 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
   private step({ deltaTimeInSeconds, game }: StepCommand) {
     this.timeSinceLastPointGeneration += deltaTimeInSeconds;
+
     // In reverse order, so that teams can achieve a 100% control.
     this.getPoints(game);
     this.takeControl(CharacterTeam.neutral, deltaTimeInSeconds);
+    this.detectFlip(game);
+  }
+
+  private detectFlip(game: CommandReceiver) {
+    const currentTeam = this.team;
+    if (currentTeam === this.lastTeam) {
+      return;
+    }
+    this.lastTeam = currentTeam;
+
+    if (currentTeam !== CharacterTeam.neutral) {
+      const reward = Math.round(
+        settings.captureFlipPointReward * this.sizePointMultiplier,
+      );
+      this.remoteCall('generatedPoints', reward);
+      game.handleCommand(
+        new GeneratePointsCommand(
+          currentTeam === CharacterTeam.decla ? reward : 0,
+          currentTeam === CharacterTeam.red ? reward : 0,
+        ),
+      );
+    }
+
+    const control = Math.abs(this.ownership - 0.5) / 0.5;
+    const lightness = mix(settings.lampMinLightness, settings.lampMaxLightness, control);
+    const color = settings.palette[settings.colorIndices[currentTeam]];
+
+    this.lamps.forEach((lamp) => lamp.queueSetLight(color, lightness));
+
+    this.remoteCall('onFlipped', currentTeam);
   }
 
   public getPropertyUpdates(): PropertyUpdatesForObject {
@@ -153,7 +203,7 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
   public getForce(position: vec2): vec2 {
     const diff = vec2.subtract(vec2.create(), this.center, position);
-    const dist = Math.max(0, vec2.length(diff) - this.radius);
+    const dist = Math.max(settings.minGravityDistance, vec2.length(diff) - this.radius);
     vec2.normalize(diff, diff);
     const scale = clamp(
       settings.maxGravityQ * ((settings.maxGravityDistance / dist) ** 1.5 - 1),
