@@ -42,9 +42,8 @@ export class Player extends PlayerBase {
       (this.aspectRatio = v.aspectRatio),
     [MoveActionCommand.type]: (c: MoveActionCommand) =>
       this.character?.handleMovementAction(c),
-    [PrimaryActionCommand.type]: (c: PrimaryActionCommand) => {
-      this.character?.shootTowards(c.position);
-    },
+    [PrimaryActionCommand.type]: (c: PrimaryActionCommand) =>
+      this.character?.shootTowards(c.position, c.charge),
   };
 
   constructor(
@@ -60,11 +59,7 @@ export class Player extends PlayerBase {
   }
 
   protected createCharacter() {
-    const preferredCenter = this.playerContainer.players.find(
-      (p) => p.character?.isAlive && p.team === this.team,
-    )?.center;
-
-    super.createCharacter(preferredCenter ?? vec2.create());
+    super.createCharacter();
 
     this.objectsPreviouslyInViewArea.push(this.character!);
     this.queueCommandSend(new CreatePlayerCommand(this.character!));
@@ -205,9 +200,5 @@ export class Player extends PlayerBase {
     if (announcement) {
       this.queueCommandSend(new ServerAnnouncement(announcement));
     }
-  }
-
-  public destroy() {
-    super.destroy();
   }
 }

@@ -102,7 +102,7 @@ export class JoinFormHandler {
 
   private removeServer(server: ServerChooserOption) {
     this.servers = this.servers.filter((s) => s !== server);
-    if (this.servers.length) {
+    if (!this.servers.length) {
       this.joinButton.disabled = true;
     }
   }
@@ -143,16 +143,17 @@ class ServerChooserOption {
     this.setServerInfoLabelText();
 
     this.socket = io(url, {
-      reconnection: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
       timeout: 4000,
       parser,
     } as any);
 
-    // `connect_timeout` was removed in socket.io-client v3+; connection
-    // timeouts now surface through `connect_error` (reconnection is disabled).
-    this.socket.on('connect_error', this.destroy.bind(this));
-    this.socket.on('disconnect', this.destroy.bind(this));
-    this.socket.emit(TransportEvents.SubscribeForServerInfoUpdates);
+    this.socket.io.on('reconnect_failed', this.destroy.bind(this));
+
+    this.socket.on('connect', () =>
+      this.socket.emit(TransportEvents.SubscribeForServerInfoUpdates),
+    );
     this.socket.on(
       TransportEvents.ServerInfoUpdate,
       ([playerCount, gameState]: [number, number]) => {

@@ -137,12 +137,6 @@ module.exports = (env, argv) => {
     },
     resolve: {
       extensions: ['.ts', '.js', '.json'],
-      alias: {
-        // sdf-2d's package.json `exports` only declares an `import` condition,
-        // which webpack 5 cannot resolve for the production (require) build.
-        // Point straight at its entry to bypass package exports resolution.
-        'sdf-2d$': path.resolve(__dirname, 'node_modules/sdf-2d/lib/main.js'),
-      },
     },
   };
 };

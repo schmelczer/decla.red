@@ -5,5 +5,4 @@ export interface Options {
   scoreLimit: number;
   npcCount: number;
   seed: number;
-  worldSize: number;
 }

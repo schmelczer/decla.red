@@ -41,7 +41,7 @@ export class GameServer extends CommandReceiver {
   private initialize() {
     const previousPlayers = this.players;
     this.objects = new PhysicalContainer();
-    createWorld(this.objects, this.options.worldSize);
+    createWorld(this.objects);
     this.objects.initialize();
     this.players = new PlayerContainer(
       this.objects,

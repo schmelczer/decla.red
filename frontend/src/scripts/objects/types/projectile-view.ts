@@ -48,7 +48,10 @@ export class ProjectileView extends ProjectileBase {
 
     this.center = this.centerExtrapolator.getValue(deltaTimeInSeconds);
     this.light.center = this.center;
-    this.light.intensity = (0.15 * this.strength) / settings.projectileMaxStrength;
+    this.light.intensity = Math.min(
+      0.1,
+      (0.15 * this.strength) / settings.projectileMaxStrength,
+    );
   }
 
   private draw({ renderer }: RenderCommand): void {

@@ -26,13 +26,17 @@ export class CharacterBase extends GameObject {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public onShoot(strength: number) {}
+  public onShoot(strength: number) { }
+
+  public onHitConfirmed() { }
+
+  public onKillConfirmed(victimName?: string, streak?: number) { }
 
   public setHealth(health: number) {
     this.health = health;
   }
 
-  public onDie() {}
+  public onDie() { }
 
   public setKillCount(killCount: number) {
     this.killCount = killCount;

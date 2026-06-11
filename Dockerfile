@@ -46,5 +46,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/state',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
 ENTRYPOINT ["node", "dist/main.js"]
-# Override these to tune the server, e.g. `--name`, `--playerLimit`, `--worldSize`.
+# Override these to tune the server, e.g. `--name`, `--playerLimit`, `--scoreLimit`.
 CMD ["--port", "3000"]

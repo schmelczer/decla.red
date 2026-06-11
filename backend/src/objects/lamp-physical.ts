@@ -32,6 +32,10 @@ export class LampPhysical extends LampBase implements StaticPhysical {
     return this;
   }
 
+  public queueSetLight(color: vec3, lightness: number) {
+    this.remoteCall('setLight', color, lightness);
+  }
+
   public distance(target: vec2): number {
     return vec2.distance(this.center, target);
   }

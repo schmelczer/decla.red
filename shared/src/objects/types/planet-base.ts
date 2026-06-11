@@ -4,6 +4,7 @@ import { settings } from '../../settings';
 import { serializable } from '../../serialization/serializable';
 import { GameObject } from '../game-object';
 import { Id } from '../../communication/id';
+import { CharacterTeam } from './character-base';
 
 @serializable
 export class PlanetBase extends GameObject {
@@ -25,6 +26,8 @@ export class PlanetBase extends GameObject {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public generatedPoints(value: number) {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public onFlipped(team: CharacterTeam) {}
 
   public static createPlanetVertices(
     center: vec2,

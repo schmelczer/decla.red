@@ -53,6 +53,13 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
     return !this.isDestroyed;
   }
 
+  public get direction(): vec2 {
+    const direction = vec2.clone(this.velocity);
+    return vec2.length(direction) > 0
+      ? vec2.normalize(direction, direction)
+      : vec2.fromValues(0, -1);
+  }
+
   private moveOutsideOfObject() {
     let wasCollision = true;
     const delta = vec2.scale(

@@ -30,10 +30,12 @@ import { CommandSocket } from './commands/command-socket';
 import { PlayerDecision } from './join-form-handler';
 import { GameObjectContainer } from './objects/game-object-container';
 import parser from 'socket.io-msgpack-parser';
-import { BlobShape } from './shapes/blob-shape';
+import { CharacterShape } from './shapes/character-shape';
 import { PlanetShape } from './shapes/planet-shape';
 import { RenderCommand } from './commands/types/render';
 import { StepCommand } from './commands/types/step';
+import { Tutorial } from './tutorial';
+import { Scoreboard } from './scoreboard';
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
@@ -48,12 +50,11 @@ export class Game extends CommandReceiver {
   private mouseListener: MouseListener;
   private touchListener: TouchListener;
 
-  private declaPlanetCountElement = document.createElement('div');
-  private redPlanetCountElement = document.createElement('div');
+  private scoreboard = new Scoreboard();
   private announcementText = document.createElement('h2');
-  private progressBar = document.createElement('div');
   private arrows: { [id: number]: HTMLElement } = {};
   private socketReceiver!: CommandSocket;
+  private tutorial!: Tutorial;
 
   constructor(
     private readonly playerDecision: PlayerDecision,
@@ -63,9 +64,6 @@ export class Game extends CommandReceiver {
     super();
     this.started = new Promise((r) => (this.resolveStarted = r));
     this.announcementText.className = 'announcement';
-    this.progressBar.className = 'planet-progress';
-    this.progressBar.appendChild(this.declaPlanetCountElement);
-    this.progressBar.appendChild(this.redPlanetCountElement);
 
     this.keyboardListener = new KeyboardListener();
     this.mouseListener = new MouseListener(this.canvas, this);
@@ -78,12 +76,14 @@ export class Game extends CommandReceiver {
     this.socket?.close();
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
+    this.arrows = {};
     this.isEnding = false;
     this.lastAnnouncementText = '';
-    this.overlay.appendChild(this.progressBar);
+    this.overlay.appendChild(this.scoreboard.element);
     this.announcementText.innerText = '';
     this.timeScaling = 1;
     this.overlay.appendChild(this.announcementText);
+    this.tutorial = new Tutorial(this.overlay);
 
     this.socket = io(this.playerDecision.server, {
       reconnectionDelayMax: 10000,
@@ -114,12 +114,17 @@ export class Game extends CommandReceiver {
     });
 
     this.socketReceiver = new CommandSocket(this.socket);
+    // The tutorial listens to the same input streams as the socket, so its
+    // stages clear off the player's own commands without any server involvement.
     this.keyboardListener.clearSubscribers();
     this.keyboardListener.subscribe(this.socketReceiver);
+    this.keyboardListener.subscribe(this.tutorial);
     this.mouseListener.clearSubscribers();
     this.mouseListener.subscribe(this.socketReceiver);
+    this.mouseListener.subscribe(this.tutorial);
     this.touchListener.clearSubscribers();
     this.touchListener.subscribe(this.socketReceiver);
+    this.touchListener.subscribe(this.tutorial);
 
     this.isBetweenGames = false;
 
@@ -189,9 +194,8 @@ export class Game extends CommandReceiver {
         clamp(p.x, arrowPadding, width - arrowPadding),
         clamp(height - p.y, arrowPadding, height - arrowPadding),
       );
-      e.style.transform = `translateX(${p.x}px) translateY(${
-        p.y
-      }px) translateX(-50%) translateY(-50%) rotate(${-angle + Math.PI / 2}rad) `;
+      e.style.transform = `translateX(${p.x}px) translateY(${p.y
+        }px) translateX(-50%) translateY(-50%) rotate(${-angle + Math.PI / 2}rad) `;
     });
 
     for (const id in this.arrows) {
@@ -214,7 +218,7 @@ export class Game extends CommandReceiver {
       this.canvas,
       [
         PlanetShape.descriptor,
-        BlobShape.descriptor,
+        CharacterShape.descriptor,
         {
           ...CircleLight.descriptor,
           shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
@@ -223,10 +227,11 @@ export class Game extends CommandReceiver {
       this.gameLoop.bind(this),
       {
         shadowTraceCount: 16,
-        paletteSize: settings.palette.length,
-        colorPalette: settings.palette,
+        paletteSize: settings.paletteDim.length,
+        colorPalette: settings.paletteDim,
         enableHighDpiRendering: true,
         lightCutoffDistance: settings.lightCutoffDistance,
+        lightOverlapReduction: settings.lightOverlapReduction,
         textures: {
           noiseTexture: {
             source: noiseTexture,
@@ -276,7 +281,9 @@ export class Game extends CommandReceiver {
       this.draw();
     }
 
-    if ((this.timeSinceLastAnnouncement += deltaTime) > 0.5) {
+    if (
+      (this.timeSinceLastAnnouncement += deltaTime) > settings.announcementVisibleSeconds
+    ) {
       this.lastAnnouncementText = '';
     }
 
@@ -292,6 +299,10 @@ export class Game extends CommandReceiver {
       new RenderCommand(this.renderer, this.overlay, shouldChangeLayout),
     );
 
+    this.touchListener.update(deltaTime);
+
+    this.tutorial.step(this.gameObjects);
+
     this.socketReceiver.sendQueuedCommands();
 
     return this.isActive;
@@ -299,10 +310,8 @@ export class Game extends CommandReceiver {
 
   private draw() {
     if (this.lastGameState) {
-      this.declaPlanetCountElement.style.width =
-        (this.lastGameState.declaCount / this.lastGameState.limit) * 50 + '%';
-      this.redPlanetCountElement.style.width =
-        (this.lastGameState.redCount / this.lastGameState.limit) * 50 + '%';
+      // The local player's team is read off the main character once it exists.
+      this.scoreboard.update(this.lastGameState, this.gameObjects.player?.team);
     }
 
     if (this.lastOtherPlayerDirections) {
