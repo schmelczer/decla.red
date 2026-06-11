@@ -311,7 +311,8 @@ export class NPC extends PlayerBase {
     const leadTime = distance / projectileSpeed;
     const aim = vec2.scaleAndAdd(vec2.create(), target.center, velocity, leadTime);
 
-    (npcTuning.spreadBase + distance * npcTuning.spreadPerDistance) *
+    const spread =
+      (npcTuning.spreadBase + distance * npcTuning.spreadPerDistance) *
       (npcTuning.spreadAggressionFalloff - this.aggression);
     aim.x += Random.getRandomInRange(-spread, spread);
     aim.y += Random.getRandomInRange(-spread, spread);

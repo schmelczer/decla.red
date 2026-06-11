@@ -1,21 +1,49 @@
-import { vec2 } from 'gl-matrix';
-import { Id, Random, PlanetBase, UpdatePropertyCommand, CommandExecutors } from 'shared';
+import { vec2, vec3 } from 'gl-matrix';
+import { CircleLight } from 'sdf-2d';
+import {
+  Id,
+  Random,
+  PlanetBase,
+  UpdatePropertyCommand,
+  CommandExecutors,
+  CharacterTeam,
+  settings,
+} from 'shared';
 import { BeforeDestroyCommand } from '../../commands/types/before-destroy';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
 import { PlanetShape } from '../../shapes/planet-shape';
 
-type FallingPoint = {
-  velocity: vec2;
-  position: vec2;
-  element: HTMLElement;
-  addedToOverlay: boolean;
-  timeToLive: number;
-};
+const fallingPointLifetimeMs = 2000;
+
+// Global budget for simultaneously-lit capture flares, so a clustered wave of
+// captures can never white out the SDF exposure — excess flips still pulse the
+// ring and toast, they just skip the extra light. The acquire/release pair keeps
+// the count in one place instead of being hand-maintained at every call site.
+abstract class FlareBudget {
+  private static active = 0;
+
+  public static tryAcquire(): boolean {
+    if (FlareBudget.active >= settings.maxConcurrentFlipFlares) {
+      return false;
+    }
+    FlareBudget.active++;
+    return true;
+  }
+
+  public static release(): void {
+    FlareBudget.active = Math.max(0, FlareBudget.active - 1);
+  }
+}
 
 export class PlanetView extends PlanetBase {
   private shape: PlanetShape;
   private ownershipProgress: HTMLElement;
+  private readonly rotationSpeed: number;
+
+  private flareLight?: CircleLight;
+  private flareIntensity = 0;
+  private holdsFlareSlot = false;
 
   protected commandExecutors: CommandExecutors = {
     [RenderCommand.type]: this.draw.bind(this),
@@ -27,45 +55,69 @@ export class PlanetView extends PlanetBase {
   constructor(id: Id, vertices: Array<vec2>, ownership: number) {
     super(id, vertices);
     this.shape = new PlanetShape(vertices, ownership);
-    (this.shape as any).randomOffset = Random.getRandom();
+    this.shape.randomOffset = Random.getRandom();
+    this.rotationSpeed =
+      (0.05 + Random.getRandom() * 0.07) * (Random.getRandom() < 0.5 ? -1 : 1);
 
     this.ownershipProgress = document.createElement('div');
     this.ownershipProgress.className = 'ownership';
   }
 
   private step({ deltaTimeInSeconds }: StepCommand): void {
-    this.shape.randomOffset += deltaTimeInSeconds / 4;
+    this.shape.rotation += deltaTimeInSeconds * this.rotationSpeed;
     this.shape.colorMixQ = this.ownership;
 
-    this.generatedPointElements.forEach((p) => {
-      vec2.add(
-        p.velocity,
-        p.velocity,
-        vec2.scale(vec2.create(), vec2.fromValues(0, 50), deltaTimeInSeconds),
+    if (this.flareIntensity > 0) {
+      this.flareIntensity = Math.max(
+        0,
+        this.flareIntensity - deltaTimeInSeconds / settings.lampFlareDecaySeconds,
       );
 
-      vec2.add(
-        p.position,
-        p.position,
-        vec2.scale(vec2.create(), p.velocity, deltaTimeInSeconds),
-      );
+      if (this.flareLight) {
+        this.flareLight.intensity =
+          settings.lampFlareIntensity * this.flareIntensity * this.flareIntensity;
+      }
 
-      p.timeToLive -= deltaTimeInSeconds;
-    });
+      if (this.flareIntensity === 0) {
+        this.releaseFlareSlot();
+      }
+    }
   }
 
-  private generatedPointElements: Array<FallingPoint> = [];
+  private releaseFlareSlot(): void {
+    if (this.holdsFlareSlot) {
+      this.holdsFlareSlot = false;
+      FlareBudget.release();
+    }
+  }
 
   private lastGeneratedPoint?: number;
   public generatedPoints(value: number) {
     this.lastGeneratedPoint = value;
   }
 
+  public onFlipped(team: CharacterTeam): void {
+    const color = settings.palette[settings.colorIndices[team]];
+
+    if (!this.flareLight) {
+      this.flareLight = new CircleLight(vec2.clone(this.center), vec3.clone(color), 0);
+    } else {
+      this.flareLight.color = vec3.clone(color);
+    }
+
+    if (!this.holdsFlareSlot) {
+      if (!FlareBudget.tryAcquire()) {
+        return;
+      }
+      this.holdsFlareSlot = true;
+    }
+
+    this.flareIntensity = 1;
+  }
+
   private beforeDestroy(): void {
     this.ownershipProgress.parentElement?.removeChild(this.ownershipProgress);
-    this.generatedPointElements.forEach((p) =>
-      p.element.parentElement?.removeChild(p.element),
-    );
+    this.releaseFlareSlot();
   }
 
   private updateProperty({ propertyValue }: UpdatePropertyCommand): void {
@@ -80,26 +132,6 @@ export class PlanetView extends PlanetBase {
 
       const screenPosition = renderer.worldToDisplayCoordinates(this.center);
 
-      this.generatedPointElements.forEach((p) => {
-        if (!p.addedToOverlay) {
-          overlay.appendChild(p.element);
-        }
-
-        p.element.style.transform = `translateX(${
-          screenPosition.x + p.position.x
-        }px) translateY(${screenPosition.y + p.position.y}px)`;
-
-        if (p.timeToLive <= 0) {
-          p.element.parentElement?.removeChild(p.element);
-        } else {
-          p.element.style.opacity = Math.min(1, p.timeToLive).toString();
-        }
-      });
-
-      this.generatedPointElements = this.generatedPointElements.filter(
-        (p) => p.timeToLive > 0,
-      );
-
       this.ownershipProgress.style.transform = `translateX(${screenPosition.x}px) translateY(${screenPosition.y}px) translateX(-50%) translateY(-50%)`;
       this.ownershipProgress.style.background = this.getGradient();
 
@@ -107,19 +139,23 @@ export class PlanetView extends PlanetBase {
         const element = document.createElement('div');
         element.className = 'falling-point ' + (this.ownership < 0.5 ? 'decla' : 'red');
         element.innerText = '+' + this.lastGeneratedPoint;
-        this.generatedPointElements.push({
-          element,
-          addedToOverlay: false,
-          timeToLive: Random.getRandomInRange(2, 3),
-          position: vec2.create(),
-          velocity: vec2.fromValues(Random.getRandomInRange(-30, 30), 0),
-        });
+        element.style.left = `${screenPosition.x}px`;
+        element.style.top = `${screenPosition.y}px`;
+        overlay.appendChild(element);
+        setTimeout(
+          () => element.parentElement?.removeChild(element),
+          fallingPointLifetimeMs,
+        );
 
         this.lastGeneratedPoint = undefined;
       }
     }
 
     renderer.addDrawable(this.shape);
+
+    if (this.flareIntensity > 0 && this.flareLight) {
+      renderer.addDrawable(this.flareLight);
+    }
   }
 
   private getGradient(): string {
