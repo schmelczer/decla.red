@@ -4,7 +4,7 @@ import { Command } from '../command';
 @serializable
 export class UpdateGameState extends Command {
   public constructor(
-    public readonly declaCount: number,
+    public readonly blueCount: number,
     public readonly redCount: number,
     public readonly limit: number,
   ) {
@@ -12,6 +12,6 @@ export class UpdateGameState extends Command {
   }
 
   public toArray(): Array<any> {
-    return [this.declaCount, this.redCount, this.limit];
+    return [this.blueCount, this.redCount, this.limit];
   }
 }

@@ -1,7 +1,7 @@
 import { init as plausibleInit } from '@plausible-analytics/tracker';
 
 const ANALYTICS_AUTO_CAPTURE_PAGEVIEWS = true;
-const ANALYTICS_DOMAIN = 'decla.red';
+const ANALYTICS_DOMAIN = 'doppler.schmelczer.dev';
 const ANALYTICS_ENDPOINT = 'https://stats.schmelczer.dev/status';
 const ANALYTICS_LOGGING = process.env.NODE_ENV !== 'production';
 

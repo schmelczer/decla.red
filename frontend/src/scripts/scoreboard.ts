@@ -8,35 +8,35 @@ import { CharacterTeam, UpdateGameState, clamp, settings } from 'shared';
 export class Scoreboard {
   public readonly element = document.createElement('div');
 
-  private readonly declaFill = document.createElement('div');
+  private readonly blueFill = document.createElement('div');
   private readonly redFill = document.createElement('div');
-  private readonly declaScore = document.createElement('span');
+  private readonly blueScore = document.createElement('span');
   private readonly redScore = document.createElement('span');
   private readonly youMarker = document.createElement('div');
 
   constructor() {
     this.element.className = 'planet-progress';
 
-    this.declaFill.className = 'fill decla';
+    this.blueFill.className = 'fill blue';
     this.redFill.className = 'fill red';
 
-    this.declaScore.className = 'score decla';
+    this.blueScore.className = 'score blue';
     this.redScore.className = 'score red';
 
     this.youMarker.className = 'you-marker';
     this.youMarker.innerText = 'YOU';
 
     this.element.append(
-      this.declaFill,
+      this.blueFill,
       this.redFill,
-      this.declaScore,
+      this.blueScore,
       this.redScore,
       this.youMarker,
     );
   }
 
   public update(
-    { declaCount, redCount, limit }: UpdateGameState,
+    { blueCount, redCount, limit }: UpdateGameState,
     localTeam: CharacterTeam | undefined,
   ) {
     const { scoreboardHalfWidthPercent, scoreboardMinFillPercent } = settings;
@@ -46,23 +46,23 @@ export class Scoreboard {
         clamp(count / limit, 0, 1) * scoreboardHalfWidthPercent,
       );
 
-    this.declaFill.style.width = fraction(declaCount) + '%';
+    this.blueFill.style.width = fraction(blueCount) + '%';
     this.redFill.style.width = fraction(redCount) + '%';
 
     const isMatchPoint = (count: number) =>
       count / limit >= settings.matchPointScoreRatio;
-    this.declaFill.classList.toggle('match-point', isMatchPoint(declaCount));
+    this.blueFill.classList.toggle('match-point', isMatchPoint(blueCount));
     this.redFill.classList.toggle('match-point', isMatchPoint(redCount));
 
-    this.declaScore.innerText = String(Math.round(declaCount));
+    this.blueScore.innerText = String(Math.round(blueCount));
     this.redScore.innerText = String(Math.round(redCount));
 
-    this.declaScore.classList.toggle('leading', declaCount > redCount);
-    this.redScore.classList.toggle('leading', redCount > declaCount);
+    this.blueScore.classList.toggle('leading', blueCount > redCount);
+    this.redScore.classList.toggle('leading', redCount > blueCount);
 
-    if (localTeam === CharacterTeam.decla || localTeam === CharacterTeam.red) {
+    if (localTeam === CharacterTeam.blue || localTeam === CharacterTeam.red) {
       this.youMarker.style.display = '';
-      this.youMarker.classList.toggle('decla', localTeam === CharacterTeam.decla);
+      this.youMarker.classList.toggle('blue', localTeam === CharacterTeam.blue);
       this.youMarker.classList.toggle('red', localTeam === CharacterTeam.red);
     } else {
       this.youMarker.style.display = 'none';

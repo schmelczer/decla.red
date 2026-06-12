@@ -30,7 +30,7 @@ export class GameServer extends CommandReceiver {
   private deltaTimes!: Array<number>;
   private deltaTimeCalculator!: DeltaTimeCalculator;
 
-  private declaPoints = 0;
+  private bluePoints = 0;
   private redPoints = 0;
   private matchPointAnnounced: Partial<Record<CharacterTeam, boolean>> = {};
 
@@ -52,7 +52,7 @@ export class GameServer extends CommandReceiver {
     );
     this.deltaTimeCalculator = new DeltaTimeCalculator();
     this.deltaTimes = [];
-    this.declaPoints = 0;
+    this.bluePoints = 0;
     this.redPoints = 0;
     this.matchPointAnnounced = {};
     this.isInEndGame = false;
@@ -118,19 +118,19 @@ export class GameServer extends CommandReceiver {
     this.handlePhysics();
   }
 
-  private addPoints({ decla, red }: GeneratePointsCommand) {
+  private addPoints({ blue, red }: GeneratePointsCommand) {
     if (this.isInEndGame) {
       return;
     }
 
-    this.declaPoints += decla;
+    this.bluePoints += blue;
     this.redPoints += red;
-    if (this.declaPoints >= this.options.scoreLimit) {
-      this.endGame(CharacterTeam.decla);
+    if (this.bluePoints >= this.options.scoreLimit) {
+      this.endGame(CharacterTeam.blue);
     } else if (this.redPoints >= this.options.scoreLimit) {
       this.endGame(CharacterTeam.red);
     } else {
-      this.announceMatchPointOnce(CharacterTeam.decla, this.declaPoints);
+      this.announceMatchPointOnce(CharacterTeam.blue, this.bluePoints);
       this.announceMatchPointOnce(CharacterTeam.red, this.redPoints);
     }
   }
@@ -179,7 +179,7 @@ export class GameServer extends CommandReceiver {
     if ((this.timeSinceLastPointUpdate += delta) > 0.5) {
       this.timeSinceLastPointUpdate = 0;
       this.players.queueCommandForEachClient(
-        new UpdateGameState(this.declaPoints, this.redPoints, this.options.scoreLimit),
+        new UpdateGameState(this.bluePoints, this.redPoints, this.options.scoreLimit),
       );
     }
 
@@ -224,7 +224,7 @@ export class GameServer extends CommandReceiver {
   }
 
   private get gameProgress(): number {
-    return (Math.max(this.declaPoints, this.redPoints) / this.options.scoreLimit) * 100;
+    return (Math.max(this.bluePoints, this.redPoints) / this.options.scoreLimit) * 100;
   }
 
   public get serverInfo(): ServerInformation {

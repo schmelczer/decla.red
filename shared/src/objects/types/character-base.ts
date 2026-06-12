@@ -4,7 +4,7 @@ import { serializable } from '../../serialization/serializable';
 import { GameObject } from '../game-object';
 
 export enum CharacterTeam {
-  decla = 'decla',
+  blue = 'blue',
   neutral = 'neutral',
   red = 'red',
 }

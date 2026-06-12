@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# decla.red game server (the `declared-server` package).
+# doppler game server (the `doppler-server` package).
 # The frontend is a static site and is NOT built here — see .forgejo/workflows.
 
 # ---- Stage 1: build the shared lib, then bundle the server -------------------

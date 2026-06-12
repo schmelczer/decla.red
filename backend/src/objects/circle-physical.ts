@@ -8,6 +8,7 @@ import {
 } from 'shared';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
+import { depenetrateCircle } from '../physics/functions/depenetrate-circle';
 import { moveCircle } from '../physics/functions/move-circle';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
@@ -99,6 +100,8 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
       .findIntersecting(this.boundingBox)
       .filter((b) => b.gameObject !== this.gameObject && b.canCollide);
     this.radius -= vec2.length(delta);
+
+    depenetrateCircle(this, intersecting);
 
     const { normal, hitSurface, hitObject } = moveCircle(this, delta, intersecting);
 

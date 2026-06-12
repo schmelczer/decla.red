@@ -1,13 +1,13 @@
 import { rgb255 } from './helper/rgb255';
 import { CharacterTeam } from './objects/types/character-base';
 
-const declaColor = rgb255(64, 105, 165);
+const blueColor = rgb255(64, 105, 165);
 const neutralColor = rgb255(82, 165, 64);
 const redColor = rgb255(209, 86, 82);
 const q = 2.5;
-const declaColorDim = rgb255(64 * q, 105 * q, 165 * q);
+const blueColorDim = rgb255(64 * q, 105 * q, 165 * q);
 const redColorDim = rgb255(209 * q, 86 * q, 82 * q);
-const declaPlanetColor = declaColorDim;
+const bluePlanetColor = blueColorDim;
 const redPlanetColor = redColorDim;
 
 export const settings = {
@@ -64,8 +64,8 @@ export const settings = {
   chargeShotSpeedMax: 3400,
   playerColorIndexOffset: 3,
   backgroundGradient: [rgb255(90, 38, 43), rgb255(43, 39, 73)],
-  declaColor,
-  declaPlanetColor,
+  blueColor,
+  bluePlanetColor,
   npcNames: [
     'Adam',
     'Andrew',
@@ -119,12 +119,12 @@ export const settings = {
   redColor,
   redPlanetColor,
   colorIndices: {
-    [CharacterTeam.decla]: 0,
+    [CharacterTeam.blue]: 0,
     [CharacterTeam.neutral]: 1,
     [CharacterTeam.red]: 2,
   },
-  palette: [declaColor, neutralColor, redColor],
-  paletteDim: [declaColorDim, neutralColor, redColorDim],
+  palette: [blueColor, neutralColor, redColor],
+  paletteDim: [blueColorDim, neutralColor, redColorDim],
   targetPhysicsDeltaTimeInSeconds: 1 / 200,
   inViewAreaSize: 1920 * 1080 * 4,
   scoreboardHalfWidthPercent: 50,

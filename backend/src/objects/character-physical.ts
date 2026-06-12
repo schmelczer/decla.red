@@ -151,10 +151,10 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   private getPoints(game: CommandReceiver) {
     if (!this.isAlive && !this.hasGeneratedPoints) {
       this.hasGeneratedPoints = true;
-      const decla = this.team === CharacterTeam.decla ? 0 : settings.playerKillPoint;
+      const blue = this.team === CharacterTeam.blue ? 0 : settings.playerKillPoint;
       const red = this.team === CharacterTeam.red ? 0 : settings.playerKillPoint;
 
-      game.handleCommand(new GeneratePointsCommand(decla, red));
+      game.handleCommand(new GeneratePointsCommand(blue, red));
     }
   }
 
@@ -405,7 +405,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     this.projectileStrength = Math.min(
       settings.playerMaxStrength,
       this.projectileStrength +
-      settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
+        settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
     );
 
     this.regenerateHealth(deltaTimeInSeconds);
@@ -443,6 +443,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
 
       this.setDirection(vec2.length(sumForce) === 0 ? vec2.fromValues(0, -1) : sumForce);
     } else {
+      this.carryWithRotatingPlanet(deltaTimeInSeconds);
+
       const leftFootGravity = this.currentPlanet!.getForce(this.leftFoot.center);
       const rightFootGravity = this.currentPlanet!.getForce(this.rightFoot.center);
 
@@ -490,6 +492,38 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       this.direction,
       Math.atan2(direction.y, direction.x) + Math.PI / 2,
       0.2,
+    );
+  }
+
+  // While standing on a planet, ride its spin: rigidly rotate the whole body
+  // around the planet centre by the same per-tick angle the renderer and the
+  // collision SDF use, so the player is carried around and turned with the
+  // surface instead of it sliding frictionlessly underneath. The positional
+  // change becomes velocity in setPropertyUpdates, so the motion syncs and the
+  // client extrapolates it smoothly.
+  private carryWithRotatingPlanet(deltaTimeInSeconds: number) {
+    const planet = this.currentPlanet;
+    if (!planet) {
+      return;
+    }
+
+    // Negative: the rendered/collidable surface turns by R(-rotation) — see
+    // PlanetPhysical.distance (toLocalFrame) and planet-shape.ts.
+    const angle = -planet.angularVelocity * deltaTimeInSeconds;
+    const center = planet.center;
+
+    this.head.center = vec2.rotate(vec2.create(), this.head.center, center, angle);
+    this.leftFoot.center = vec2.rotate(
+      vec2.create(),
+      this.leftFoot.center,
+      center,
+      angle,
+    );
+    this.rightFoot.center = vec2.rotate(
+      vec2.create(),
+      this.rightFoot.center,
+      center,
+      angle,
     );
   }
 

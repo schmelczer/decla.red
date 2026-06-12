@@ -86,7 +86,7 @@ export class Tutorial extends CommandReceiver {
       }
       if (standing) {
         const drift = standing.ownership - this.standingBaseline;
-        const progress = player.team === CharacterTeam.decla ? -drift : drift;
+        const progress = player.team === CharacterTeam.blue ? -drift : drift;
         if (progress > captureProgressThreshold) {
           this.finish();
         }
