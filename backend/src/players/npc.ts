@@ -60,6 +60,10 @@ const npcTuning = {
   spreadBase: 60,
   spreadPerDistance: 0.08,
   spreadAggressionFalloff: 1.3,
+
+  // Per-second chance to hop while grounded and on the move, so bots use the
+  // leap verb too instead of being grounded targets.
+  leapChancePerSecond: 0.35,
 };
 
 export class NPC extends PlayerBase {
@@ -140,6 +144,16 @@ export class NPC extends PlayerBase {
     this.dodgeCooldownRemaining -= deltaTimeInSeconds;
     const movement = this.decideMovement(this.nearObjects);
     this.character.handleMovementAction(new MoveActionCommand(movement));
+
+    if (
+      !this.isComingBack &&
+      this.character.groundPlanet &&
+      vec2.length(movement) > 0 &&
+      Random.getRandom() <
+        npcTuning.leapChancePerSecond * this.aggression * deltaTimeInSeconds
+    ) {
+      this.character.leap();
+    }
 
     if (
       (this.timeSinceLastShoot += deltaTimeInSeconds) > npcTuning.shootIntervalSeconds

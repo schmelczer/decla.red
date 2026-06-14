@@ -8,13 +8,16 @@ import {
   PropertyUpdatesForObject,
   UpdatePropertyCommand,
   CommandExecutors,
+  Circle,
+  marchCircle,
 } from 'shared';
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { CirclePhysical } from './circle-physical';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { CharacterPhysical } from './character-physical';
-import { moveCircle } from '../physics/functions/move-circle';
+import { forceAtPosition } from '../physics/functions/force-at-position';
+import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { StepCommand } from '../commands/step';
 import { ReactToCollisionCommand } from '../commands/react-to-collision';
 
@@ -42,6 +45,9 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
     private velocity: vec2,
     public readonly originator: CharacterPhysical,
     readonly container: PhysicalContainer,
+    // Normalised charge (0..1) of the shot that fired this, used by the victim
+    // to scale hit/kill feedback and the death fling.
+    public readonly charge: number = 0,
   ) {
     super(id(), center, radius, team, strength);
     this.object = new CirclePhysical(center, radius, this, container, 0.9);
@@ -71,7 +77,7 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
       const intersecting = this.container
         .findIntersecting(this.boundingBox)
         .filter((g) => g instanceof CharacterPhysical && g.team === this.team);
-      const { hitSurface } = moveCircle(this.object, delta, intersecting, true);
+      const { hitSurface } = marchCircle(this.object, delta, intersecting, true);
       wasCollision = hitSurface;
     }
     vec2.add(this.center, this.center, delta);
@@ -124,8 +130,31 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
       return;
     }
 
+    // Curveball: the same planetary gravity that pulls on a free-falling
+    // character bends the shot, so slower (charged) shots arc and can be lobbed
+    // over a planet's horizon. Scale is tiny — near-surface gravity is huge.
+    // This single broadphase is reused for the step below: the gravity radius
+    // (maxGravityDistance) dwarfs one tick's travel, so the set is a superset of
+    // the swept-collision box and the step needn't query the container again.
+    const intersecting = settings.projectileGravityEnabled
+      ? this.container.findIntersecting(
+          getBoundingBoxOfCircle(
+            new Circle(this.center, this.object.radius + settings.maxGravityDistance),
+          ),
+        )
+      : undefined;
+
+    if (intersecting) {
+      vec2.scaleAndAdd(
+        this.velocity,
+        this.velocity,
+        forceAtPosition(this.center, intersecting),
+        settings.projectileGravityScale * deltaTimeInSeconds,
+      );
+    }
+
     vec2.copy(this.object.velocity, this.velocity);
-    const { velocity } = this.object.stepManually(deltaTimeInSeconds);
+    const { velocity } = this.object.stepManually(deltaTimeInSeconds, intersecting);
     vec2.copy(this.velocity, velocity);
   }
 }

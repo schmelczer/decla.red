@@ -4,17 +4,19 @@ import {
   CommandExecutors,
   CommandReceiver,
   Id,
+  LeapActionCommand,
   MoveActionCommand,
   PrimaryActionCommand,
 } from 'shared';
 import { GameObjectContainer } from './objects/game-object-container';
 import { PlanetView } from './objects/types/planet-view';
 
-type StageTrigger = 'move' | 'shoot' | 'capture';
+type StageTrigger = 'move' | 'shoot' | 'leap' | 'capture';
 
 const stages: ReadonlyArray<{ hint: string; clearsOn: StageTrigger }> = [
   { hint: 'WASD / drag to walk', clearsOn: 'move' },
   { hint: 'Click / tap to shoot', clearsOn: 'shoot' },
+  { hint: 'Space / leap button to launch off a planet', clearsOn: 'leap' },
   { hint: 'Stand on a planet to capture it', clearsOn: 'capture' },
 ];
 
@@ -39,6 +41,11 @@ export class Tutorial extends CommandReceiver {
     },
     [PrimaryActionCommand.type]: () => {
       if (this.clearsOn() === 'shoot') {
+        this.advance();
+      }
+    },
+    [LeapActionCommand.type]: () => {
+      if (this.clearsOn() === 'leap') {
         this.advance();
       }
     },

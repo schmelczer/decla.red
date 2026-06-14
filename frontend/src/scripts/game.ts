@@ -21,6 +21,7 @@ import {
   CommandExecutors,
   Command,
   settings,
+  InputAcknowledgement,
 } from 'shared';
 import { io, Socket } from 'socket.io-client';
 import { KeyboardListener } from './commands/keyboard-listener';
@@ -35,6 +36,7 @@ import { PlanetShape } from './shapes/planet-shape';
 import { RenderCommand } from './commands/types/render';
 import { StepCommand } from './commands/types/step';
 import { serverTimeline } from './helper/server-timeline';
+import { localCharacterPredictor } from './helper/prediction/local-character-predictor';
 import { Tutorial } from './tutorial';
 import { Scoreboard } from './scoreboard';
 
@@ -54,6 +56,7 @@ export class Game extends CommandReceiver {
   private scoreboard = new Scoreboard();
   private announcementText = document.createElement('h2');
   private arrows: { [id: number]: HTMLElement } = {};
+  private keystoneArrow?: HTMLElement;
   private socketReceiver!: CommandSocket;
   private tutorial!: Tutorial;
 
@@ -76,9 +79,11 @@ export class Game extends CommandReceiver {
 
     this.socket?.close();
     serverTimeline.reset();
+    localCharacterPredictor.reset();
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
     this.arrows = {};
+    this.keystoneArrow = undefined;
     this.isEnding = false;
     this.lastAnnouncementText = '';
     this.overlay.appendChild(this.scoreboard.element);
@@ -148,6 +153,12 @@ export class Game extends CommandReceiver {
       this.timeSinceLastAnnouncement = 0;
     },
     [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
+    [InputAcknowledgement.type]: (c: InputAcknowledgement) =>
+      localCharacterPredictor.acknowledge(
+        c.clientTimeMs,
+        c.bodyVelocity,
+        c.lastLeapClientTimeMs,
+      ),
     [GameEndCommand.type]: () => (this.isEnding = true),
     [UpdateOtherPlayerDirections.type]: (c: UpdateOtherPlayerDirections) =>
       (this.lastOtherPlayerDirections = c),
@@ -325,6 +336,71 @@ export class Game extends CommandReceiver {
       this.handleOtherPlayerDirections(this.lastOtherPlayerDirections);
     }
 
+    this.handleKeystoneArrow();
+
     this.announcementText.innerHTML = this.lastAnnouncementText;
+  }
+
+  // Points an off-screen chevron toward the keystone "Heart" planet, tinted by
+  // who currently holds it, so the match's focal objective is always findable.
+  private handleKeystoneArrow() {
+    if (!this.renderer) {
+      return;
+    }
+    const keystone = this.gameObjects.planets.find((p) => p.isKeystone);
+    if (!keystone) {
+      if (this.keystoneArrow) {
+        this.keystoneArrow.style.display = 'none';
+      }
+      return;
+    }
+
+    if (!this.keystoneArrow) {
+      this.keystoneArrow = document.createElement('div');
+      this.overlay.appendChild(this.keystoneArrow);
+    }
+
+    const width = this.renderer.canvasSize.x;
+    const height = this.renderer.canvasSize.y;
+    const display = this.renderer.worldToDisplayCoordinates(keystone.center);
+    const margin = 48;
+    const onScreen =
+      display.x >= margin &&
+      display.x <= width - margin &&
+      display.y >= margin &&
+      display.y <= height - margin;
+
+    const control = Math.abs(keystone.ownership - 0.5);
+    const team =
+      control < settings.planetControlThreshold
+        ? 'neutral'
+        : keystone.ownership < 0.5
+          ? 'blue'
+          : 'red';
+    this.keystoneArrow.className = 'keystone-arrow ' + team;
+
+    if (onScreen) {
+      this.keystoneArrow.style.display = 'none';
+      return;
+    }
+    this.keystoneArrow.style.display = 'block';
+
+    const center = vec2.fromValues(width / 2, height / 2);
+    const dir = vec2.fromValues(display.x - center.x, display.y - center.y);
+    const angle = Math.atan2(dir.y, dir.x);
+
+    const aspectRatio = width / height;
+    const directionRatio = dir.x / dir.y;
+    let deltaX: number, deltaY: number;
+    if (aspectRatio < Math.abs(directionRatio)) {
+      deltaX = (width / 2 - margin) * Math.sign(dir.x);
+      deltaY = deltaX / directionRatio;
+    } else {
+      deltaY = (height / 2 - margin) * Math.sign(dir.y);
+      deltaX = deltaY * directionRatio;
+    }
+
+    const p = vec2.add(center, center, vec2.fromValues(deltaX, deltaY));
+    this.keystoneArrow.style.transform = `translateX(${p.x}px) translateY(${p.y}px) translateX(-50%) translateY(-50%) rotate(${angle + Math.PI / 2}rad)`;
   }
 }

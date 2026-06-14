@@ -207,6 +207,14 @@ body {
       @include square(50px);
       border-radius: 1000px;
       mask-image: url('../static/mask.svg');
+
+      &.contested {
+        animation: contested-pulse 0.7s ease-in-out infinite;
+      }
+
+      &.keystone {
+        @include square(72px);
+      }
     }
 
     .falling-point {
@@ -241,6 +249,34 @@ body {
 
       &.red {
         background-color: $bright-red;
+      }
+    }
+
+    // Off-screen pointer to the keystone "Heart", tinted by its current owner.
+    .keystone-arrow {
+      transition: transform 150ms;
+      opacity: 0.9;
+
+      @include square($large-icon);
+
+      @media (max-width: $breakpoint) {
+        @include square($small-icon);
+      }
+
+      mask-image: url('../static/chevron.svg');
+      mask-size: contain;
+      background-color: $bright-neutral;
+
+      &.blue {
+        background-color: $bright-blue;
+      }
+
+      &.red {
+        background-color: $bright-red;
+      }
+
+      &.neutral {
+        background-color: $bright-neutral;
       }
     }
 
@@ -293,6 +329,15 @@ body {
 
         &::after {
           content: '\25C9';
+        }
+      }
+
+      &.leap {
+        right: $medium-padding;
+        bottom: $medium-padding + $large-icon * 1.6 + $small-padding;
+
+        &::after {
+          content: '\25B2';
         }
       }
 
@@ -572,6 +617,16 @@ body {
     }
 
     animation: hitmarker-pop 250ms ease-out forwards;
+
+    &.charged {
+
+      &::before,
+      &::after {
+        width: 18px;
+        height: 3px;
+        background-color: $accent;
+      }
+    }
   }
 
   .kill-popup {
@@ -583,6 +638,10 @@ body {
     color: $bright-neutral;
     text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
     animation: kill-popup-rise 1200ms ease-out forwards;
+
+    &.charged {
+      color: $accent;
+    }
 
     .heal {
       color: #6fcf6f;
@@ -626,6 +685,18 @@ body {
   }
 }
 
+@keyframes contested-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
 .charge-ring {
   position: fixed;
   @include square(56px);
@@ -649,6 +720,7 @@ body {
 }
 
 @keyframes match-point-pulse {
+
   0%,
   100% {
     box-shadow: 0 0 4px 0 currentColor;

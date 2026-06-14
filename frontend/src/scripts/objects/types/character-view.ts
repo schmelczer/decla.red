@@ -176,21 +176,32 @@ export class CharacterView extends CharacterBase {
     }
   }
 
-  public onHitConfirmed() {
+  public onHitConfirmed(charge = 0) {
     if (!this.isMainCharacter) {
       return;
     }
-    SoundHandler.play(Sounds.click, 0.4, 1.7);
-    FeedbackHud.hitMarker();
+    // A charged hit lands lower and harder than a panic tap.
+    SoundHandler.play(Sounds.click, mix(0.4, 0.75, charge), mix(1.7, 1.05, charge));
+    if (charge >= settings.chargedHitThreshold) {
+      VibrationHandler.vibrate(25);
+    }
+    FeedbackHud.hitMarker(charge);
   }
 
-  public onKillConfirmed(victimName?: string, streak = 1) {
+  public onKillConfirmed(victimName?: string, streak = 1, charge = 0) {
     if (!this.isMainCharacter) {
       return;
     }
-    SoundHandler.play(Sounds.click, 1, 0.7);
-    VibrationHandler.vibrate(60);
-    FeedbackHud.killConfirmed(victimName, streak);
+    SoundHandler.play(Sounds.click, 1, mix(0.7, 0.5, charge));
+    VibrationHandler.vibrate(mix(60, 110, charge));
+    FeedbackHud.killConfirmed(victimName, streak, charge);
+  }
+
+  public onLeap() {
+    if (!this.isMainCharacter) {
+      return;
+    }
+    SoundHandler.play(Sounds.shoot, 0.3, 1.5);
   }
 
   private step({ deltaTimeInSeconds }: StepCommand): void {

@@ -23,6 +23,8 @@ import {
   PropertyUpdatesForObjects,
   PropertyUpdatesForObject,
   PrimaryActionCommand,
+  LeapActionCommand,
+  InputAcknowledgement,
 } from 'shared';
 import { Socket } from 'socket.io';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
@@ -37,14 +39,27 @@ export class Player extends PlayerBase {
   private timeUntilRespawn = 0;
   private timeSinceLastMessage = 0;
   private objectsPreviouslyInViewArea: Array<GameObject> = [];
+  private lastInputClientTimeMs = 0;
+  private lastLeapClientTimeMs = 0;
 
   protected commandExecutors: CommandExecutors = {
     [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) =>
       (this.aspectRatio = v.aspectRatio),
-    [MoveActionCommand.type]: (c: MoveActionCommand) =>
-      this.character?.handleMovementAction(c),
+    [MoveActionCommand.type]: (c: MoveActionCommand) => {
+      // Remember how far into this client's input timeline we've consumed, to
+      // echo back for client-side prediction reconciliation.
+      this.lastInputClientTimeMs = c.clientTimeMs;
+      this.character?.handleMovementAction(c);
+    },
     [PrimaryActionCommand.type]: (c: PrimaryActionCommand) =>
       this.character?.shootTowards(c.position, c.charge),
+    [LeapActionCommand.type]: (c: LeapActionCommand) => {
+      // Record receipt (whether or not leap() accepts it): either way its effect
+      // on bodyVelocity is now reflected in the streamed launch momentum, so the
+      // predictor must stop replaying this leap.
+      this.lastLeapClientTimeMs = c.clientTimeMs;
+      this.character?.leap();
+    },
   };
 
   constructor(
@@ -100,6 +115,13 @@ export class Player extends PlayerBase {
       new Set(this.objectContainer.findIntersecting(bb).map((o) => o.gameObject)),
     );
 
+    // The owning character must always be in its own snapshot, regardless of the
+    // view-area query, so the client predictor never loses its authoritative
+    // anchor (the body can ride a fast spinner to the very edge of the box).
+    if (this.character && !objectsInViewArea.includes(this.character)) {
+      objectsInViewArea.push(this.character);
+    }
+
     const newlyIntersecting = objectsInViewArea.filter(
       (o) => !this.objectsPreviouslyInViewArea.includes(o),
     );
@@ -130,6 +152,19 @@ export class Player extends PlayerBase {
         performance.now() / 1000,
       ),
     );
+
+    // Tell the client how much of its own input is reflected in the snapshot it
+    // just received, so its predictor can replay the rest. Only while alive —
+    // a dead player isn't predicting.
+    if (this.character) {
+      this.queueCommandSend(
+        new InputAcknowledgement(
+          this.lastInputClientTimeMs,
+          this.character.launchMomentum,
+          this.lastLeapClientTimeMs,
+        ),
+      );
+    }
   }
 
   private getOtherPlayers(): Array<OtherPlayerDirection> {

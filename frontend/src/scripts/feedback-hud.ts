@@ -33,17 +33,19 @@ export abstract class FeedbackHud {
     setTimeout(() => element.parentElement?.removeChild(element), lifetimeMs);
   }
 
-  public static hitMarker() {
+  public static hitMarker(charge = 0) {
     const { x, y } = this.focusPoint();
     const marker = document.createElement('div');
-    marker.className = 'hitmarker';
+    marker.className =
+      'hitmarker' + (charge >= settings.chargedHitThreshold ? ' charged' : '');
     marker.style.left = `${x}px`;
     marker.style.top = `${y}px`;
     this.addTransient(marker, 250);
   }
 
-  public static killConfirmed(victimName?: string, streak = 1) {
+  public static killConfirmed(victimName?: string, streak = 1, charge = 0) {
     const { killfeed } = this.ensureRoot();
+    const charged = charge >= settings.chargedHitThreshold;
 
     const entry = document.createElement('div');
     entry.className = 'kill-entry';
@@ -53,13 +55,13 @@ export abstract class FeedbackHud {
 
     const { x, y } = this.focusPoint();
     const popup = document.createElement('div');
-    popup.className = 'kill-popup';
+    popup.className = 'kill-popup' + (charged ? ' charged' : '');
     popup.innerHTML = `+${settings.playerKillPoint} <span class="heal">+${settings.playerKillHealthReward}❤</span>`;
     popup.style.left = `${x}px`;
     popup.style.top = `${y}px`;
     this.addTransient(popup, 1200);
 
-    const callout = this.streakName(streak);
+    const callout = this.streakName(streak) ?? (charged ? 'Charged Kill!' : undefined);
     if (callout) {
       const el = document.createElement('div');
       el.className = 'streak-callout';

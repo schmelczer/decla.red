@@ -103,8 +103,8 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
               if (dist < minDistance) {
                 minDistance = dist;
                 color = mix(${colorToString(settings.bluePlanetColor)}, ${colorToString(
-                  settings.redPlanetColor,
-                )}, planetColorMixQ[j]);
+        settings.redPlanetColor,
+      )}, planetColorMixQ[j]);
               }
             }
 
@@ -129,11 +129,32 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
   public randomOffset = 0;
   public rotation = 0;
 
+  // Circle about the rotation centre (the vertex centroid, which is what the
+  // shader spins around — see planetMinDistance above). The vertices never
+  // change after construction, so cache it once.
+  private readonly cullCenter: vec2;
+  private readonly cullRadius: number;
+
   constructor(
     public vertices: Array<vec2>,
     public colorMixQ: number,
   ) {
     super(vertices);
+
+    this.cullCenter = vertices.reduce(
+      (sum, v) => vec2.add(sum, sum, v),
+      vec2.create(),
+    );
+    vec2.scale(this.cullCenter, this.cullCenter, 1 / vertices.length);
+
+    this.cullRadius = vertices.reduce(
+      (max, v) => Math.max(max, vec2.distance(this.cullCenter, v)),
+      0,
+    );
+  }
+
+  public minDistance(target: vec2): number {
+    return vec2.distance(target, this.cullCenter) - this.cullRadius;
   }
 
   protected getObjectToSerialize(transform2d: mat2d, _: number): any {

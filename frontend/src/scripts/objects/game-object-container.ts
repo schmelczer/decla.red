@@ -1,4 +1,5 @@
 import {
+  Circle,
   Command,
   CommandExecutors,
   CommandReceiver,
@@ -9,11 +10,15 @@ import {
   Id,
   PropertyUpdatesForObjects,
   RemoteCallsForObjects,
+  settings,
+  UpdatePropertyCommand,
 } from 'shared';
 import { BeforeDestroyCommand } from '../commands/types/before-destroy';
 import { StepCommand } from '../commands/types/step';
 import { Game } from '../game';
 import { serverTimeline } from '../helper/server-timeline';
+import { PredictablePlanet } from '../helper/prediction/client-character-world';
+import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
 import { Camera } from './types/camera';
 import { CharacterView } from './types/character-view';
 import { PlanetView } from './types/planet-view';
@@ -28,6 +33,9 @@ export class GameObjectContainer extends CommandReceiver {
       this.player = c.character as CharacterView;
       this.player.isMainCharacter = true;
       this.addObject(this.player);
+      // Fresh character (first spawn or respawn at a far planet): drop any
+      // prediction state so it snaps to the new body instead of gliding across.
+      localCharacterPredictor.reset();
     },
 
     [CreateObjectsCommand.type]: (c: CreateObjectsCommand) =>
@@ -37,6 +45,18 @@ export class GameObjectContainer extends CommandReceiver {
       this.defaultCommandExecutor(c);
 
       if (this.player) {
+        // Override the interpolated pose of the local player with the predicted
+        // one so it responds to input immediately. Remote objects keep
+        // interpolating. A large correction (respawn / death) snaps inside the
+        // predictor rather than rubber-banding.
+        localCharacterPredictor.setStrength(
+          this.player.strengthFraction * settings.playerMaxStrength,
+        );
+        if (localCharacterPredictor.update(this.predictablePlanets(), c.deltaTimeInSeconds)) {
+          this.player.head = localCharacterPredictor.head;
+          this.player.leftFoot = localCharacterPredictor.leftFoot;
+          this.player.rightFoot = localCharacterPredictor.rightFoot;
+        }
         this.camera.follow(this.player.position, c.deltaTimeInSeconds);
       }
     },
@@ -48,9 +68,12 @@ export class GameObjectContainer extends CommandReceiver {
 
     [PropertyUpdatesForObjects.type]: (c: PropertyUpdatesForObjects) => {
       serverTimeline.onSnapshot(c.timestamp);
-      c.updates.forEach((u) =>
-        u.updates.forEach((au) => this.objects.get(u.id)?.handleCommand(au)),
-      );
+      c.updates.forEach((u) => {
+        u.updates.forEach((au) => this.objects.get(u.id)?.handleCommand(au));
+        if (this.player && u.id === this.player.id) {
+          this.feedPredictor(u.updates);
+        }
+      });
     },
 
     [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
@@ -74,6 +97,34 @@ export class GameObjectContainer extends CommandReceiver {
   protected defaultCommandExecutor(c: Command) {
     this.objects.forEach((o) => o.handleCommand(c));
     this.camera.handleCommand(c);
+  }
+
+  // Hand the local player's raw authoritative pose to the predictor (the
+  // interpolated pose would already be ~100 ms stale). The three body parts
+  // arrive together in one snapshot.
+  private feedPredictor(updates: Array<UpdatePropertyCommand>) {
+    let head: Circle | undefined;
+    let leftFoot: Circle | undefined;
+    let rightFoot: Circle | undefined;
+    for (const u of updates) {
+      if (u.propertyKey === 'head') head = u.propertyValue as Circle;
+      else if (u.propertyKey === 'leftFoot') leftFoot = u.propertyValue as Circle;
+      else if (u.propertyKey === 'rightFoot') rightFoot = u.propertyValue as Circle;
+    }
+    if (head && leftFoot && rightFoot) {
+      localCharacterPredictor.setAuthoritative(head, leftFoot, rightFoot);
+    }
+  }
+
+  private predictablePlanets(): Array<PredictablePlanet> {
+    return this.planets.map((p) => ({
+      id: p.id,
+      vertices: p.vertices,
+      center: p.center,
+      radius: p.radius,
+      rotation: p.predictionRotation,
+      rotationSpeed: p.predictionRotationSpeed,
+    }));
   }
 
   private addObject(object: GameObject) {

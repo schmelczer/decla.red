@@ -56,17 +56,39 @@ export class PlanetView extends PlanetBase {
     [UpdatePropertyCommand.type]: this.updateProperty.bind(this),
   };
 
-  constructor(id: Id, vertices: Array<vec2>, ownership: number) {
-    super(id, vertices);
+  constructor(id: Id, vertices: Array<vec2>, ownership = 0.5, isKeystone = false) {
+    super(id, vertices, ownership, isKeystone);
     this.shape = new PlanetShape(vertices, ownership);
     this.shape.randomOffset = Random.getRandom();
 
     this.ownershipProgress = document.createElement('div');
-    this.ownershipProgress.className = 'ownership';
+    this.ownershipProgress.className = 'ownership' + (isKeystone ? ' keystone' : '');
+  }
+
+  public setContested(contested: boolean) {
+    this.ownershipProgress.classList.toggle('contested', contested);
+  }
+
+  private renderedRotation = 0;
+  private rotationSpeed = 0;
+  // Newest streamed rotation VALUE — the server-current angle at the latest
+  // snapshot — as opposed to renderedRotation, which the interpolator holds
+  // ~interpolationDelaySeconds in the PAST for drawing. The predictor seeds the
+  // local body from the same snapshot's pose, so it must collide against the
+  // planet at THIS (newest) phase and advance forward from it; using the drawn
+  // lagged angle biases the body off the surface by omega*delay*radius and
+  // wobbles it whenever the spin or the interpolator's rate cursor varies.
+  private latestRotation = 0;
+  public get predictionRotation(): number {
+    return this.latestRotation;
+  }
+  public get predictionRotationSpeed(): number {
+    return this.rotationSpeed;
   }
 
   private step({ deltaTimeInSeconds }: StepCommand): void {
-    this.shape.rotation = this.rotationInterpolator.getValue(deltaTimeInSeconds);
+    this.renderedRotation = this.rotationInterpolator.getValue(deltaTimeInSeconds);
+    this.shape.rotation = this.renderedRotation;
     this.shape.colorMixQ = this.ownership;
 
     if (this.flareIntensity > 0) {
@@ -129,6 +151,8 @@ export class PlanetView extends PlanetBase {
   }: UpdatePropertyCommand): void {
     if (propertyKey === 'rotation') {
       this.rotationInterpolator.addFrame(propertyValue, rateOfChange);
+      this.latestRotation = propertyValue;
+      this.rotationSpeed = rateOfChange;
     } else {
       this.ownership = propertyValue;
     }
@@ -170,7 +194,12 @@ export class PlanetView extends PlanetBase {
 
   private getGradient(): string {
     const sideBlue = this.ownership < 0.5;
-    const sidePercent = (Math.abs(this.ownership - 0.5) / 0.5) * 100;
+    // Keep the ring neutral through the same dead-band that gates scoring
+    // (settings.planetControlThreshold), so "the ring fills" and "this planet
+    // pays my team" happen together rather than disagreeing.
+    const control = Math.abs(this.ownership - 0.5);
+    const t = settings.planetControlThreshold;
+    const sidePercent = control <= t ? 0 : ((control - t) / (0.5 - t)) * 100;
     return sideBlue
       ? `conic-gradient(
       var(--bright-blue) ${sidePercent}%,

@@ -4,11 +4,13 @@ import {
   MoveActionCommand,
   last,
   PrimaryActionCommand,
+  LeapActionCommand,
   holdDurationToCharge,
   settings,
 } from 'shared';
 import { Game } from '../game';
 import { ChargeIndicator } from '../charge-indicator';
+import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
 
 export class TouchListener extends CommandGenerator {
   private static readonly deadZone = 8;
@@ -22,6 +24,7 @@ export class TouchListener extends CommandGenerator {
 
   private fireButton: HTMLElement;
   private fireStrengthRing: HTMLElement;
+  private leapButton: HTMLElement;
 
   private fireDownAt: number | null = null;
 
@@ -46,7 +49,12 @@ export class TouchListener extends CommandGenerator {
     this.fireButton.addEventListener('touchstart', this.fireButtonDownListener);
     this.fireButton.addEventListener('touchend', this.fireButtonUpListener);
 
+    this.leapButton = document.createElement('div');
+    this.leapButton.className = 'touch-button leap';
+    this.leapButton.addEventListener('touchstart', this.leapButtonListener);
+
     this.overlay.appendChild(this.fireButton);
+    this.overlay.appendChild(this.leapButton);
 
     target.addEventListener('touchstart', this.touchStartListener);
     target.addEventListener('touchmove', this.touchMoveListener);
@@ -101,11 +109,16 @@ export class TouchListener extends CommandGenerator {
     vec2.set(delta, delta.x, -delta.y);
     if (deltaLength > TouchListener.deadZone) {
       const direction = vec2.normalize(delta, delta);
-      this.sendCommandToSubscribers(new MoveActionCommand(direction));
+      this.sendMove(direction);
     } else {
-      this.sendCommandToSubscribers(new MoveActionCommand(vec2.create()));
+      this.sendMove(vec2.create());
     }
   };
+
+  private sendMove(direction: vec2) {
+    const clientTimeMs = localCharacterPredictor.recordInput(direction);
+    this.sendCommandToSubscribers(new MoveActionCommand(direction, clientTimeMs));
+  }
 
   private touchEndListener = (event: TouchEvent) => {
     event.preventDefault();
@@ -127,13 +140,19 @@ export class TouchListener extends CommandGenerator {
     } else if (event.touches.length === 0) {
       this.isJoystickActive = false;
       this.joystick.parentElement?.removeChild(this.joystick);
-      this.sendCommandToSubscribers(new MoveActionCommand(vec2.create()));
+      this.sendMove(vec2.create());
     }
   };
 
   private swallowTouch = (event: TouchEvent) => {
     event.preventDefault();
     event.stopPropagation();
+  };
+
+  private leapButtonListener = (event: TouchEvent) => {
+    this.swallowTouch(event);
+    const clientTimeMs = localCharacterPredictor.recordLeap();
+    this.sendCommandToSubscribers(new LeapActionCommand(clientTimeMs));
   };
 
   private fireButtonDownListener = (event: TouchEvent) => {
@@ -170,6 +189,9 @@ export class TouchListener extends CommandGenerator {
     if (!this.fireButton.parentElement) {
       this.overlay.appendChild(this.fireButton);
     }
+    if (!this.leapButton.parentElement) {
+      this.overlay.appendChild(this.leapButton);
+    }
 
     const character = this.game.gameObjects.player;
     if (character) {
@@ -186,7 +208,9 @@ export class TouchListener extends CommandGenerator {
 
     this.fireButton.removeEventListener('touchstart', this.fireButtonDownListener);
     this.fireButton.removeEventListener('touchend', this.fireButtonUpListener);
+    this.leapButton.removeEventListener('touchstart', this.leapButtonListener);
 
     this.fireButton.parentElement?.removeChild(this.fireButton);
+    this.leapButton.parentElement?.removeChild(this.leapButton);
   }
 }

@@ -16,16 +16,21 @@ import {
   CommandReceiver,
 } from 'shared';
 import { GeneratePointsCommand } from '../commands/generate-points';
+import { AnnounceCommand } from '../commands/announce';
 import { StepCommand } from '../commands/step';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { StaticPhysical } from '../physics/physicals/static-physical';
 import { LampPhysical } from './lamp-physical';
+import type { CharacterPhysical } from './character-physical';
 
 @serializesTo(PlanetBase)
 export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   public readonly canCollide = true;
   public readonly canMove = false;
+  // Marks this as standable ground for the shared movement simulation (a body
+  // landing on it latches it as currentPlanet). See shared GroundSurface.
+  public readonly isGround = true;
 
   public readonly sizePointMultiplier: number;
 
@@ -45,6 +50,12 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
   private lastTeam: CharacterTeam = CharacterTeam.neutral;
 
+  // Characters standing on the planet this tick. Filled by registerPresence as
+  // each grounded character steps, drained when the planet resolves capture in
+  // its own step(). Drives the head-count tug-of-war.
+  private presentCharacters: Array<CharacterPhysical> = [];
+  private isContested = false;
+
   protected commandExecutors: CommandExecutors = {
     [StepCommand.type]: this.step.bind(this),
   };
@@ -53,8 +64,8 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
     this.lamps.push(lamp);
   }
 
-  constructor(vertices: Array<vec2>) {
-    super(id(), vertices);
+  constructor(vertices: Array<vec2>, isKeystone = false) {
+    super(id(), vertices, 0.5, isKeystone);
 
     const sizeClass = clamp01(
       (this.radius - settings.planetMinReferenceRadius) /
@@ -65,6 +76,12 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
     this.rotationSpeed =
       (0.05 + Random.getRandom() * 0.07) * (Random.getRandom() < 0.5 ? -1 : 1);
+  }
+
+  // A grounded character announces itself each tick so the planet can resolve
+  // contested capture from the net head-count.
+  public registerPresence(character: CharacterPhysical) {
+    this.presentCharacters.push(character);
   }
 
   public distance(target: vec2): number {
@@ -124,13 +141,13 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   }
 
   // Signed angular velocity in rad/s, exposed so a character standing on the
-  // planet can ride its spin (see CharacterPhysical.carryWithRotatingPlanet).
+  // planet can ride its spin (see carryWithRotatingPlanet in shared).
   public get angularVelocity(): number {
     return this.rotationSpeed;
   }
 
   public get team(): CharacterTeam {
-    return Math.abs(this.ownership - 0.5) < 0.1
+    return Math.abs(this.ownership - 0.5) < settings.planetControlThreshold
       ? CharacterTeam.neutral
       : this.ownership < 0.5
         ? CharacterTeam.blue
@@ -160,8 +177,49 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
     // In reverse order, so that teams can achieve a 100% control.
     this.getPoints(game);
-    this.takeControl(CharacterTeam.neutral, deltaTimeInSeconds);
+    this.resolveCapture(deltaTimeInSeconds);
     this.detectFlip(game);
+
+    this.presentCharacters = [];
+  }
+
+  // One capture step per tick driven by the net team head-count, so grouping up
+  // pays off and an equal standoff freezes the planet (contested) instead of
+  // both sides silently cancelling with no feedback.
+  private resolveCapture(deltaTime: number) {
+    let blue = 0;
+    let red = 0;
+    for (const c of this.presentCharacters) {
+      if (c.team === CharacterTeam.blue) {
+        blue++;
+      } else if (c.team === CharacterTeam.red) {
+        red++;
+      }
+    }
+    const net = red - blue;
+    const occupied = blue + red > 0;
+
+    if (net !== 0) {
+      const lead = Math.min(Math.abs(net), settings.maxContestLeadMultiplier);
+      this.takeControl(
+        net > 0 ? CharacterTeam.red : CharacterTeam.blue,
+        deltaTime * lead,
+      );
+    } else if (!occupied) {
+      // Empty planets drift back to neutral; the keystone drifts much slower so
+      // it lingers as a live flashpoint.
+      this.takeControl(
+        CharacterTeam.neutral,
+        this.isKeystone ? deltaTime / settings.keystoneLoseControlScale : deltaTime,
+      );
+    }
+    // occupied tie -> frozen tug-of-war: no ownership change, ring pulses.
+
+    const contested = occupied && net === 0;
+    if (contested !== this.isContested) {
+      this.isContested = contested;
+      this.remoteCall('setContested', contested);
+    }
   }
 
   private detectFlip(game: CommandReceiver) {
@@ -182,6 +240,14 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
           currentTeam === CharacterTeam.red ? reward : 0,
         ),
       );
+
+      if (this.isKeystone) {
+        game.handleCommand(
+          new AnnounceCommand(
+            `Team <span class="${currentTeam}">${currentTeam}</span> captured the Heart`,
+          ),
+        );
+      }
     }
 
     const control = Math.abs(this.ownership - 0.5) / 0.5;
@@ -196,8 +262,8 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   public getPropertyUpdates(): PropertyUpdatesForObject {
     return new PropertyUpdatesForObject(this.id, [
       new UpdatePropertyCommand('ownership', this.ownership, 0),
-      // Stream rotation with rotationSpeed as the rate-of-change so the client
-      // can keep the angle moving when snapshots run late (see planet-view.ts).
+      // Stream the spin rate as the rate-of-change so the client can keep the
+      // angle moving when snapshots run late (see planet-view.ts).
       new UpdatePropertyCommand('rotation', this.rotation, this.rotationSpeed),
     ]);
   }
@@ -255,6 +321,11 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
       settings.maxGravityStrength,
     );
     return vec2.scale(diff, diff, scale);
+  }
+
+  // GroundSurface alias the shared movement simulation calls for gravity.
+  public gravityAt(position: vec2): vec2 {
+    return this.getForce(position);
   }
 
   public get gameObject(): this {

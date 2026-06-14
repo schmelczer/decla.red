@@ -15,6 +15,7 @@ export class PlanetBase extends GameObject {
     id: Id,
     public readonly vertices: Array<vec2>,
     public ownership: number = 0.5,
+    public readonly isKeystone: boolean = false,
   ) {
     super(id);
     this.center = vertices.reduce((sum, v) => vec2.add(sum, sum, v), vec2.create());
@@ -28,6 +29,8 @@ export class PlanetBase extends GameObject {
   public generatedPoints(value: number) {}
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public onFlipped(team: CharacterTeam) {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public setContested(contested: boolean) {}
 
   public static createPlanetVertices(
     center: vec2,
@@ -54,6 +57,6 @@ export class PlanetBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    return [this.id, this.vertices];
+    return [this.id, this.vertices, this.ownership, this.isKeystone];
   }
 }
