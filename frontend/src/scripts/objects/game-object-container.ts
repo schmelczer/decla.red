@@ -13,6 +13,7 @@ import {
 import { BeforeDestroyCommand } from '../commands/types/before-destroy';
 import { StepCommand } from '../commands/types/step';
 import { Game } from '../game';
+import { serverTimeline } from '../helper/server-timeline';
 import { Camera } from './types/camera';
 import { CharacterView } from './types/character-view';
 import { PlanetView } from './types/planet-view';
@@ -36,7 +37,7 @@ export class GameObjectContainer extends CommandReceiver {
       this.defaultCommandExecutor(c);
 
       if (this.player) {
-        this.camera.center = this.player.position;
+        this.camera.follow(this.player.position, c.deltaTimeInSeconds);
       }
     },
 
@@ -45,10 +46,12 @@ export class GameObjectContainer extends CommandReceiver {
         this.objects.get(c.id)?.processRemoteCalls(c.calls),
       ),
 
-    [PropertyUpdatesForObjects.type]: (c: PropertyUpdatesForObjects) =>
+    [PropertyUpdatesForObjects.type]: (c: PropertyUpdatesForObjects) => {
+      serverTimeline.onSnapshot(c.timestamp);
       c.updates.forEach((u) =>
         u.updates.forEach((au) => this.objects.get(u.id)?.handleCommand(au)),
-      ),
+      );
+    },
 
     [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
       c.ids.forEach((id: Id) => this.deleteObject(id)),

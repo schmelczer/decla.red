@@ -21,6 +21,7 @@ import { Options } from './options';
 import { PlayerContainer } from './players/player-container';
 import { StepCommand } from './commands/step';
 import { GeneratePointsCommand } from './commands/generate-points';
+import { AnnounceCommand } from './commands/announce';
 
 const gameStateSubscribedRoom = 'gameStateSubscribedRoom';
 
@@ -63,6 +64,8 @@ export class GameServer extends CommandReceiver {
 
   protected commandExecutors: CommandExecutors = {
     [GeneratePointsCommand.type]: this.addPoints.bind(this),
+    [AnnounceCommand.type]: ({ text }: AnnounceCommand) =>
+      this.players.queueCommandForEachClient(new ServerAnnouncement(text)),
   };
 
   constructor(
@@ -164,6 +167,7 @@ export class GameServer extends CommandReceiver {
   }
 
   private timeSinceLastPointUpdate = 0;
+  private physicsAccumulator = 0;
 
   private handlePhysics() {
     const delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds({ setAsBase: true });
@@ -183,14 +187,28 @@ export class GameServer extends CommandReceiver {
       );
     }
 
-    let scaledDelta = delta;
-    if (this.isInEndGame) {
-      this.timeScaling *= Math.pow(settings.endGameDeltaScaling, delta);
-      scaledDelta /= this.timeScaling;
+    const fixedDelta = settings.targetPhysicsDeltaTimeInSeconds;
+    const maxSubstepsPerFrame = 5;
+
+    this.physicsAccumulator += delta;
+    let substeps = Math.floor(this.physicsAccumulator / fixedDelta);
+    if (substeps > maxSubstepsPerFrame) {
+      substeps = maxSubstepsPerFrame;
+      this.physicsAccumulator = 0;
+    } else {
+      this.physicsAccumulator -= substeps * fixedDelta;
     }
 
-    this.objects.handleCommand(new StepCommand(scaledDelta, this));
-    this.players.step(scaledDelta);
+    for (let i = 0; i < substeps; i++) {
+      let scaledDelta = fixedDelta;
+      if (this.isInEndGame) {
+        this.timeScaling *= Math.pow(settings.endGameDeltaScaling, fixedDelta);
+        scaledDelta /= this.timeScaling;
+      }
+      this.objects.handleCommand(new StepCommand(scaledDelta, this));
+      this.players.step(scaledDelta);
+    }
+
     this.players.stepCommunication(delta);
     this.objects.resetRemoteCalls();
 
@@ -198,7 +216,7 @@ export class GameServer extends CommandReceiver {
 
     setTimeout(
       this.handlePhysics.bind(this),
-      Math.max(0, settings.targetPhysicsDeltaTimeInSeconds - physicsDelta) * 1000,
+      Math.max(0, fixedDelta - physicsDelta) * 1000,
     );
   }
 

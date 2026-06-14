@@ -5,6 +5,7 @@ import {
   clamp01,
   id,
   mix,
+  Random,
   serializesTo,
   settings,
   PlanetBase,
@@ -28,6 +29,16 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
   public readonly sizePointMultiplier: number;
 
+  // Planets slowly spin. The angle is authoritative here and streamed to the
+  // client (see getPropertyUpdates), so the rendered outline and this collision
+  // polygon turn as one rigid body. cos/sin are memoised per angle because
+  // distance() is called many times per tick by the raymarcher and SDF sampling.
+  private rotation = 0;
+  private readonly rotationSpeed: number;
+  private cachedRotation = Number.NaN;
+  private cosRotation = 1;
+  private sinRotation = 0;
+
   private _boundingBox?: ImmutableBoundingBox;
 
   private readonly lamps: Array<LampPhysical> = [];
@@ -47,23 +58,30 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
     const sizeClass = clamp01(
       (this.radius - settings.planetMinReferenceRadius) /
-      (settings.planetMaxReferenceRadius - settings.planetMinReferenceRadius),
+        (settings.planetMaxReferenceRadius - settings.planetMinReferenceRadius),
     );
 
     this.sizePointMultiplier = mix(1, settings.planetSizePointMultiplierMax, sizeClass);
+
+    this.rotationSpeed =
+      (0.05 + Random.getRandom() * 0.07) * (Random.getRandom() < 0.5 ? -1 : 1);
   }
 
   public distance(target: vec2): number {
+    // Evaluate the SDF in the planet's own rotating frame so this collision
+    // outline turns in lockstep with the rendered planet (see planet-shape.ts).
+    const local = this.toLocalFrame(target);
+
     const startEnd = this.vertices[0];
     let vb = startEnd;
 
-    let d = vec2.squaredDistance(target, vb);
+    let d = vec2.dist(local, vb);
     let sign = 1;
 
     for (let i = 1; i <= this.vertices.length; i++) {
       const va = vb;
       vb = i === this.vertices.length ? startEnd : this.vertices[i];
-      const targetFromDelta = vec2.subtract(vec2.create(), target, va);
+      const targetFromDelta = vec2.subtract(vec2.create(), local, va);
       const toFromDelta = vec2.subtract(vec2.create(), vb, va);
       const h = clamp01(
         vec2.dot(targetFromDelta, toFromDelta) / vec2.squaredLength(toFromDelta),
@@ -75,8 +93,8 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
       );
 
       if (
-        (target.y >= va.y && target.y < vb.y && ds.y > 0) ||
-        (target.y < va.y && target.y >= vb.y && ds.y <= 0)
+        (local.y >= va.y && local.y < vb.y && ds.y > 0) ||
+        (local.y < va.y && local.y >= vb.y && ds.y <= 0)
       ) {
         sign *= -1;
       }
@@ -87,11 +105,35 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
     return sign * d;
   }
 
+  // Rotate a world point by -rotation about the centre, matching the shader's
+  // `localTarget = center + R(rotation) * (target - center)` transform exactly.
+  private toLocalFrame(target: vec2): vec2 {
+    if (this.rotation !== this.cachedRotation) {
+      this.cachedRotation = this.rotation;
+      this.cosRotation = Math.cos(this.rotation);
+      this.sinRotation = Math.sin(this.rotation);
+    }
+
+    const dx = target.x - this.center.x;
+    const dy = target.y - this.center.y;
+
+    return vec2.fromValues(
+      this.center.x + this.cosRotation * dx - this.sinRotation * dy,
+      this.center.y + this.sinRotation * dx + this.cosRotation * dy,
+    );
+  }
+
+  // Signed angular velocity in rad/s, exposed so a character standing on the
+  // planet can ride its spin (see CharacterPhysical.carryWithRotatingPlanet).
+  public get angularVelocity(): number {
+    return this.rotationSpeed;
+  }
+
   public get team(): CharacterTeam {
     return Math.abs(this.ownership - 0.5) < 0.1
       ? CharacterTeam.neutral
       : this.ownership < 0.5
-        ? CharacterTeam.decla
+        ? CharacterTeam.blue
         : CharacterTeam.red;
   }
 
@@ -105,7 +147,7 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
       );
       game.handleCommand(
         new GeneratePointsCommand(
-          this.team === CharacterTeam.decla ? value : 0,
+          this.team === CharacterTeam.blue ? value : 0,
           this.team === CharacterTeam.red ? value : 0,
         ),
       );
@@ -113,6 +155,7 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   }
 
   private step({ deltaTimeInSeconds, game }: StepCommand) {
+    this.rotation += deltaTimeInSeconds * this.rotationSpeed;
     this.timeSinceLastPointGeneration += deltaTimeInSeconds;
 
     // In reverse order, so that teams can achieve a 100% control.
@@ -135,7 +178,7 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
       this.remoteCall('generatedPoints', reward);
       game.handleCommand(
         new GeneratePointsCommand(
-          currentTeam === CharacterTeam.decla ? reward : 0,
+          currentTeam === CharacterTeam.blue ? reward : 0,
           currentTeam === CharacterTeam.red ? reward : 0,
         ),
       );
@@ -153,11 +196,14 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   public getPropertyUpdates(): PropertyUpdatesForObject {
     return new PropertyUpdatesForObject(this.id, [
       new UpdatePropertyCommand('ownership', this.ownership, 0),
+      // Stream rotation with rotationSpeed as the rate-of-change so the client
+      // can keep the angle moving when snapshots run late (see planet-view.ts).
+      new UpdatePropertyCommand('rotation', this.rotation, this.rotationSpeed),
     ]);
   }
 
   public takeControl(team: CharacterTeam, deltaTime: number) {
-    if (team === CharacterTeam.decla) {
+    if (team === CharacterTeam.blue) {
       this.ownership -= (0.5 / settings.takeControlTimeInSeconds) * deltaTime;
     } else if (team === CharacterTeam.red) {
       this.ownership += (0.5 / settings.takeControlTimeInSeconds) * deltaTime;
@@ -180,22 +226,20 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
   public get boundingBox(): ImmutableBoundingBox {
     if (!this._boundingBox) {
-      const { xMin, xMax, yMin, yMax } = this.vertices.reduce(
-        (extremities, vertex) => ({
-          xMin: Math.min(extremities.xMin, vertex.x),
-          xMax: Math.max(extremities.xMax, vertex.x),
-          yMin: Math.min(extremities.yMin, vertex.y),
-          yMax: Math.max(extremities.yMax, vertex.y),
-        }),
-        {
-          xMin: Infinity,
-          xMax: -Infinity,
-          yMin: Infinity,
-          yMax: -Infinity,
-        },
+      // The polygon spins about its centre (see distance), so this static box
+      // has to cover every orientation, not just the spawn-time one: take the
+      // circumscribed circle around the rotation centre.
+      const maxVertexDistance = this.vertices.reduce(
+        (max, vertex) => Math.max(max, vec2.distance(this.center, vertex)),
+        0,
       );
 
-      this._boundingBox = new ImmutableBoundingBox(xMin, xMax, yMin, yMax);
+      this._boundingBox = new ImmutableBoundingBox(
+        this.center.x - maxVertexDistance,
+        this.center.x + maxVertexDistance,
+        this.center.y - maxVertexDistance,
+        this.center.y + maxVertexDistance,
+      );
     }
 
     return this._boundingBox;

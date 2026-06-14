@@ -54,19 +54,24 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
               float l = planetLengths[j];
               float randomOffset = planetRandoms[j];
               float rotation = planetRotations[j];
-              vec2 targetCenterDelta = target - center;
-              float targetDistance = length(targetCenterDelta);
-              vec2 targetTangent = targetCenterDelta / clamp(targetDistance, 0.01, 1000.0);
 
               float cr = cos(rotation);
               float sr = sin(rotation);
-              vec2 rotatedTangent = vec2(
-                cr * targetTangent.x - sr * targetTangent.y,
-                sr * targetTangent.x + cr * targetTangent.y
+
+              // Spin the whole planet: evaluate the SDF in the planet's own
+              // rotating frame so the polygon outline turns together with its
+              // terrain, instead of the terrain sliding over a fixed outline.
+              vec2 targetCenterDelta = target - center;
+              float targetDistance = length(targetCenterDelta);
+              vec2 localTarget = center + vec2(
+                cr * targetCenterDelta.x - sr * targetCenterDelta.y,
+                sr * targetCenterDelta.x + cr * targetCenterDelta.y
               );
-              vec2 noisyTarget = target - (
+              vec2 targetTangent = (localTarget - center) / clamp(targetDistance, 0.01, 1000.0);
+
+              vec2 noisyTarget = localTarget - (
                 targetTangent * planetTerrain(vec2(
-                  l * abs(atan(rotatedTangent.y, rotatedTangent.x)),
+                  l * abs(atan(targetTangent.y, targetTangent.x)),
                   randomOffset
                 )) / 12.0
               );
@@ -97,9 +102,9 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
 
               if (dist < minDistance) {
                 minDistance = dist;
-                color = mix(${colorToString(settings.declaPlanetColor)}, ${colorToString(
-        settings.redPlanetColor,
-      )}, planetColorMixQ[j]);
+                color = mix(${colorToString(settings.bluePlanetColor)}, ${colorToString(
+                  settings.redPlanetColor,
+                )}, planetColorMixQ[j]);
               }
             }
 

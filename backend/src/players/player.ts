@@ -1,3 +1,4 @@
+import { performance } from 'perf_hooks';
 import { vec2 } from 'gl-matrix';
 import {
   CommandExecutors,
@@ -126,6 +127,7 @@ export class Player extends PlayerBase {
         this.objectsPreviouslyInViewArea
           .map((o) => o.getPropertyUpdates())
           .filter((u) => u) as Array<PropertyUpdatesForObject>,
+        performance.now() / 1000,
       ),
     );
   }

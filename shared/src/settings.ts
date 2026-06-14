@@ -18,6 +18,10 @@ export const settings = {
   worldRadius: 4000,
   objectsOnCircleLength: 0.002,
   updateMessageInterval: 1 / 25,
+  // How far behind the estimated server time remote state is rendered: ~2.5
+  // update intervals, so a late packet rarely leaves the client without a
+  // newer snapshot to interpolate towards.
+  interpolationDelaySeconds: 0.1,
   planetEdgeCount: 7,
   playerKillPoint: 25,
   takeControlTimeInSeconds: 2.5,

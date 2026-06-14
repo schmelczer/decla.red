@@ -499,8 +499,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   // around the planet centre by the same per-tick angle the renderer and the
   // collision SDF use, so the player is carried around and turned with the
   // surface instead of it sliding frictionlessly underneath. The positional
-  // change becomes velocity in setPropertyUpdates, so the motion syncs and the
-  // client extrapolates it smoothly.
+  // change becomes velocity in setPropertyUpdates, keeping the streamed
+  // rate-of-change consistent with the streamed positions.
   private carryWithRotatingPlanet(deltaTimeInSeconds: number) {
     const planet = this.currentPlanet;
     if (!planet) {

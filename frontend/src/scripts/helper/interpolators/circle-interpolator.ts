@@ -1,14 +1,14 @@
 import { Circle } from 'shared';
-import { LinearExtrapolator } from './linear-extrapolator';
-import { Vec2Extrapolator } from './vec2-extrapolator';
+import { LinearInterpolator } from './linear-interpolator';
+import { Vec2Interpolator } from './vec2-interpolator';
 
-export class CircleExtrapolator {
-  private center: Vec2Extrapolator;
-  private radius: LinearExtrapolator;
+export class CircleInterpolator {
+  private center: Vec2Interpolator;
+  private radius: LinearInterpolator;
 
   constructor(currentValue: Circle) {
-    this.center = new Vec2Extrapolator(currentValue.center);
-    this.radius = new LinearExtrapolator(currentValue.radius);
+    this.center = new Vec2Interpolator(currentValue.center);
+    this.radius = new LinearInterpolator(currentValue.radius);
   }
 
   public addFrame(value: Circle, rateOfChange: Circle) {

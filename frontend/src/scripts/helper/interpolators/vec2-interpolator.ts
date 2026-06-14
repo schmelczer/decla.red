@@ -1,13 +1,13 @@
 import { vec2 } from 'gl-matrix';
-import { LinearExtrapolator } from './linear-extrapolator';
+import { LinearInterpolator } from './linear-interpolator';
 
-export class Vec2Extrapolator {
-  private x: LinearExtrapolator;
-  private y: LinearExtrapolator;
+export class Vec2Interpolator {
+  private x: LinearInterpolator;
+  private y: LinearInterpolator;
 
   constructor(currentValue: vec2) {
-    this.x = new LinearExtrapolator(currentValue.x);
-    this.y = new LinearExtrapolator(currentValue.y);
+    this.x = new LinearInterpolator(currentValue.x);
+    this.y = new LinearInterpolator(currentValue.y);
   }
 
   public addFrame(value: vec2, rateOfChange: vec2) {

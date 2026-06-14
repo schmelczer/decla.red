@@ -1,9 +1,8 @@
 import { vec2 } from 'gl-matrix';
-import { Random, PlanetBase, hsl, settings } from 'shared';
+import { Random, PlanetBase, hsl, settings, evaluateSdf } from 'shared';
 import { LampPhysical } from './objects/lamp-physical';
 import { PlanetPhysical } from './objects/planet-physical';
 import { PhysicalContainer } from './physics/containers/physical-container';
-import { evaluateSdf } from './physics/functions/evaluate-sdf';
 import { Physical } from './physics/physicals/physical';
 
 export const createWorld = (objectContainer: PhysicalContainer) => {
@@ -45,13 +44,16 @@ export const createWorld = (objectContainer: PhysicalContainer) => {
         ) {
           const planet =
             objects.length === 0
-              ? new PlanetPhysical(
+              ? // The first, central giant is the keystone "Heart": a named,
+                // always-contested focal objective the whole match orbits.
+                new PlanetPhysical(
                   PlanetBase.createPlanetVertices(
                     position,
                     Random.getRandomInRange(1600, 2400),
                     Random.getRandomInRange(1600, 2400),
                     Random.getRandomInRange(80, 300),
                   ),
+                  true,
                 )
               : new PlanetPhysical(
                   PlanetBase.createPlanetVertices(

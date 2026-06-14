@@ -34,6 +34,7 @@ import { CharacterShape } from './shapes/character-shape';
 import { PlanetShape } from './shapes/planet-shape';
 import { RenderCommand } from './commands/types/render';
 import { StepCommand } from './commands/types/step';
+import { serverTimeline } from './helper/server-timeline';
 import { Tutorial } from './tutorial';
 import { Scoreboard } from './scoreboard';
 
@@ -74,6 +75,7 @@ export class Game extends CommandReceiver {
     this.isBetweenGames = true;
 
     this.socket?.close();
+    serverTimeline.reset();
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
     this.arrows = {};
@@ -273,6 +275,11 @@ export class Game extends CommandReceiver {
   ): boolean {
     this.resolveStarted();
     deltaTime /= 1000;
+
+    // Stepped before the end-game time scaling on purpose: the slow motion is
+    // already baked into the snapshots the server sends, so the playback
+    // cursor itself must keep running on wall-clock time.
+    serverTimeline.step(deltaTime);
 
     let shouldChangeLayout = false;
     if (++this.framesSinceLastLayoutUpdate > 1) {

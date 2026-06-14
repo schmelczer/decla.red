@@ -16,8 +16,8 @@ import {
 import { BeforeDestroyCommand } from '../../commands/types/before-destroy';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
-import { CircleExtrapolator } from '../../helper/extrapolators/circle-extrapolator';
-import { LinearExtrapolator } from '../../helper/extrapolators/linear-extrapolator';
+import { CircleInterpolator } from '../../helper/interpolators/circle-interpolator';
+import { LinearInterpolator } from '../../helper/interpolators/linear-interpolator';
 import { Pointer } from '../../helper/pointer';
 import { CharacterShape } from '../../shapes/character-shape';
 import { SoundHandler, Sounds } from '../../sound-handler';
@@ -40,7 +40,7 @@ export class CharacterView extends CharacterBase {
   private muzzleFlashIntensity = 0;
   private hitFlashIntensity = 0;
   private strength = settings.playerMaxStrength;
-  private strengthExtrapolator = new LinearExtrapolator(settings.playerMaxStrength);
+  private strengthInterpolator = new LinearInterpolator(settings.playerMaxStrength);
   private nameElement: HTMLElement = document.createElement('div');
   private statsElement: HTMLElement = document.createElement('div');
   private killCountElement: HTMLElement = document.createElement('span');
@@ -50,9 +50,9 @@ export class CharacterView extends CharacterBase {
 
   public isMainCharacter = false;
 
-  private leftFootExtrapolator: CircleExtrapolator;
-  private rightFootExtrapolator: CircleExtrapolator;
-  private headExtrapolator: CircleExtrapolator;
+  private leftFootInterpolator: CircleInterpolator;
+  private rightFootInterpolator: CircleInterpolator;
+  private headInterpolator: CircleInterpolator;
 
   protected commandExecutors: CommandExecutors = {
     [RenderCommand.type]: this.draw.bind(this),
@@ -80,9 +80,9 @@ export class CharacterView extends CharacterBase {
       0,
     );
 
-    this.leftFootExtrapolator = new CircleExtrapolator(this.leftFoot!);
-    this.rightFootExtrapolator = new CircleExtrapolator(this.rightFoot!);
-    this.headExtrapolator = new CircleExtrapolator(this.head!);
+    this.leftFootInterpolator = new CircleInterpolator(this.leftFoot!);
+    this.rightFootInterpolator = new CircleInterpolator(this.rightFoot!);
+    this.headInterpolator = new CircleInterpolator(this.head!);
 
     this.nameElement.className = 'player-tag ' + this.team;
     this.nameElement.innerText = this.name;
@@ -140,16 +140,16 @@ export class CharacterView extends CharacterBase {
     rateOfChange,
   }: UpdatePropertyCommand) {
     if (propertyKey === 'head') {
-      this.headExtrapolator.addFrame(propertyValue, rateOfChange);
+      this.headInterpolator.addFrame(propertyValue, rateOfChange);
     }
     if (propertyKey === 'leftFoot') {
-      this.leftFootExtrapolator.addFrame(propertyValue, rateOfChange);
+      this.leftFootInterpolator.addFrame(propertyValue, rateOfChange);
     }
     if (propertyKey === 'rightFoot') {
-      this.rightFootExtrapolator.addFrame(propertyValue, rateOfChange);
+      this.rightFootInterpolator.addFrame(propertyValue, rateOfChange);
     }
     if (propertyKey === 'strength') {
-      this.strengthExtrapolator.addFrame(propertyValue, rateOfChange);
+      this.strengthInterpolator.addFrame(propertyValue, rateOfChange);
     }
   }
 
@@ -194,12 +194,12 @@ export class CharacterView extends CharacterBase {
   }
 
   private step({ deltaTimeInSeconds }: StepCommand): void {
-    this.head! = this.headExtrapolator.getValue(deltaTimeInSeconds);
-    this.leftFoot! = this.leftFootExtrapolator.getValue(deltaTimeInSeconds);
-    this.rightFoot! = this.rightFootExtrapolator.getValue(deltaTimeInSeconds);
+    this.head! = this.headInterpolator.getValue(deltaTimeInSeconds);
+    this.leftFoot! = this.leftFootInterpolator.getValue(deltaTimeInSeconds);
+    this.rightFoot! = this.rightFootInterpolator.getValue(deltaTimeInSeconds);
 
     this.strength = clamp(
-      this.strengthExtrapolator.getValue(deltaTimeInSeconds),
+      this.strengthInterpolator.getValue(deltaTimeInSeconds),
       0,
       settings.playerMaxStrength,
     );
@@ -224,7 +224,7 @@ export class CharacterView extends CharacterBase {
   public onShoot(strength: number) {
     const q = clamp01(
       (strength - settings.chargeShotStrengthMin) /
-      (settings.chargeShotStrengthMax - settings.chargeShotStrengthMin),
+        (settings.chargeShotStrengthMax - settings.chargeShotStrengthMin),
     );
     SoundHandler.play(Sounds.shoot, mix(0.55, 1, q), mix(1.15, 0.8, q));
     this.muzzleFlashIntensity = mix(0.35, 1, q);

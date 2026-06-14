@@ -12,6 +12,7 @@ import {
 import { BeforeDestroyCommand } from '../../commands/types/before-destroy';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
+import { LinearInterpolator } from '../../helper/interpolators/linear-interpolator';
 import { PlanetShape } from '../../shapes/planet-shape';
 
 const fallingPointLifetimeMs = 2000;
@@ -39,7 +40,10 @@ abstract class FlareBudget {
 export class PlanetView extends PlanetBase {
   private shape: PlanetShape;
   private ownershipProgress: HTMLElement;
-  private readonly rotationSpeed: number;
+  // Rotation is owned by the backend (it drives the collision polygon too) and
+  // streamed in; the interpolator replays the angle on the shared snapshot
+  // timeline, in sync with the characters standing on the surface.
+  private readonly rotationInterpolator = new LinearInterpolator(0);
 
   private flareLight?: CircleLight;
   private flareIntensity = 0;
@@ -56,15 +60,13 @@ export class PlanetView extends PlanetBase {
     super(id, vertices);
     this.shape = new PlanetShape(vertices, ownership);
     this.shape.randomOffset = Random.getRandom();
-    this.rotationSpeed =
-      (0.05 + Random.getRandom() * 0.07) * (Random.getRandom() < 0.5 ? -1 : 1);
 
     this.ownershipProgress = document.createElement('div');
     this.ownershipProgress.className = 'ownership';
   }
 
   private step({ deltaTimeInSeconds }: StepCommand): void {
-    this.shape.rotation += deltaTimeInSeconds * this.rotationSpeed;
+    this.shape.rotation = this.rotationInterpolator.getValue(deltaTimeInSeconds);
     this.shape.colorMixQ = this.ownership;
 
     if (this.flareIntensity > 0) {
@@ -120,8 +122,16 @@ export class PlanetView extends PlanetBase {
     this.releaseFlareSlot();
   }
 
-  private updateProperty({ propertyValue }: UpdatePropertyCommand): void {
-    this.ownership = propertyValue;
+  private updateProperty({
+    propertyKey,
+    propertyValue,
+    rateOfChange,
+  }: UpdatePropertyCommand): void {
+    if (propertyKey === 'rotation') {
+      this.rotationInterpolator.addFrame(propertyValue, rateOfChange);
+    } else {
+      this.ownership = propertyValue;
+    }
   }
 
   private draw({ renderer, overlay, shouldChangeLayout }: RenderCommand): void {
@@ -137,7 +147,7 @@ export class PlanetView extends PlanetBase {
 
       if (this.lastGeneratedPoint !== undefined) {
         const element = document.createElement('div');
-        element.className = 'falling-point ' + (this.ownership < 0.5 ? 'decla' : 'red');
+        element.className = 'falling-point ' + (this.ownership < 0.5 ? 'blue' : 'red');
         element.innerText = '+' + this.lastGeneratedPoint;
         element.style.left = `${screenPosition.x}px`;
         element.style.top = `${screenPosition.y}px`;
@@ -159,12 +169,12 @@ export class PlanetView extends PlanetBase {
   }
 
   private getGradient(): string {
-    const sideDecla = this.ownership < 0.5;
+    const sideBlue = this.ownership < 0.5;
     const sidePercent = (Math.abs(this.ownership - 0.5) / 0.5) * 100;
-    return sideDecla
+    return sideBlue
       ? `conic-gradient(
-      var(--bright-decla) ${sidePercent}%,
-      var(--bright-decla) ${sidePercent}%,
+      var(--bright-blue) ${sidePercent}%,
+      var(--bright-blue) ${sidePercent}%,
       rgba(0, 0, 0, 0) ${sidePercent}%,
       rgba(0, 0, 0, 0) 100%
     )`
