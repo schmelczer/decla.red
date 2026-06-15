@@ -1,6 +1,9 @@
 {
   "name": "root",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
     "concurrently": "^10.0.3",
     "eslint": "^10.4.1",

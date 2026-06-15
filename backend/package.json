@@ -8,6 +8,9 @@
   "bin": {
     "doppler-server": "dist/main.js"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "npx webpack --mode production",
     "dev": "concurrently --kill-others-on-fail \"webpack --mode development -w\" \"nodemon --legacy-watch dist/main.js\"",
