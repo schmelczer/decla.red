@@ -1,3 +1,4 @@
+import { vec2 } from 'gl-matrix';
 import {
   Circle,
   Command,
@@ -82,6 +83,16 @@ export class GameObjectContainer extends CommandReceiver {
 
   constructor(private game: Game) {
     super();
+  }
+
+  // The local player's world position, but only while the body is alive. On
+  // death the server deletes the character object (yet `player` keeps pointing
+  // at the now-stale view), so gate on the object still being present — otherwise
+  // the minimap would pin the "you" dot at the death spot for the whole respawn.
+  public get localPlayerPosition(): vec2 | undefined {
+    return this.player && this.objects.has(this.player.id)
+      ? this.player.position
+      : undefined;
   }
 
   public get planets(): Array<PlanetView> {

@@ -13,10 +13,10 @@ import {
   settings,
   PlayerInformation,
   CharacterTeam,
-  UpdateOtherPlayerDirections,
+  UpdateMinimap,
   GameObject,
   Command,
-  OtherPlayerDirection,
+  MinimapPlayer,
   RemoteCallsForObject,
   RemoteCallsForObjects,
   ServerAnnouncement,
@@ -29,7 +29,6 @@ import {
 import { Socket } from 'socket.io';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { PhysicalContainer } from '../physics/containers/physical-container';
-import { CharacterPhysical } from '../objects/character-physical';
 import { PlayerContainer } from './player-container';
 import { PlayerBase } from './player-base';
 
@@ -142,7 +141,7 @@ export class Player extends PlayerBase {
       this.queueCommandSend(new CreateObjectsCommand(newlyIntersecting));
     }
 
-    this.queueCommandSend(new UpdateOtherPlayerDirections(this.getOtherPlayers()));
+    this.queueCommandSend(new UpdateMinimap(this.getMinimapPlayers()));
 
     this.queueCommandSend(
       new PropertyUpdatesForObjects(
@@ -167,36 +166,15 @@ export class Player extends PlayerBase {
     }
   }
 
-  private getOtherPlayers(): Array<OtherPlayerDirection> {
-    if (!this.character) {
-      return [];
-    }
-
-    const viewArea = calculateViewArea(this.center, this.aspectRatio, 0.9);
-    const bb = new BoundingBox();
-    bb.topLeft = viewArea.topLeft;
-    bb.size = viewArea.size;
-
-    const playersInViewArea = this.objectContainer
-      .findIntersecting(bb)
-      .map((o) => o.gameObject)
-      .filter((g) => g instanceof CharacterPhysical);
-
-    const otherPlayers = this.playerContainer.players.filter(
-      (p) => p.character?.isAlive && playersInViewArea.indexOf(p.character!) < 0,
-    );
-
-    return otherPlayers.map(
-      (p) =>
-        new OtherPlayerDirection(
-          p.character!.id,
-          vec2.normalize(
-            vec2.create(),
-            vec2.subtract(vec2.create(), p.character!.center, this.character!.center),
-          ),
-          p.team,
-        ),
-    );
+  // Every living player except this one, reported by absolute world position so
+  // the client can plot the whole circular arena on its minimap.
+  private getMinimapPlayers(): Array<MinimapPlayer> {
+    return this.playerContainer.players
+      .filter((p) => p !== this && p.character?.isAlive)
+      .map(
+        (p) =>
+          new MinimapPlayer(p.character!.id, vec2.clone(p.character!.center), p.team),
+      );
   }
 
   private commandsToBeSent: Array<Command> = [];

@@ -5,25 +5,25 @@ import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 
 @serializable
-export class OtherPlayerDirection {
+export class MinimapPlayer {
   public constructor(
     public readonly id: Id,
-    public readonly direction: vec2,
+    public readonly position: vec2,
     public readonly team: CharacterTeam,
   ) {}
 
   public toArray(): Array<any> {
-    return [this.id, this.direction, this.team];
+    return [this.id, this.position, this.team];
   }
 }
 
 @serializable
-export class UpdateOtherPlayerDirections extends Command {
-  public constructor(public readonly otherPlayerDirections: Array<OtherPlayerDirection>) {
+export class UpdateMinimap extends Command {
+  public constructor(public readonly players: Array<MinimapPlayer>) {
     super();
   }
 
   public toArray(): Array<any> {
-    return [this.otherPlayerDirections];
+    return [this.players];
   }
 }

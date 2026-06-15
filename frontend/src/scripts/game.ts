@@ -11,8 +11,7 @@ import {
   deserialize,
   TransportEvents,
   SetAspectRatioActionCommand,
-  UpdateOtherPlayerDirections,
-  clamp,
+  UpdateMinimap,
   UpdateGameState,
   GameEndCommand,
   ServerAnnouncement,
@@ -39,6 +38,7 @@ import { serverTimeline } from './helper/server-timeline';
 import { localCharacterPredictor } from './helper/prediction/local-character-predictor';
 import { Tutorial } from './tutorial';
 import { Scoreboard } from './scoreboard';
+import { Minimap } from './minimap';
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
@@ -54,8 +54,8 @@ export class Game extends CommandReceiver {
   private touchListener: TouchListener;
 
   private scoreboard = new Scoreboard();
+  private minimap = new Minimap();
   private announcementText = document.createElement('h2');
-  private arrows: { [id: number]: HTMLElement } = {};
   private keystoneArrow?: HTMLElement;
   private socketReceiver!: CommandSocket;
   private tutorial!: Tutorial;
@@ -82,11 +82,12 @@ export class Game extends CommandReceiver {
     localCharacterPredictor.reset();
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
-    this.arrows = {};
     this.keystoneArrow = undefined;
+    this.lastMinimap = undefined;
     this.isEnding = false;
     this.lastAnnouncementText = '';
     this.overlay.appendChild(this.scoreboard.element);
+    this.overlay.appendChild(this.minimap.element);
     this.announcementText.innerText = '';
     this.timeScaling = 1;
     this.overlay.appendChild(this.announcementText);
@@ -160,67 +161,11 @@ export class Game extends CommandReceiver {
         c.lastLeapClientTimeMs,
       ),
     [GameEndCommand.type]: () => (this.isEnding = true),
-    [UpdateOtherPlayerDirections.type]: (c: UpdateOtherPlayerDirections) =>
-      (this.lastOtherPlayerDirections = c),
+    [UpdateMinimap.type]: (c: UpdateMinimap) => (this.lastMinimap = c),
     [GameStartCommand.type]: this.initialize.bind(this),
   };
 
-  private lastOtherPlayerDirections?: UpdateOtherPlayerDirections;
-  private handleOtherPlayerDirections(command: UpdateOtherPlayerDirections) {
-    command.otherPlayerDirections.forEach((d) => {
-      if (!(d.id! in this.arrows)) {
-        const element = document.createElement('div');
-        this.arrows[d.id!] = element;
-        this.overlay.appendChild(element);
-      }
-
-      const e = this.arrows[d.id!];
-      const direction = d.direction;
-      const team = d.team;
-      const angle = Math.atan2(direction.y, direction.x);
-      e.className = 'other-player-arrow ' + team;
-
-      if (!this.renderer) {
-        return;
-      }
-
-      const width = this.renderer.canvasSize.x;
-      const height = this.renderer.canvasSize.y;
-      const aspectRatio = width / height;
-      const directionRatio = direction.x / direction.y;
-
-      let deltaX: number, deltaY: number;
-      if (aspectRatio < Math.abs(directionRatio)) {
-        deltaX = (width / 2) * Math.sign(direction.x);
-        deltaY = deltaX / directionRatio;
-      } else {
-        deltaY = (height / 2) * Math.sign(direction.y);
-        deltaX = deltaY * directionRatio;
-      }
-
-      const delta = vec2.fromValues(deltaX, deltaY);
-      const center = vec2.fromValues(width / 2, height / 2);
-      const p = vec2.add(center, center, delta);
-      const arrowPadding = 24;
-      vec2.set(
-        p,
-        clamp(p.x, arrowPadding, width - arrowPadding),
-        clamp(height - p.y, arrowPadding, height - arrowPadding),
-      );
-      e.style.transform = `translateX(${p.x}px) translateY(${p.y
-        }px) translateX(-50%) translateY(-50%) rotate(${-angle + Math.PI / 2}rad) `;
-    });
-
-    for (const id in this.arrows) {
-      if (
-        Object.prototype.hasOwnProperty.call(this.arrows, id) &&
-        command.otherPlayerDirections.find((v) => v.id?.toString() === id) === undefined
-      ) {
-        this.arrows[id].parentElement?.removeChild(this.arrows[id]);
-        delete this.arrows[id];
-      }
-    }
-  }
+  private lastMinimap?: UpdateMinimap;
 
   public async start(): Promise<void> {
     const noiseTexture = await renderNoise([256, 256], 2, 1);
@@ -332,9 +277,10 @@ export class Game extends CommandReceiver {
       this.scoreboard.update(this.lastGameState, this.gameObjects.player?.team);
     }
 
-    if (this.lastOtherPlayerDirections) {
-      this.handleOtherPlayerDirections(this.lastOtherPlayerDirections);
-    }
+    this.minimap.update(
+      this.gameObjects.localPlayerPosition,
+      this.lastMinimap?.players ?? [],
+    );
 
     this.handleKeystoneArrow();
 
