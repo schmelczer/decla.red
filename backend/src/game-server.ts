@@ -99,7 +99,8 @@ export class GameServer extends CommandReceiver {
             this.players.deletePlayer(player);
             this.sendServerStateUpdate();
           });
-        } catch {
+        } catch (e) {
+          console.error('Failed to register joining player; disconnecting socket', e);
           socket.disconnect();
         }
       });
@@ -168,6 +169,9 @@ export class GameServer extends CommandReceiver {
 
   private timeSinceLastPointUpdate = 0;
   private physicsAccumulator = 0;
+  // Frames since the last stats report where physics ran over budget (more
+  // substeps than the cap). Surfaced by handleStats as a saturation signal.
+  private saturatedFrames = 0;
 
   private handlePhysics() {
     const delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds({ setAsBase: true });
@@ -189,12 +193,24 @@ export class GameServer extends CommandReceiver {
 
     const fixedDelta = settings.targetPhysicsDeltaTimeInSeconds;
     const maxSubstepsPerFrame = 5;
+    // Cap on retained physics backlog when saturated, so a long stall can't
+    // accumulate an unrecoverable catch-up.
+    const maxBacklogSeconds = 0.25;
 
     this.physicsAccumulator += delta;
     let substeps = Math.floor(this.physicsAccumulator / fixedDelta);
     if (substeps > maxSubstepsPerFrame) {
+      // Saturated: run the cap's worth of substeps but KEEP the remaining
+      // backlog (clamped) instead of zeroing it. Dropping it silently slowed
+      // simulated time for everyone — and diverged client prediction, whose
+      // wall-clock keeps running. Clamping bounds the catch-up so a transient
+      // spike recovers without a death spiral.
+      this.saturatedFrames++;
+      this.physicsAccumulator = Math.min(
+        this.physicsAccumulator - maxSubstepsPerFrame * fixedDelta,
+        maxBacklogSeconds,
+      );
       substeps = maxSubstepsPerFrame;
-      this.physicsAccumulator = 0;
     } else {
       this.physicsAccumulator -= substeps * fixedDelta;
     }
@@ -237,6 +253,23 @@ export class GameServer extends CommandReceiver {
       console.info(
         `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
       );
+
+      const rtts = this.players.connectedPlayerRttsMs.filter((r) => r > 0);
+      if (rtts.length > 0) {
+        rtts.sort((a, b) => a - b);
+        console.info(
+          `Player RTT median ${rtts[Math.floor(rtts.length / 2)].toFixed(0)} ms ` +
+            `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
+        );
+      }
+
+      if (this.saturatedFrames > 0) {
+        console.warn(
+          `Physics saturated on ${this.saturatedFrames} frame(s) since last report — shedding backlog`,
+        );
+        this.saturatedFrames = 0;
+      }
+
       this.deltaTimes = [];
     }
   }

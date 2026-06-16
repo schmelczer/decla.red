@@ -594,8 +594,8 @@ body {
   .hitmarker {
     position: absolute;
     transform: translate(-50%, -50%);
-    @include square(26px);
-    opacity: 0.9;
+    @include square(34px);
+    opacity: 0.95;
 
     &::before,
     &::after {
@@ -603,10 +603,13 @@ body {
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 12px;
-      height: 2px;
+      width: 16px;
+      height: 3px;
+      border-radius: 2px;
       background-color: white;
-      box-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+      box-shadow:
+        0 0 6px rgba(255, 255, 255, 0.9),
+        0 0 3px rgba(0, 0, 0, 0.9);
       transform-origin: center;
     }
 
@@ -618,31 +621,58 @@ body {
       transform: translate(-50%, -50%) rotate(-45deg);
     }
 
-    animation: hitmarker-pop 250ms ease-out forwards;
+    animation: hitmarker-pop 220ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
 
     &.charged {
+      @include square(44px);
 
       &::before,
       &::after {
-        width: 18px;
-        height: 3px;
+        width: 24px;
+        height: 4px;
         background-color: $accent;
+        box-shadow:
+          0 0 10px rgba($accent, 0.9),
+          0 0 4px rgba(0, 0, 0, 0.9);
       }
+    }
+  }
+
+  .kill-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center,
+        transparent 42%,
+        rgba($accent, 0) 56%,
+        rgba($accent, 0.55) 100%);
+    animation: kill-flash 420ms ease-out forwards;
+
+    &.charged {
+      background: radial-gradient(ellipse at center,
+          transparent 36%,
+          rgba($accent, 0) 50%,
+          rgba($accent, 0.8) 100%);
     }
   }
 
   .kill-popup {
     position: absolute;
     transform: translate(-50%, -50%);
-    font-weight: 700;
-    font-size: 1.4rem;
+    font-weight: 800;
+    font-size: 1.7rem;
     white-space: nowrap;
     color: $bright-neutral;
-    text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
-    animation: kill-popup-rise 1200ms ease-out forwards;
+    text-shadow:
+      0 0 10px rgba(0, 0, 0, 0.9),
+      0 0 18px rgba(255, 255, 255, 0.35);
+    animation: kill-popup-rise 1200ms cubic-bezier(0.18, 0.9, 0.3, 1) forwards;
 
     &.charged {
       color: $accent;
+      text-shadow:
+        0 0 10px rgba(0, 0, 0, 0.9),
+        0 0 18px rgba($accent, 0.6);
     }
 
     .heal {
@@ -655,12 +685,14 @@ body {
     top: 33%;
     left: 50%;
     transform: translateX(-50%);
-    font-weight: 700;
-    font-size: 2.6rem;
+    font-weight: 800;
+    font-size: 3rem;
     color: $accent;
-    text-shadow: 0 0 12px rgba(0, 0, 0, 0.9);
+    text-shadow:
+      0 0 12px rgba(0, 0, 0, 0.9),
+      0 0 24px rgba($accent, 0.7);
     white-space: nowrap;
-    animation: streak-pop 1400ms ease-out forwards;
+    animation: streak-pop 1400ms cubic-bezier(0.18, 0.9, 0.3, 1) forwards;
   }
 
   .killfeed {
@@ -748,46 +780,72 @@ body {
 @keyframes hitmarker-pop {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(1.6);
+    transform: translate(-50%, -50%) scale(2);
   }
 
-  25% {
+  18% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(0.82);
+  }
+
+  36% {
+    transform: translate(-50%, -50%) scale(1.06);
   }
 
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+}
+
+@keyframes kill-flash {
+  0% {
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
   }
 }
 
 @keyframes kill-popup-rise {
   0% {
     opacity: 0;
-    transform: translate(-50%, -30%) scale(0.8);
+    transform: translate(-50%, -20%) scale(0.6);
   }
 
-  20% {
+  12% {
     opacity: 1;
-    transform: translate(-50%, -60%) scale(1);
+    transform: translate(-50%, -56%) scale(1.25);
+  }
+
+  28% {
+    transform: translate(-50%, -62%) scale(1);
   }
 
   100% {
     opacity: 0;
-    transform: translate(-50%, -160%) scale(1);
+    transform: translate(-50%, -170%) scale(1);
   }
 }
 
 @keyframes streak-pop {
   0% {
     opacity: 0;
-    transform: translateX(-50%) scale(0.6);
+    transform: translateX(-50%) scale(0.5);
   }
 
-  20% {
+  16% {
     opacity: 1;
-    transform: translateX(-50%) scale(1.1);
+    transform: translateX(-50%) scale(1.25);
+  }
+
+  32% {
+    transform: translateX(-50%) scale(0.95);
   }
 
   70% {

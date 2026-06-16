@@ -32,6 +32,12 @@ jobs:
       - name: Build (shared -> frontend -> backend)
         run: npm run build
 
+      - name: Test
+        run: npm test
+
+      - name: Lint
+        run: npm run lint:check
+
       - name: Deploy to host pages mount
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |

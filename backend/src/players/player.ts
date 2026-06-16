@@ -32,6 +32,9 @@ import { PhysicalContainer } from '../physics/containers/physical-container';
 import { PlayerContainer } from './player-container';
 import { PlayerBase } from './player-base';
 
+// How often the server pings each client to measure round-trip time.
+const pingIntervalSeconds = 1;
+
 export class Player extends PlayerBase {
   // default, until the clients sends its real value
   private aspectRatio: number = 16 / 9;
@@ -40,6 +43,12 @@ export class Player extends PlayerBase {
   private objectsPreviouslyInViewArea: Array<GameObject> = [];
   private lastInputClientTimeMs = 0;
   private lastLeapClientTimeMs = 0;
+
+  // Measured round-trip time to this client (ms) — the latency primitive that
+  // lag compensation, a latency HUD, and adaptive interpolation build on.
+  public rttMs = 0;
+  private timeSinceLastPing = 0;
+  private lastPingSentMs = 0;
 
   protected commandExecutors: CommandExecutors = {
     [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) =>
@@ -71,6 +80,15 @@ export class Player extends PlayerBase {
     super(playerInfo, playerContainer, objectContainer, team);
     this.createCharacter();
     this.step(0);
+
+    // The client already echoes a Pong for every Ping (see game.ts). Only one
+    // ping is ever in flight, so RTT is simply now − send-time; no payload
+    // needed and no client change required.
+    this.socket.on(TransportEvents.Pong, () => {
+      if (this.lastPingSentMs > 0) {
+        this.rttMs = performance.now() - this.lastPingSentMs;
+      }
+    });
   }
 
   protected createCharacter() {
@@ -189,6 +207,12 @@ export class Player extends PlayerBase {
 
     if (remoteCalls.length > 0) {
       this.queueCommandSend(new RemoteCallsForObjects(remoteCalls));
+    }
+
+    if ((this.timeSinceLastPing += deltaTime) > pingIntervalSeconds) {
+      this.timeSinceLastPing = 0;
+      this.lastPingSentMs = performance.now();
+      this.socket.emit(TransportEvents.Ping);
     }
 
     if ((this.timeSinceLastMessage += deltaTime) > settings.updateMessageInterval) {

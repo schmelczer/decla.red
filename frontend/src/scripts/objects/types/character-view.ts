@@ -1,4 +1,4 @@
-import { vec2 } from 'gl-matrix';
+import { vec2, vec3 } from 'gl-matrix';
 import { CircleLight, Renderer } from 'sdf-2d';
 
 import {
@@ -23,9 +23,17 @@ import { CharacterShape } from '../../shapes/character-shape';
 import { SoundHandler, Sounds } from '../../sound-handler';
 import { VibrationHandler } from '../../vibration-handler';
 import { FeedbackHud } from '../../feedback-hud';
+import { ScreenShake } from '../../screen-shake';
 
 const muzzleFlashDecaySeconds = 0.12;
 const hitFlashDecaySeconds = 0.15;
+
+// A white-hot pop of light thrown at the spot a character dies, seen by everyone
+// who can see the body. No radius knob on a CircleLight, so the burst is sold by
+// a bright (HDR) colour with a fast-decaying intensity envelope.
+const deathBurstDecaySeconds = 0.42;
+const deathBurstMaxIntensity = 1.7;
+const deathBurstColor = vec3.fromValues(2.5, 2.3, 2.1);
 
 const killIcon =
   '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
@@ -39,6 +47,8 @@ export class CharacterView extends CharacterBase {
   private muzzleFlash: CircleLight;
   private muzzleFlashIntensity = 0;
   private hitFlashIntensity = 0;
+  private deathBurst: CircleLight;
+  private deathBurstIntensity = 0;
   private strength = settings.playerMaxStrength;
   private strengthInterpolator = new LinearInterpolator(settings.playerMaxStrength);
   private nameElement: HTMLElement = document.createElement('div');
@@ -79,6 +89,7 @@ export class CharacterView extends CharacterBase {
       settings.paletteDim[settings.colorIndices[team]],
       0,
     );
+    this.deathBurst = new CircleLight(vec2.clone(this.head!.center), deathBurstColor, 0);
 
     this.leftFootInterpolator = new CircleInterpolator(this.leftFoot!);
     this.rightFootInterpolator = new CircleInterpolator(this.rightFoot!);
@@ -166,6 +177,9 @@ export class CharacterView extends CharacterBase {
 
       if (this.isMainCharacter) {
         VibrationHandler.vibrate(Math.min(200, damage * 4));
+        // Getting hit jolts the frame too, so taking fire has weight, not just
+        // dealing it.
+        ScreenShake.add(clamp01(0.12 + (0.5 * damage) / settings.playerMaxStrength));
       }
     }
   }
@@ -174,17 +188,23 @@ export class CharacterView extends CharacterBase {
     if (this.isMainCharacter) {
       VibrationHandler.vibrate(150);
     }
+    // Visible to everyone who can see the body: a white-hot flash plus a
+    // full-body whiteout, so a kill reads as a violent burst rather than the
+    // character quietly blinking out.
+    this.deathBurstIntensity = 1;
+    this.hitFlashIntensity = 1;
   }
 
   public onHitConfirmed(charge = 0) {
     if (!this.isMainCharacter) {
       return;
     }
-    // A charged hit lands lower and harder than a panic tap.
-    SoundHandler.play(Sounds.click, mix(0.4, 0.75, charge), mix(1.7, 1.05, charge));
-    if (charge >= settings.chargedHitThreshold) {
-      VibrationHandler.vibrate(25);
-    }
+    // Layer a meaty thud under the crisp confirmation tick; a charged hit lands
+    // lower and harder than a panic tap.
+    SoundHandler.play(Sounds.hit, mix(0.35, 0.7, charge), mix(1.3, 0.95, charge));
+    SoundHandler.play(Sounds.click, mix(0.4, 0.75, charge), mix(1.7, 1.1, charge));
+    ScreenShake.add(mix(0.22, 0.5, charge));
+    VibrationHandler.vibrate(Math.round(mix(12, 35, charge)));
     FeedbackHud.hitMarker(charge);
   }
 
@@ -192,8 +212,14 @@ export class CharacterView extends CharacterBase {
     if (!this.isMainCharacter) {
       return;
     }
-    SoundHandler.play(Sounds.click, 1, mix(0.7, 0.5, charge));
-    VibrationHandler.vibrate(mix(60, 110, charge));
+    // A heavy low thud for the kill with a brighter confirmation over the top,
+    // a hard frame jolt, a zoom-punch toward the action for weight, and a
+    // double-thump rumble.
+    SoundHandler.play(Sounds.hit, 1, mix(0.62, 0.5, charge));
+    SoundHandler.play(Sounds.click, 0.9, mix(0.6, 0.45, charge));
+    ScreenShake.add(mix(0.75, 1, charge));
+    ScreenShake.addPunch(mix(0.7, 1, charge));
+    VibrationHandler.vibrate([45, 35, Math.round(mix(80, 130, charge))]);
     FeedbackHud.killConfirmed(victimName, streak, charge);
   }
 
@@ -229,6 +255,18 @@ export class CharacterView extends CharacterBase {
         0,
         this.hitFlashIntensity - deltaTimeInSeconds / hitFlashDecaySeconds,
       );
+    }
+
+    if (this.deathBurstIntensity > 0) {
+      this.deathBurstIntensity = Math.max(
+        0,
+        this.deathBurstIntensity - deltaTimeInSeconds / deathBurstDecaySeconds,
+      );
+      this.deathBurst.center = this.bodyCenter;
+      // Square the envelope so the flash blooms then drops off sharply rather
+      // than fading out in a flat ramp.
+      this.deathBurst.intensity =
+        deathBurstMaxIntensity * this.deathBurstIntensity * this.deathBurstIntensity;
     }
   }
 
@@ -272,6 +310,10 @@ export class CharacterView extends CharacterBase {
 
     if (this.muzzleFlashIntensity > 0) {
       renderer.addDrawable(this.muzzleFlash);
+    }
+
+    if (this.deathBurstIntensity > 0) {
+      renderer.addDrawable(this.deathBurst);
     }
   }
 

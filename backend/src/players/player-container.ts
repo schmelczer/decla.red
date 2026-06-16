@@ -57,6 +57,12 @@ export class PlayerContainer {
     return this._players.length;
   }
 
+  // Measured round-trip times (ms) of the real connected players, for
+  // server-side latency stats. NPCs have no socket and are excluded.
+  public get connectedPlayerRttsMs(): Array<number> {
+    return this._players.map((p) => p.rttMs);
+  }
+
   public step(deltaTimeInSeconds: number) {
     this.players.forEach((p) => p.step(deltaTimeInSeconds));
   }

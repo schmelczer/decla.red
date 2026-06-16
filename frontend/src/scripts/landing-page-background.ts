@@ -3,19 +3,18 @@ import {
   CircleLight,
   FilteringOptions,
   hsl,
-  NoisyPolygonFactory,
   Renderer,
   renderNoise,
   runAnimation,
   WrapOptions,
 } from 'sdf-2d';
 import { settings, rgb, PlanetBase, Random } from 'shared';
+import { PlanetShape } from './shapes/planet-shape';
 
-const landingPageVertexCount = 9;
-const LandingPagePolygon = NoisyPolygonFactory(
-  landingPageVertexCount,
-  rgb(0.5, 0.4, 0.7),
-);
+// colorMixQ ends of PlanetShape's blue<->red gradient, so the two backdrop
+// planets read as the two in-game teams.
+const bluePlanet = 0;
+const redPlanet = 1;
 
 export class LandingPageBackground {
   private isActive = true;
@@ -34,7 +33,7 @@ export class LandingPageBackground {
       canvas,
       [
         {
-          ...LandingPagePolygon.descriptor,
+          ...PlanetShape.descriptor,
           shaderCombinationSteps: [0, 1, 2],
         },
         {
@@ -74,34 +73,41 @@ export class LandingPageBackground {
       0.7 * renderer.canvasSize.y,
     );
 
-    const topPlanet = new LandingPagePolygon(
+    const topPlanet = new PlanetShape(
       PlanetBase.createPlanetVertices(
         topPlanetPosition,
         Random.getRandomInRange(150, 400),
         Random.getRandomInRange(150, 400),
         Random.getRandomInRange(10, 20),
-        landingPageVertexCount,
       ),
+      redPlanet,
     );
 
-    (topPlanet as any).randomOffset = 0.5 + time / 3500;
+    // Fixed terrain phase (no longer animated -> no pulsing); the planet spins
+    // instead, the same way in-game planets do: PlanetShape's rotation uniform
+    // turns the whole body, terrain and outline together, in its own frame.
+    // Speeds sit in the game's per-planet range (~0.05-0.12 rad/s) and
+    // counter-rotate so the two planets don't drift in lockstep.
+    topPlanet.randomOffset = Random.getRandom();
+    topPlanet.rotation = (time / 1000) * 0.09;
 
     const bottomPlanetPosition = vec2.fromValues(
       0.3 * renderer.canvasSize.x,
       0.3 * renderer.canvasSize.y,
     );
 
-    const bottomPlanet = new LandingPagePolygon(
+    const bottomPlanet = new PlanetShape(
       PlanetBase.createPlanetVertices(
         bottomPlanetPosition,
         Random.getRandomInRange(150, 800),
         Random.getRandomInRange(150, 400),
         Random.getRandomInRange(10, 40),
-        landingPageVertexCount,
       ),
+      bluePlanet,
     );
 
-    (bottomPlanet as any).randomOffset = time / 2500;
+    bottomPlanet.randomOffset = Random.getRandom();
+    bottomPlanet.rotation = (time / 1000) * -0.06;
 
     const planetDistance = vec2.subtract(
       vec2.create(),

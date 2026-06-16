@@ -45,16 +45,40 @@ export class PropertyUpdatesForObject {
 export abstract class GameObject extends CommandReceiver {
   private remoteCalls: Array<RemoteCall> = [];
 
+  // The only methods a peer may invoke over the wire. processRemoteCalls
+  // dispatches by a raw string taken straight off the network, so without this
+  // gate a malformed or hostile packet could call ANY method on the object
+  // (toArray, resetRemoteCalls, even prototype methods). Keep in sync with the
+  // remoteCall() emitters on the *-physical classes.
+  private static readonly allowedRemoteCalls: ReadonlySet<string> = new Set([
+    'onShoot',
+    'onLeap',
+    'onDie',
+    'onHitConfirmed',
+    'onKillConfirmed',
+    'setHealth',
+    'setKillCount',
+    'onFlipped',
+    'setContested',
+    'generatedPoints',
+    'setLight',
+  ]);
+
   constructor(public readonly id: Id) {
     super();
   }
 
   public processRemoteCalls(remoteCalls: Array<RemoteCall>) {
-    remoteCalls.forEach((r) =>
-      (this[r.functionName as keyof this] as unknown as (...args: Array<any>) => unknown)(
-        ...r.args,
-      ),
-    );
+    remoteCalls.forEach((r) => {
+      if (!GameObject.allowedRemoteCalls.has(r.functionName)) {
+        console.warn(`Dropped disallowed remote call: ${r.functionName}`);
+        return;
+      }
+      const fn = this[r.functionName as keyof this];
+      if (typeof fn === 'function') {
+        (fn as (...args: Array<any>) => unknown).apply(this, r.args);
+      }
+    });
   }
 
   public getPropertyUpdates(): PropertyUpdatesForObject | void {}

@@ -20,6 +20,12 @@ import {
   CharacterMovementState,
   CharacterWorld,
   GroundSurface,
+  headRadius,
+  feetRadius,
+  headOffset,
+  leftFootOffset,
+  rightFootOffset,
+  boundRadius,
 } from 'shared';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { CirclePhysical } from './circle-physical';
@@ -38,48 +44,14 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   public readonly canCollide = true;
   public readonly canMove = true;
 
-  private static readonly headRadius = 50;
-  private static readonly feetRadius = 20;
   private projectileStrength = settings.playerMaxStrength;
 
-  // offsets are measured from (0, 0). The head sits this far above the feet,
-  // which sets the leg length: kept short so the body reads as a compact head on
-  // stubby legs rather than a long-legged strider.
-  private static readonly desiredHeadOffset = vec2.fromValues(0, 55);
-  private static readonly desiredLeftFootOffset = vec2.fromValues(-20, 0);
-  private static readonly desiredRightFootOffset = vec2.fromValues(20, 0);
-  private static readonly centerOfMass = vec2.scale(
-    vec2.create(),
-    vec2.add(
-      vec2.create(),
-      vec2.add(
-        vec2.create(),
-        CharacterPhysical.desiredHeadOffset,
-        CharacterPhysical.desiredLeftFootOffset,
-      ),
-      CharacterPhysical.desiredRightFootOffset,
-    ),
-    1 / 3,
-  );
-
-  private static readonly headOffset = vec2.subtract(
-    vec2.create(),
-    CharacterPhysical.desiredHeadOffset,
-    CharacterPhysical.centerOfMass,
-  );
-  private static readonly leftFootOffset = vec2.subtract(
-    vec2.create(),
-    CharacterPhysical.desiredLeftFootOffset,
-    CharacterPhysical.centerOfMass,
-  );
-  private static readonly rightFootOffset = vec2.subtract(
-    vec2.create(),
-    CharacterPhysical.desiredRightFootOffset,
-    CharacterPhysical.centerOfMass,
-  );
-
-  public static readonly boundRadius =
-    (CharacterPhysical.headRadius + CharacterPhysical.feetRadius * 2) * 2;
+  // Body geometry (head/foot radii, posture offsets, bound radius) is defined
+  // once in the shared movement module and imported here, so the authoritative
+  // body and the client's predicted body are bit-identical by construction
+  // instead of by a hand-synced "copied verbatim" duplicate. Re-exposed as a
+  // static only because external callers reference CharacterPhysical.boundRadius.
+  public static readonly boundRadius = boundRadius;
 
   private timeSinceDying = 0;
   private isDestroyed = false;
@@ -129,20 +101,20 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   ) {
     super(id(), name, killCount, deathCount, team, settings.playerMaxHealth);
     this.head = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, CharacterPhysical.headOffset),
-      CharacterPhysical.headRadius,
+      vec2.add(vec2.create(), startPosition, headOffset),
+      headRadius,
       this,
       container,
     );
     this.leftFoot = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, CharacterPhysical.leftFootOffset),
-      CharacterPhysical.feetRadius,
+      vec2.add(vec2.create(), startPosition, leftFootOffset),
+      feetRadius,
       this,
       container,
     );
     this.rightFoot = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, CharacterPhysical.rightFootOffset),
-      CharacterPhysical.feetRadius,
+      vec2.add(vec2.create(), startPosition, rightFootOffset),
+      feetRadius,
       this,
       container,
     );
@@ -411,8 +383,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   }
 
   private animateScaling(q: number) {
-    this.head.radius = CharacterPhysical.headRadius * q;
-    this.leftFoot.radius = this.rightFoot.radius = CharacterPhysical.feetRadius * q;
+    this.head.radius = headRadius * q;
+    this.leftFoot.radius = this.rightFoot.radius = feetRadius * q;
   }
 
   public getPropertyUpdates(): PropertyUpdatesForObject {

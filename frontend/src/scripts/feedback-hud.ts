@@ -47,6 +47,11 @@ export abstract class FeedbackHud {
     const { killfeed } = this.ensureRoot();
     const charged = charge >= settings.chargedHitThreshold;
 
+    // A quick crimson vignette pulse around the whole frame to punctuate the kill.
+    const flash = document.createElement('div');
+    flash.className = 'kill-flash' + (charged ? ' charged' : '');
+    this.addTransient(flash, 420);
+
     const entry = document.createElement('div');
     entry.className = 'kill-entry';
     entry.innerHTML = `Eliminated <b>${this.escape(victimName ?? 'enemy')}</b>`;

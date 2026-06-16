@@ -39,6 +39,7 @@ import { localCharacterPredictor } from './helper/prediction/local-character-pre
 import { Tutorial } from './tutorial';
 import { Scoreboard } from './scoreboard';
 import { Minimap } from './minimap';
+import { ScreenShake } from './screen-shake';
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
@@ -80,6 +81,9 @@ export class Game extends CommandReceiver {
     this.socket?.close();
     serverTimeline.reset();
     localCharacterPredictor.reset();
+    // Clear any leftover shake/zoom so a kill at the end of one match can't bleed
+    // its camera impact into the next.
+    ScreenShake.reset();
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
     this.keystoneArrow = undefined;
@@ -231,6 +235,11 @@ export class Game extends CommandReceiver {
   ): boolean {
     this.resolveStarted();
     deltaTime /= 1000;
+
+    // Decay the camera impact effects on raw wall-clock time, before any of the
+    // end-game slow-motion scaling below. These only adjust the rendered view,
+    // never the simulation, so they stay decoupled from prediction and netcode.
+    ScreenShake.step(deltaTime);
 
     // Stepped before the end-game time scaling on purpose: the slow motion is
     // already baked into the snapshots the server sends, so the playback

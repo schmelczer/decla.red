@@ -12,11 +12,15 @@
     "eslint-plugin-unused-imports": "^4.4.1",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1"
+    "typescript-eslint": "^8.60.1",
+    "vitest": "^4.1.9"
   },
   "scripts": {
     "build": "cd shared && npm run build && cd ../frontend && npm run build && cd ../backend && npm run build",
     "lint": "eslint ./**/src/**/*.{js,ts} --fix && prettier --write ./**/src/**/*.{js,ts,json}",
+    "lint:check": "eslint ./**/src/**/*.{js,ts} && prettier --check ./**/src/**/*.{js,ts,json}",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "init": "cd shared && npm install && cd ../frontend && npm install && cd ../backend && npm install",
     "dev": "concurrently --kill-others-on-fail \"cd shared && npm dev\"  \"cd backend && npm dev\"  \"cd frontend && npm dev\""
   }

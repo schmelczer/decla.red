@@ -8,6 +8,7 @@ import {
 } from 'shared';
 import { RenderCommand } from '../../commands/types/render';
 import { Game } from '../../game';
+import { ScreenShake } from '../../screen-shake';
 
 export class Camera extends CommandReceiver {
   public center: vec2 = vec2.create();
@@ -46,7 +47,16 @@ export class Camera extends CommandReceiver {
       this.game.aspectRatioChanged(canvasAspectRatio);
     }
 
-    const viewArea = calculateViewArea(this.center, canvasAspectRatio);
+    // Shake displaces only the rendered view centre and the zoom-punch shrinks
+    // only the rendered view area — neither touches the followed position, so
+    // impacts jolt the frame without nudging the camera off the player. Passing
+    // the zoom as oversizeRatio scales the area about the (shaken) centre.
+    const shakenCenter = vec2.fromValues(
+      this.center[0] + ScreenShake.offsetX,
+      this.center[1] + ScreenShake.offsetY,
+    );
+    const scale = ScreenShake.viewScale;
+    const viewArea = calculateViewArea(shakenCenter, canvasAspectRatio, scale * scale);
     renderer.setViewArea(viewArea.topLeft, viewArea.size);
 
     renderer.setRuntimeSettings({
