@@ -14,8 +14,8 @@ export const calculateViewArea = (
   );
 
   viewArea.topLeft = vec2.fromValues(
-    center.x - viewArea.size.x / 2,
-    center.y + viewArea.size.y / 2,
+    center[0] - viewArea.size[0] / 2,
+    center[1] + viewArea.size[1] / 2,
   );
 
   return viewArea;

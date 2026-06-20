@@ -54,10 +54,10 @@ export class PlanetBase extends GameObject {
     for (let i = 0; i < vertexCount; i++) {
       vertices.push(
         vec2.fromValues(
-          center.x +
+          center[0] +
             (width / 2) * Math.cos((i / vertexCount) * -Math.PI * 2) +
             Random.getRandomInRange(-randomness, randomness),
-          center.y +
+          center[1] +
             (height / 2) * Math.sin((i / vertexCount) * -Math.PI * 2) +
             Random.getRandomInRange(-randomness, randomness),
         ),
