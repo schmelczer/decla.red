@@ -15,10 +15,24 @@ export class RemoteCall {
   }
 }
 
+// Every object property streamed via UpdatePropertyCommand. A single union means
+// a typo or rename on the producing (server *-physical) or consuming (client
+// *-view) side is a compile error instead of a silently dropped update that
+// just stops a body interpolating. The wire format is unchanged — these remain
+// the same strings, only now compiler-checked at both ends.
+export type SyncPropertyKey =
+  | 'head'
+  | 'leftFoot'
+  | 'rightFoot'
+  | 'strength'
+  | 'center'
+  | 'ownership'
+  | 'rotation';
+
 @serializable
 export class UpdatePropertyCommand extends Command {
   constructor(
-    public readonly propertyKey: string,
+    public readonly propertyKey: SyncPropertyKey,
     public readonly propertyValue: any,
     public readonly rateOfChange: any,
   ) {

@@ -17,6 +17,14 @@ import { InputHistory } from './input-history';
 const stepMs = 1000 / 200; // match the server's 200 Hz fixed tick
 const stepSeconds = 1 / 200;
 
+// Clock source for the predictor. Injectable so deterministic reconciliation
+// tests can drive prediction without real time passing; defaults to the
+// browser wall clock in production.
+let nowMs: () => number = () => performance.now();
+export const setPredictorClockForTesting = (clock: () => number): void => {
+  nowMs = clock;
+};
+
 // Don't replay more than this far back: if the last acknowledged input is older
 // (a stall, or a backgrounded tab catching up) snap to the authoritative pose
 // instead of grinding through hundreds of steps.
@@ -74,6 +82,12 @@ export class LocalCharacterPredictor {
   // Latest streamed shooting-strength, to gate predicted leaps as the server does.
   private currentStrength = settings.playerMaxStrength;
 
+  // Whether the local body is alive on the server. While dead (awaiting respawn)
+  // prediction is suppressed so the corpse/ghost can't keep walking in response
+  // to input — the server ignores a dead player's movement, so a predicted body
+  // that still moved would be a pure client-side desync.
+  private alive = true;
+
   // Continuous state carried between replays (the snapshot carries only poses).
   // The facing direction is NOT carried — it is re-derived from the pose each
   // frame (see directionFromPose / simulate); only the latched planet and the
@@ -100,7 +114,7 @@ export class LocalCharacterPredictor {
   // Stamp a movement command and record it for replay. Returns the wall-clock
   // time the command should carry so the server can echo it back.
   public recordInput(direction: vec2): number {
-    const timeMs = Math.round(performance.now());
+    const timeMs = Math.round(nowMs());
     this.inputHistory.record(direction, timeMs);
     return timeMs;
   }
@@ -112,7 +126,10 @@ export class LocalCharacterPredictor {
   ): void {
     // Inputs only advance the acknowledgement forward; the launch momentum and
     // leap boundary always adopt the latest authoritative values.
-    if (this.lastAckClientTimeMs === undefined || clientTimeMs > this.lastAckClientTimeMs) {
+    if (
+      this.lastAckClientTimeMs === undefined ||
+      clientTimeMs > this.lastAckClientTimeMs
+    ) {
       this.lastAckClientTimeMs = clientTimeMs;
     }
     vec2.set(this.authoritativeBodyVelocity, bodyVelocity[0], bodyVelocity[1]);
@@ -121,7 +138,7 @@ export class LocalCharacterPredictor {
 
   public setAuthoritative(head: Circle, leftFoot: Circle, rightFoot: Circle): void {
     this.authoritative = { head, leftFoot, rightFoot };
-    this.authReceiptMs = Math.round(performance.now());
+    this.authReceiptMs = Math.round(nowMs());
   }
 
   // The player pressed leap; remember when, so the replay applies the same
@@ -129,7 +146,7 @@ export class LocalCharacterPredictor {
   // it — a rejected leap (no strength/cooldown) self-corrects via the streamed
   // authoritative momentum.
   public recordLeap(): number {
-    const timeMs = Math.round(performance.now());
+    const timeMs = Math.round(nowMs());
     this.leapHistory.push(timeMs);
     const cutoff = timeMs - 1500;
     while (this.leapHistory.length > 0 && this.leapHistory[0] <= cutoff) {
@@ -140,6 +157,10 @@ export class LocalCharacterPredictor {
 
   public setStrength(strength: number): void {
     this.currentStrength = strength;
+  }
+
+  public setAlive(alive: boolean): void {
+    this.alive = alive;
   }
 
   public reset(): void {
@@ -154,6 +175,7 @@ export class LocalCharacterPredictor {
     this.carriedPlanetId = undefined;
     this.carriedSecondsSinceSurface = 1;
     this.hasRender = false;
+    this.alive = true;
   }
 
   public get canPredict(): boolean {
@@ -175,7 +197,7 @@ export class LocalCharacterPredictor {
   // caller should use (otherwise fall back to interpolation). `planets` is the
   // current collision world; `frameSeconds` is the render delta.
   public update(planets: Array<PredictablePlanet>, frameSeconds: number): boolean {
-    if (!this.canPredict || this.isAnimatingInOrOut) {
+    if (!this.alive || !this.canPredict || this.isAnimatingInOrOut) {
       // Resume from the authoritative pose with a snap rather than gliding from
       // a stale rendered one.
       this.hasRender = false;
@@ -209,7 +231,7 @@ export class LocalCharacterPredictor {
 
   private simulate(): CharacterMovementState {
     const auth = this.authoritative!;
-    const now = Math.round(performance.now());
+    const now = Math.round(nowMs());
     // Predict forward from the latest snapshot by its age, clamped so a stall
     // (or a backgrounded tab catching up) snaps instead of grinding hundreds of
     // steps. This advances with wall-clock time even while a held key sends no

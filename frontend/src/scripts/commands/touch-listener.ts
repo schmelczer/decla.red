@@ -15,6 +15,9 @@ import { localCharacterPredictor } from '../helper/prediction/local-character-pr
 export class TouchListener extends CommandGenerator {
   private static readonly deadZone = 8;
   private static readonly deltaScaling = 0.4;
+  // Min screen drag (px) from the fire button before a shot is aimed by the
+  // drag direction instead of firing straight ahead.
+  private static readonly aimDeadZone = 18;
 
   private joystick: HTMLElement;
   private joystickButton: HTMLElement;
@@ -24,9 +27,12 @@ export class TouchListener extends CommandGenerator {
 
   private fireButton: HTMLElement;
   private fireStrengthRing: HTMLElement;
+  private fireAimLine!: HTMLElement;
   private leapButton: HTMLElement;
 
   private fireDownAt: number | null = null;
+  private fireButtonCenter: vec2 | null = null;
+  private fireAimScreen: vec2 | null = null;
 
   constructor(
     private target: HTMLElement,
@@ -45,8 +51,12 @@ export class TouchListener extends CommandGenerator {
     this.fireStrengthRing = document.createElement('div');
     this.fireStrengthRing.className = 'strength-ring';
     this.fireButton.appendChild(this.fireStrengthRing);
+    this.fireAimLine = document.createElement('div');
+    this.fireAimLine.className = 'aim-line';
+    this.fireButton.appendChild(this.fireAimLine);
 
     this.fireButton.addEventListener('touchstart', this.fireButtonDownListener);
+    this.fireButton.addEventListener('touchmove', this.fireButtonMoveListener);
     this.fireButton.addEventListener('touchend', this.fireButtonUpListener);
 
     this.leapButton = document.createElement('div');
@@ -159,12 +169,41 @@ export class TouchListener extends CommandGenerator {
     this.swallowTouch(event);
     this.fireDownAt = performance.now();
     const rect = this.fireButton.getBoundingClientRect();
-    ChargeIndicator.begin(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    this.fireButtonCenter = vec2.fromValues(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+    );
+    this.fireAimScreen = null;
+    ChargeIndicator.begin(this.fireButtonCenter[0], this.fireButtonCenter[1]);
+  };
+
+  // Dragging from the fire button aims the shot: the drag vector sets the
+  // direction, decoupling aim from movement so a touch player can fire one way
+  // while walking another. A tap with no meaningful drag fires straight ahead.
+  private fireButtonMoveListener = (event: TouchEvent) => {
+    this.swallowTouch(event);
+    if (this.fireDownAt === null || !this.fireButtonCenter) {
+      return;
+    }
+    const touch = event.targetTouches[0] ?? event.changedTouches[0];
+    if (!touch) {
+      return;
+    }
+    this.fireAimScreen = vec2.fromValues(touch.clientX, touch.clientY);
+    const dx = this.fireAimScreen[0] - this.fireButtonCenter[0];
+    const dy = this.fireAimScreen[1] - this.fireButtonCenter[1];
+    if (dx * dx + dy * dy > TouchListener.aimDeadZone * TouchListener.aimDeadZone) {
+      this.fireAimLine.style.opacity = '1';
+      this.fireAimLine.style.transform = `translateY(-50%) rotate(${Math.atan2(dy, dx)}rad)`;
+    } else {
+      this.fireAimLine.style.opacity = '0';
+    }
   };
 
   private fireButtonUpListener = (event: TouchEvent) => {
     this.swallowTouch(event);
     ChargeIndicator.end();
+    this.fireAimLine.style.opacity = '0';
     if (this.fireDownAt === null) {
       return;
     }
@@ -174,12 +213,28 @@ export class TouchListener extends CommandGenerator {
 
     const character = this.game.gameObjects.player;
     if (!character) {
+      this.fireButtonCenter = null;
+      this.fireAimScreen = null;
       return;
     }
+
+    // Screen drag → world aim direction (flip Y: screen +y is down). Below the
+    // dead-zone it's a tap, so fall back to firing along the facing direction.
+    let direction = character.facingDirection;
+    if (this.fireButtonCenter && this.fireAimScreen) {
+      const dx = this.fireAimScreen[0] - this.fireButtonCenter[0];
+      const dy = this.fireAimScreen[1] - this.fireButtonCenter[1];
+      if (dx * dx + dy * dy > TouchListener.aimDeadZone * TouchListener.aimDeadZone) {
+        direction = vec2.normalize(vec2.create(), vec2.fromValues(dx, -dy));
+      }
+    }
+    this.fireButtonCenter = null;
+    this.fireAimScreen = null;
+
     const aim = vec2.scaleAndAdd(
       vec2.create(),
       character.bodyCenter,
-      character.facingDirection,
+      direction,
       settings.touchAimRange,
     );
     this.sendCommandToSubscribers(new PrimaryActionCommand(aim, charge));
@@ -195,8 +250,9 @@ export class TouchListener extends CommandGenerator {
 
     const character = this.game.gameObjects.player;
     if (character) {
-      this.fireStrengthRing.style.background = `conic-gradient(rgba(255, 255, 255, 0.75) ${character.strengthFraction * 360
-        }deg, transparent 0deg)`;
+      this.fireStrengthRing.style.background = `conic-gradient(rgba(255, 255, 255, 0.75) ${
+        character.strengthFraction * 360
+      }deg, transparent 0deg)`;
     }
   }
 
@@ -207,6 +263,7 @@ export class TouchListener extends CommandGenerator {
     this.target.removeEventListener('touchend', this.touchEndListener);
 
     this.fireButton.removeEventListener('touchstart', this.fireButtonDownListener);
+    this.fireButton.removeEventListener('touchmove', this.fireButtonMoveListener);
     this.fireButton.removeEventListener('touchend', this.fireButtonUpListener);
     this.leapButton.removeEventListener('touchstart', this.leapButtonListener);
 

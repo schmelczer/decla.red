@@ -2,12 +2,22 @@ import { vec2 } from 'gl-matrix';
 import { Random } from '../../helper/random';
 import { settings } from '../../settings';
 import { serializable } from '../../serialization/serializable';
+import { toArrayFromFields } from '../../serialization/serialized-fields';
 import { GameObject } from '../game-object';
 import { Id } from '../../communication/id';
 import { CharacterTeam } from './character-base';
 
 @serializable
 export class PlanetBase extends GameObject {
+  // centre/radius are derived from vertices in the constructor, so they are not
+  // serialized — only the constructor parameters are.
+  private static readonly serializedFields = [
+    'id',
+    'vertices',
+    'ownership',
+    'isKeystone',
+  ] as const;
+
   public readonly center: vec2;
   public readonly radius: number;
 
@@ -57,6 +67,6 @@ export class PlanetBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    return [this.id, this.vertices, this.ownership, this.isKeystone];
+    return toArrayFromFields(this, PlanetBase.serializedFields);
   }
 }

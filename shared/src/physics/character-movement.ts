@@ -107,7 +107,13 @@ const springMove = (
 
 const keepPosture = (state: CharacterMovementState) => {
   const center = characterCenter(state);
-  springMove(state, state.leftFoot, center, leftFootOffset, settings.postureFeetStiffness);
+  springMove(
+    state,
+    state.leftFoot,
+    center,
+    leftFootOffset,
+    settings.postureFeetStiffness,
+  );
   springMove(
     state,
     state.rightFoot,
@@ -133,7 +139,12 @@ const carryWithRotatingPlanet = (
   const angle = -planet.angularVelocity * deltaTimeInSeconds;
   const center = planet.center;
   state.head.center = vec2.rotate(vec2.create(), state.head.center, center, angle);
-  state.leftFoot.center = vec2.rotate(vec2.create(), state.leftFoot.center, center, angle);
+  state.leftFoot.center = vec2.rotate(
+    vec2.create(),
+    state.leftFoot.center,
+    center,
+    angle,
+  );
   state.rightFoot.center = vec2.rotate(
     vec2.create(),
     state.rightFoot.center,
@@ -148,10 +159,7 @@ const carryWithRotatingPlanet = (
 // server's leap() and the client's prediction apply the exact same impulse.
 // The caller does the gating (strength, cooldown, alive); this is a no-op when
 // not on a surface.
-export const applyLeapImpulse = (
-  state: CharacterMovementState,
-  moveDirection: vec2,
-) => {
+export const applyLeapImpulse = (state: CharacterMovementState, moveDirection: vec2) => {
   const planet = state.currentPlanet;
   if (!planet) {
     return;
@@ -206,7 +214,9 @@ export const tickPlanetDetachment = (
   state: CharacterMovementState,
   deltaTimeInSeconds: number,
 ) => {
-  if ((state.secondsSinceOnSurface += deltaTimeInSeconds) > settings.planetDetachmentSeconds) {
+  if (
+    (state.secondsSinceOnSurface += deltaTimeInSeconds) > settings.planetDetachmentSeconds
+  ) {
     state.currentPlanet = undefined;
   }
 };
@@ -255,10 +265,7 @@ export const decayMomentum = (
   }
 };
 
-const decayBodyMomentum = (
-  state: CharacterMovementState,
-  deltaTimeInSeconds: number,
-) => {
+const decayBodyMomentum = (state: CharacterMovementState, deltaTimeInSeconds: number) => {
   decayMomentum(state.bodyVelocity, !!state.currentPlanet, deltaTimeInSeconds);
 };
 
@@ -293,7 +300,11 @@ export const stepCharacterMovement = (
   const center = characterCenter(state);
   const grounds = world.groundsNear(center, boundRadius + settings.maxGravityDistance);
 
-  const movementForce = vec2.scale(inputDirection, inputDirection, settings.maxAcceleration);
+  const movementForce = vec2.scale(
+    inputDirection,
+    inputDirection,
+    settings.maxAcceleration,
+  );
   applyForce(state.leftFoot, movementForce, deltaTimeInSeconds);
   applyForce(state.rightFoot, movementForce, deltaTimeInSeconds);
 

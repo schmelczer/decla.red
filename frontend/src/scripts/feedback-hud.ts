@@ -4,6 +4,7 @@ import { Pointer } from './helper/pointer';
 export abstract class FeedbackHud {
   private static root?: HTMLElement;
   private static killfeed?: HTMLElement;
+  private static elimination?: HTMLElement;
 
   private static ensureRoot(): { root: HTMLElement; killfeed: HTMLElement } {
     if (!this.root || !this.killfeed) {
@@ -73,6 +74,29 @@ export abstract class FeedbackHud {
       el.innerText = callout;
       this.addTransient(el, 1400);
     }
+  }
+
+  // Persistent centred overlay shown while the local player is dead and waiting
+  // to respawn. The countdown itself is the server-driven "Reviving in N…"
+  // announcement; this makes the death state unmistakable and stays up until
+  // hideElimination() is called on respawn.
+  public static showElimination(): void {
+    if (this.elimination) {
+      return;
+    }
+    const { root } = this.ensureRoot();
+    const el = document.createElement('div');
+    el.className = 'elimination';
+    el.innerHTML =
+      '<div class="elimination-title">Eliminated</div>' +
+      '<div class="elimination-sub">Respawning…</div>';
+    root.appendChild(el);
+    this.elimination = el;
+  }
+
+  public static hideElimination(): void {
+    this.elimination?.parentElement?.removeChild(this.elimination);
+    this.elimination = undefined;
   }
 
   private static streakName(streak: number): string | undefined {

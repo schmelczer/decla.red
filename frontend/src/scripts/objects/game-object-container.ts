@@ -16,6 +16,7 @@ import {
 } from 'shared';
 import { BeforeDestroyCommand } from '../commands/types/before-destroy';
 import { StepCommand } from '../commands/types/step';
+import { FeedbackHud } from '../feedback-hud';
 import { Game } from '../game';
 import { serverTimeline } from '../helper/server-timeline';
 import { PredictablePlanet } from '../helper/prediction/client-character-world';
@@ -28,6 +29,7 @@ export class GameObjectContainer extends CommandReceiver {
   protected objects: Map<Id, GameObject> = new Map();
   public player!: CharacterView;
   public camera: Camera = new Camera(this.game);
+  private wasLocalPlayerAlive = false;
 
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
@@ -37,6 +39,9 @@ export class GameObjectContainer extends CommandReceiver {
       // Fresh character (first spawn or respawn at a far planet): drop any
       // prediction state so it snaps to the new body instead of gliding across.
       localCharacterPredictor.reset();
+      // Respawned — clear the elimination overlay.
+      FeedbackHud.hideElimination();
+      this.wasLocalPlayerAlive = true;
     },
 
     [CreateObjectsCommand.type]: (c: CreateObjectsCommand) =>
@@ -45,15 +50,32 @@ export class GameObjectContainer extends CommandReceiver {
     [StepCommand.type]: (c: StepCommand) => {
       this.defaultCommandExecutor(c);
 
-      if (this.player) {
+      // The local body is alive only while its object still exists (the server
+      // deletes it on death) and its health is above zero — `player` keeps
+      // pointing at the now-stale view after death, so both checks are needed.
+      const bodyPresent = !!this.player && this.objects.has(this.player.id);
+      const alive = bodyPresent && this.player.health > 0;
+
+      // Show the elimination overlay on the alive→dead edge; CreatePlayerCommand
+      // clears it on respawn.
+      if (this.wasLocalPlayerAlive && !alive) {
+        FeedbackHud.showElimination();
+      }
+      this.wasLocalPlayerAlive = alive;
+
+      if (bodyPresent) {
         // Override the interpolated pose of the local player with the predicted
-        // one so it responds to input immediately. Remote objects keep
-        // interpolating. A large correction (respawn / death) snaps inside the
-        // predictor rather than rubber-banding.
+        // one so it responds to input immediately. Suppressed while dead so the
+        // corpse can't be walked around (the server ignores a dead player's
+        // input — a moving predicted body would be a pure client-side desync).
+        // A large correction (respawn / death) snaps inside the predictor.
+        localCharacterPredictor.setAlive(alive);
         localCharacterPredictor.setStrength(
           this.player.strengthFraction * settings.playerMaxStrength,
         );
-        if (localCharacterPredictor.update(this.predictablePlanets(), c.deltaTimeInSeconds)) {
+        if (
+          localCharacterPredictor.update(this.predictablePlanets(), c.deltaTimeInSeconds)
+        ) {
           this.player.head = localCharacterPredictor.head;
           this.player.leftFoot = localCharacterPredictor.leftFoot;
           this.player.rightFoot = localCharacterPredictor.rightFoot;

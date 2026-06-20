@@ -75,7 +75,7 @@ export abstract class PlayerBase extends CommandReceiver {
   protected findEmptyPositionForPlayer(preferredCenter: vec2): vec2 {
     let rotation = 0;
     let radius = 0;
-    for (; ;) {
+    for (;;) {
       const playerPosition = vec2.fromValues(
         radius * Math.cos(rotation) + preferredCenter.x,
         radius * Math.sin(rotation) + preferredCenter.y,

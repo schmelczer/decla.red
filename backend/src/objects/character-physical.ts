@@ -126,6 +126,9 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   }
 
   private initMovementBridge() {
+    // The movementState object-literal getters/setters below can't use `this`
+    // (it would bind to the literal), so alias the character instance.
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
     this.movementState = {
       head: this.head,

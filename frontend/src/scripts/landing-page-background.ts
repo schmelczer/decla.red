@@ -11,10 +11,11 @@ import {
 import { settings, rgb, PlanetBase, Random } from 'shared';
 import { PlanetShape } from './shapes/planet-shape';
 
-// colorMixQ ends of PlanetShape's blue<->red gradient, so the two backdrop
-// planets read as the two in-game teams.
+// PlanetShape colours by mixing blue (0) -> red (1). The two backdrop planets
+// read as the two in-game teams; the red planet is pulled a little off the
+// pure-red end so it shows as a more muted, less saturated red.
 const bluePlanet = 0;
-const redPlanet = 1;
+const redPlanet = 0.85;
 
 export class LandingPageBackground {
   private isActive = true;

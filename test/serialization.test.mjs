@@ -17,6 +17,11 @@ const {
   MoveActionCommand,
   UpdatePropertyCommand,
   PropertyUpdatesForObject,
+  // networked entity bases — their toArray() must mirror their constructor order
+  CharacterBase,
+  PlanetBase,
+  ProjectileBase,
+  LampBase,
   // geometry — single source of truth shared by server & client prediction
   headRadius,
   feetRadius,
@@ -74,6 +79,67 @@ describe('serialization round-trip (built shared lib)', () => {
     expect(out[0]).toBeInstanceOf(ServerAnnouncement);
     expect(out[1]).toBeInstanceOf(MoveActionCommand);
     expect(out[2]).toBeInstanceOf(Circle);
+  });
+});
+
+describe('networked entity round-trips (toArray ↔ constructor contract)', () => {
+  it('round-trips a ProjectileBase', () => {
+    const out = deserialize(serialize(new ProjectileBase(7, [10, 20], 30, 'blue', 40)));
+    expect(out).toBeInstanceOf(ProjectileBase);
+    expect(out.id).toBe(7);
+    expect(out.center[0]).toBeCloseTo(10, 5);
+    expect(out.center[1]).toBeCloseTo(20, 5);
+    expect(out.radius).toBe(30);
+    expect(out.team).toBe('blue');
+    expect(out.strength).toBe(40);
+  });
+
+  it('round-trips a CharacterBase with its nested body Circles', () => {
+    const out = deserialize(
+      serialize(
+        new CharacterBase(
+          8,
+          'Bob',
+          2,
+          1,
+          'red',
+          100,
+          new Circle([1, 2], 50),
+          new Circle([3, 4], 20),
+          new Circle([5, 6], 20),
+        ),
+      ),
+    );
+    expect(out).toBeInstanceOf(CharacterBase);
+    expect(out.id).toBe(8);
+    expect(out.name).toBe('Bob');
+    expect(out.killCount).toBe(2);
+    expect(out.deathCount).toBe(1);
+    expect(out.team).toBe('red');
+    expect(out.health).toBe(100);
+    expect(out.head).toBeInstanceOf(Circle);
+    expect(out.head.center[0]).toBeCloseTo(1, 5);
+    expect(out.head.radius).toBe(50);
+  });
+
+  it('round-trips a LampBase', () => {
+    const out = deserialize(serialize(new LampBase(9, [7, 8], [1, 0.5, 0.2], 0.8)));
+    expect(out).toBeInstanceOf(LampBase);
+    expect(out.center[1]).toBeCloseTo(8, 5);
+    expect(out.color[2]).toBeCloseTo(0.2, 5);
+    expect(out.lightness).toBeCloseTo(0.8, 5);
+  });
+
+  it('round-trips a PlanetBase (derived centre/radius recomputed from vertices)', () => {
+    const out = deserialize(
+      serialize(new PlanetBase(10, [[0, 0], [100, 0], [50, 100]], 0.7, true)),
+    );
+    expect(out).toBeInstanceOf(PlanetBase);
+    expect(out.id).toBe(10);
+    expect(out.vertices).toHaveLength(3);
+    expect(out.ownership).toBeCloseTo(0.7, 5);
+    expect(out.isKeystone).toBe(true);
+    expect(out.center[0]).toBeCloseTo(50, 5); // recomputed by the constructor
   });
 });
 

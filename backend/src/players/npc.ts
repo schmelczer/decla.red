@@ -315,7 +315,7 @@ export class NPC extends PlayerBase {
 
     const charge =
       distance > npcTuning.chargeRangeThreshold &&
-        Random.getRandom() <
+      Random.getRandom() <
         npcTuning.chargeBaseChance + npcTuning.chargeAggressionChance * this.aggression
         ? Random.getRandomInRange(npcTuning.chargeMin, 1)
         : 0;

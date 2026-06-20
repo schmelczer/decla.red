@@ -103,8 +103,8 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
               if (dist < minDistance) {
                 minDistance = dist;
                 color = mix(${colorToString(settings.bluePlanetColor)}, ${colorToString(
-        settings.redPlanetColor,
-      )}, planetColorMixQ[j]);
+                  settings.redPlanetColor,
+                )}, planetColorMixQ[j]);
               }
             }
 
@@ -141,10 +141,7 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
   ) {
     super(vertices);
 
-    this.cullCenter = vertices.reduce(
-      (sum, v) => vec2.add(sum, sum, v),
-      vec2.create(),
-    );
+    this.cullCenter = vertices.reduce((sum, v) => vec2.add(sum, sum, v), vec2.create());
     vec2.scale(this.cullCenter, this.cullCenter, 1 / vertices.length);
 
     this.cullRadius = vertices.reduce(

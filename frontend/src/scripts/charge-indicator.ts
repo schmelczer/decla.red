@@ -1,7 +1,6 @@
 import { holdDurationToCharge } from 'shared';
 import { Pointer } from './helper/pointer';
 
-
 export abstract class ChargeIndicator {
   private static element?: HTMLElement;
   private static heldSince = 0;
@@ -41,8 +40,9 @@ export abstract class ChargeIndicator {
       (performance.now() - ChargeIndicator.heldSince) / 1000,
     );
     element.style.opacity = charge < 0.12 ? '0' : '1';
-    element.style.background = `conic-gradient(rgba(255, 255, 255, 0.85) ${charge * 360
-      }deg, rgba(255, 255, 255, 0.15) 0deg)`;
+    element.style.background = `conic-gradient(rgba(255, 255, 255, 0.85) ${
+      charge * 360
+    }deg, rgba(255, 255, 255, 0.15) 0deg)`;
     element.classList.toggle('full', charge >= 1);
 
     if (ChargeIndicator.followPointer) {
