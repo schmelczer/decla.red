@@ -486,7 +486,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     this.projectileStrength = Math.min(
       settings.playerMaxStrength,
       this.projectileStrength +
-      settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
+        settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
     );
 
     this.regenerateHealth(deltaTimeInSeconds);
