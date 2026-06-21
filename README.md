@@ -1,8 +1,8 @@
-# [decla.red](https://decla.red)
+# doppler
 
 A 2-dimensional multiplayer game utilising ray tracing.
 
-> **Available at [decla.red](https://decla.red).**
+> **Available at [doppler.schmelczer.dev](https://doppler.schmelczer.dev).**
 
 ![screenshot of in-game fight](media/game-pc.png)
 ![three screenshots taken at iPhone SE screen size](media/collage-iphone.png)
@@ -15,7 +15,7 @@ CI/CD runs on Forgejo Actions (`.forgejo/workflows/deploy.yml`). On a push to
 `main` it:
 
 - builds the static frontend and rsyncs `frontend/dist/` to the `/pages/declared`
-  mount on the runner host, and
+  mount on the runner host (the mount keeps its pre-rebrand name), and
 - builds the server image from the root `Dockerfile` and pushes it to the Forgejo
   container registry as `<registry>/<owner>/<repo>-server`.
 
@@ -30,6 +30,6 @@ edit it to add or remove game-server origins.
 Run the server image locally:
 
 ```sh
-docker build -t declared-server .
-docker run -p 3000:3000 declared-server --name "My server" --playerLimit 16
+docker build -t doppler-server .
+docker run -p 3000:3000 doppler-server --name "My server" --playerLimit 16
 ```

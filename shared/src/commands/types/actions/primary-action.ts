@@ -4,11 +4,14 @@ import { Command } from '../../command';
 
 @serializable
 export class PrimaryActionCommand extends Command {
-  public constructor(public readonly position: vec2) {
+  public constructor(
+    public readonly position: vec2,
+    public readonly charge: number = 0,
+  ) {
     super();
   }
 
   public toArray(): Array<any> {
-    return [this.position];
+    return [this.position, this.charge];
   }
 }

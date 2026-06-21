@@ -20,6 +20,7 @@
 
 html {
   font-size: 0.85rem;
+
   @media (max-width: $breakpoint) {
     font-size: 0.6rem;
   }
@@ -30,27 +31,35 @@ img {
 }
 
 h1 {
+
   &,
   * {
     font-family: 'Comfortaa', sans-serif;
     font-weight: 400;
   }
+
   font-size: 6rem;
   text-align: center;
   padding-bottom: $medium-padding;
+  width: fit-content;
+  margin-inline: auto;
+  background: linear-gradient(90deg, $bright-blue, $bright-red);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+
+  &::selection {
+    color: white;
+    -webkit-text-fill-color: white;
+    background-color: $accent;
+  }
+
   @media (max-width: $height-breakpoint) {
     font-size: 4.5rem;
   }
+
   @media (max-height: $height-breakpoint) {
     display: none;
-  }
-}
-
-.red {
-  color: $accent;
-  &::selection {
-    color: $accent;
-    background-color: white;
   }
 }
 
@@ -75,8 +84,10 @@ body {
     top: 0;
 
     @include background;
+
     #spinner {
       @include square(20vmax);
+
       @media (max-width: $breakpoint) {
         @include square(20vmax);
       }
@@ -107,7 +118,7 @@ body {
 
     overflow: hidden;
 
-    & > * {
+    &>* {
       display: inline-block;
       position: absolute;
       top: 0;
@@ -118,12 +129,14 @@ body {
       border-radius: 1000px;
       transition: transform 200ms;
 
-      &.decla {
-        color: $bright-decla;
-        div:first-child {
-          background-color: $bright-decla;
+      &.blue {
+        color: $bright-blue;
+
+        .health {
+          background-color: $bright-blue;
+
           &:before {
-            background-color: $bright-decla;
+            background-color: $bright-blue;
             opacity: 0.3;
           }
         }
@@ -131,8 +144,10 @@ body {
 
       &.red {
         color: $bright-red;
-        div:first-child {
+
+        .health {
           background-color: $bright-red;
+
           &:before {
             background-color: $bright-red;
             opacity: 0.4;
@@ -140,7 +155,7 @@ body {
         }
       }
 
-      div:first-child {
+      .health {
         position: relative;
         height: 5px;
         border-radius: 1000px;
@@ -155,9 +170,33 @@ body {
         }
       }
 
-      div:not(:first-child) {
-        letter-spacing: 2px;
+      .charge {
+        height: 3px;
+        margin-top: 2px;
+        border-radius: 1000px;
+        background-color: rgba(255, 255, 255, 0.65);
+      }
+
+      .stats {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         font-size: 0.8em;
+        font-weight: 700;
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+
+        .stat {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .icon {
+          width: 1.1em;
+          height: 1.1em;
+          fill: currentColor;
+          filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.9));
+        }
       }
     }
 
@@ -168,35 +207,78 @@ body {
       @include square(50px);
       border-radius: 1000px;
       mask-image: url('../static/mask.svg');
+
+      &.contested {
+        animation: contested-pulse 0.7s ease-in-out infinite;
+      }
+
+      &.keystone {
+        @include square(72px);
+      }
     }
 
     .falling-point {
       font-size: 1.2em;
-      &.decla {
-        color: $bright-decla;
+      font-weight: 700;
+      animation: falling-point 2s ease-out forwards;
+
+      &.blue {
+        color: $bright-blue;
       }
+
       &.red {
         color: $bright-red;
       }
     }
 
-    .other-player-arrow {
+    // Top-down radar of the whole arena (see Minimap). The circular border is
+    // the world boundary; dots are painted onto the canvas.
+    .minimap {
+      top: $small-padding;
+      left: $small-padding;
+      @include square(132px);
+
+      // On narrow screens the centred scoreboard bar reaches close to the left
+      // edge, so drop the minimap below it to avoid a corner overlap.
+      @media (max-width: $breakpoint) {
+        @include square(96px);
+        top: calc(#{$small-padding} + 32px);
+      }
+
+      border-radius: 1000px;
+      background-color: rgba(0, 0, 0, 0.35);
+      box-shadow:
+        inset 0 0 3px 0 rgba(0, 0, 0, 0.4),
+        0 0 10px rgba(0, 0, 0, 0.3);
+      border: $border-width solid rgba(255, 255, 255, 0.25);
+      z-index: 100;
+    }
+
+    // Off-screen pointer to the keystone "Heart", tinted by its current owner.
+    .keystone-arrow {
       transition: transform 150ms;
+      opacity: 0.9;
 
       @include square($large-icon);
+
       @media (max-width: $breakpoint) {
         @include square($small-icon);
       }
 
       mask-image: url('../static/chevron.svg');
       mask-size: contain;
+      background-color: $bright-neutral;
 
-      &.decla {
-        background-color: $bright-decla;
+      &.blue {
+        background-color: $bright-blue;
       }
 
       &.red {
         background-color: $bright-red;
+      }
+
+      &.neutral {
+        background-color: $bright-neutral;
       }
     }
 
@@ -219,6 +301,85 @@ body {
       }
     }
 
+    .touch-button {
+      display: none;
+      pointer-events: auto;
+      touch-action: none;
+      cursor: pointer;
+
+      $size: $large-icon * 1.6;
+      @include square($size);
+      top: auto;
+      left: auto;
+      bottom: $medium-padding;
+      border-radius: 1000px;
+      background-color: rgba(255, 255, 255, 0.12);
+      box-shadow: inset 0 0 8px 3px rgba(0, 0, 0, 0.33);
+      border: $border-width solid rgba(255, 255, 255, 0.4);
+
+      font-size: 1.6rem;
+      line-height: $size - 2 * $border-width;
+      text-align: center;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+
+      @media (hover: none) and (pointer: coarse) {
+        display: inline-block;
+      }
+
+      &.fire {
+        right: $medium-padding;
+
+        &::after {
+          content: '\25C9';
+        }
+
+        // Twin-stick aim indicator: drawn from the button centre toward the
+        // current drag direction while aiming a shot (see TouchListener).
+        .aim-line {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 130px;
+          height: 3px;
+          border-radius: 2px;
+          transform-origin: left center;
+          transform: translateY(-50%) rotate(0rad);
+          background: linear-gradient(90deg,
+              rgba(255, 255, 255, 0.85),
+              rgba(255, 255, 255, 0));
+          box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 80ms;
+        }
+      }
+
+      &.leap {
+        right: $medium-padding;
+        bottom: $medium-padding + $large-icon * 1.6 + $small-padding;
+
+        &::after {
+          content: '\25B2';
+        }
+      }
+
+      .strength-ring {
+        position: absolute;
+        top: -3px;
+        left: -3px;
+        width: calc(100% + 6px);
+        height: calc(100% + 6px);
+        border-radius: 1000px;
+        pointer-events: none;
+        -webkit-mask: radial-gradient(farthest-side,
+            transparent calc(100% - 5px),
+            #000 calc(100% - 5px));
+        mask: radial-gradient(farthest-side,
+            transparent calc(100% - 5px),
+            #000 calc(100% - 5px));
+      }
+    }
+
     .announcement {
       top: 25%;
       transform: translateX(calc(-50% + 50vw)) translateY(-50%);
@@ -233,12 +394,31 @@ body {
         display: none;
       }
 
-      .decla {
-        color: $bright-decla;
+      .blue {
+        color: $bright-blue;
       }
 
       .red {
         color: $bright-red;
+      }
+    }
+
+    .tutorial-hint {
+      top: auto;
+      bottom: calc(#{$medium-padding} + #{$large-icon} * 1.6 + #{$medium-padding});
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+
+      font-size: 1.6rem;
+      @include background;
+      z-index: 1000;
+      padding: $small-padding $medium-padding;
+      border-radius: 1000px;
+      opacity: 0.9;
+
+      &:empty {
+        display: none;
       }
     }
 
@@ -247,15 +427,41 @@ body {
       left: 50%;
       transform: translateX(-50%);
       width: 50%;
-      display: flex;
-      $height: 8px;
+      $height: 20px;
       height: $height;
 
-      justify-content: space-between;
-      box-shadow: inset 0 0 3px 0px rgba(0, 0, 0, 0.2);
-
-      border-radius: 4px;
       z-index: 100;
+      pointer-events: none;
+
+      background-color: rgba(0, 0, 0, 0.35);
+      box-shadow: inset 0 0 3px 0px rgba(0, 0, 0, 0.4);
+      border-radius: 1000px;
+
+      .fill {
+        position: absolute;
+        top: 0;
+        height: $height;
+        transition: width $animation-time;
+      }
+
+      .fill.blue {
+        right: 50%;
+        background: $bright-blue;
+        color: $bright-blue;
+        border-radius: 1000px 0 0 1000px;
+      }
+
+      .fill.red {
+        left: 50%;
+        background: $bright-red;
+        color: $bright-red;
+        border-radius: 0 1000px 1000px 0;
+      }
+
+      .fill.match-point {
+        z-index: 1;
+        animation: match-point-pulse 1.2s ease-in-out infinite;
+      }
 
       &::before {
         content: '';
@@ -263,38 +469,87 @@ body {
         left: 50%;
         top: 50%;
         transform: translateX(-50%) translateY(-50%);
-        background-color: #888;
-        height: 24px;
-        width: 4px;
+        background-color: #fff;
+        height: $height + 8px;
+        width: 3px;
         border-radius: 1000px;
+        z-index: 2;
       }
 
-      &::after {
-        content: '';
+      .score {
         position: absolute;
-        left: 50%;
         top: 50%;
-        transform: translateX(-50%) translateY(50%);
-
-        @include square(24px);
-
-        background-image: url('../static/flag.svg');
-        background-size: contain;
+        transform: translateY(-50%);
+        z-index: 3;
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1;
+        color: #fff;
+        text-shadow:
+          0 0 3px rgba(0, 0, 0, 0.95),
+          0 0 6px rgba(0, 0, 0, 0.8);
+        opacity: 0.8;
+        transition:
+          opacity $animation-time,
+          text-shadow $animation-time,
+          font-size $animation-time;
       }
 
-      div {
-        height: $height;
-        box-shadow: inset 0 0 3px 0px rgba(0, 0, 0, 0.2);
+      .score.blue {
+        right: calc(50% + #{$small-padding});
       }
 
-      div:nth-child(1) {
-        background: $bright-decla;
-        border-radius: 100px 0 0 100px;
+      .score.red {
+        left: calc(50% + #{$small-padding});
       }
 
-      div:nth-child(2) {
-        background: $bright-red;
-        border-radius: 0 100px 100px 0;
+      .score.leading {
+        opacity: 1;
+        font-size: 1.2rem;
+      }
+
+      .score.blue.leading {
+        text-shadow:
+          0 0 3px rgba(0, 0, 0, 0.95),
+          0 0 8px $bright-blue;
+      }
+
+      .score.red.leading {
+        text-shadow:
+          0 0 3px rgba(0, 0, 0, 0.95),
+          0 0 8px $bright-red;
+      }
+
+      .you-marker {
+        position: absolute;
+        top: 100%;
+        margin-top: 4px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+
+        &::after {
+          content: '';
+          position: absolute;
+          left: 50%;
+          bottom: 100%;
+          transform: translateX(-50%);
+          border-left: 4px solid transparent;
+          border-right: 4px solid transparent;
+          border-bottom: 5px solid currentColor;
+        }
+
+        &.blue {
+          right: calc(50% + #{$small-padding});
+          color: $bright-blue;
+        }
+
+        &.red {
+          left: calc(50% + #{$small-padding});
+          color: $bright-red;
+        }
       }
     }
   }
@@ -308,6 +563,7 @@ body {
       background-color: transparent;
       width: 3px;
     }
+
     &::-webkit-scrollbar-thumb {
       background-color: $accent;
       border-radius: $border-radius;
@@ -321,6 +577,10 @@ body {
     bottom: 0;
     left: 0;
 
+    @media (hover: none) and (pointer: coarse) {
+      display: none;
+    }
+
     box-sizing: content-box;
 
     user-select: none;
@@ -328,6 +588,7 @@ body {
 
     padding: $medium-padding;
     @include square($large-icon);
+
     @media (max-width: $breakpoint) {
       @include square($small-icon);
       padding: $small-padding;
@@ -336,5 +597,344 @@ body {
     &:not(:first-child) {
       visibility: hidden;
     }
+  }
+}
+
+.feedback-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2000;
+  overflow: hidden;
+
+  .hitmarker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    @include square(34px);
+    opacity: 0.95;
+
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 16px;
+      height: 3px;
+      border-radius: 2px;
+      background-color: white;
+      box-shadow:
+        0 0 6px rgba(255, 255, 255, 0.9),
+        0 0 3px rgba(0, 0, 0, 0.9);
+      transform-origin: center;
+    }
+
+    &::before {
+      transform: translate(-50%, -50%) rotate(45deg);
+    }
+
+    &::after {
+      transform: translate(-50%, -50%) rotate(-45deg);
+    }
+
+    animation: hitmarker-pop 220ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+
+    &.charged {
+      @include square(44px);
+
+      &::before,
+      &::after {
+        width: 24px;
+        height: 4px;
+        background-color: $accent;
+        box-shadow:
+          0 0 10px rgba($accent, 0.9),
+          0 0 4px rgba(0, 0, 0, 0.9);
+      }
+    }
+  }
+
+  .kill-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center,
+        transparent 42%,
+        rgba($accent, 0) 56%,
+        rgba($accent, 0.55) 100%);
+    animation: kill-flash 420ms ease-out forwards;
+
+    &.charged {
+      background: radial-gradient(ellipse at center,
+          transparent 36%,
+          rgba($accent, 0) 50%,
+          rgba($accent, 0.8) 100%);
+    }
+  }
+
+  .kill-popup {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-weight: 800;
+    font-size: 1.7rem;
+    white-space: nowrap;
+    color: $bright-neutral;
+    text-shadow:
+      0 0 10px rgba(0, 0, 0, 0.9),
+      0 0 18px rgba(255, 255, 255, 0.35);
+    animation: kill-popup-rise 1200ms cubic-bezier(0.18, 0.9, 0.3, 1) forwards;
+
+    &.charged {
+      color: $accent;
+      text-shadow:
+        0 0 10px rgba(0, 0, 0, 0.9),
+        0 0 18px rgba($accent, 0.6);
+    }
+
+    .heal {
+      color: #6fcf6f;
+    }
+  }
+
+  .streak-callout {
+    position: absolute;
+    top: 33%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: 800;
+    font-size: 3rem;
+    color: $accent;
+    text-shadow:
+      0 0 12px rgba(0, 0, 0, 0.9),
+      0 0 24px rgba($accent, 0.7);
+    white-space: nowrap;
+    animation: streak-pop 1400ms cubic-bezier(0.18, 0.9, 0.3, 1) forwards;
+  }
+
+  .killfeed {
+    position: absolute;
+    top: calc(#{$small-padding} + 36px);
+    right: $medium-padding;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+
+    .kill-entry {
+      font-size: 1rem;
+      padding: 4px 10px;
+      border-radius: 1000px;
+      @include background;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+      animation: kill-entry-fade 4500ms ease-out forwards;
+
+      b {
+        color: $accent;
+      }
+    }
+  }
+
+  // Centred "Eliminated" overlay shown while the local player is dead; the
+  // respawn countdown is the server-driven "Reviving in N…" announcement.
+  .elimination {
+    position: absolute;
+    top: 42%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    animation: elimination-in 220ms ease-out;
+
+    .elimination-title {
+      font-weight: 800;
+      font-size: 3.4rem;
+      letter-spacing: 0.04em;
+      color: $accent;
+      text-shadow:
+        0 0 12px rgba(0, 0, 0, 0.9),
+        0 0 28px rgba($accent, 0.6);
+    }
+
+    .elimination-sub {
+      margin-top: 6px;
+      font-size: 1.3rem;
+      opacity: 0.85;
+      text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+    }
+  }
+}
+
+@keyframes contested-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.charge-ring {
+  position: fixed;
+  @include square(56px);
+  margin: -28px 0 0 -28px;
+  border-radius: 1000px;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 100ms;
+  -webkit-mask: radial-gradient(farthest-side,
+      transparent calc(100% - 6px),
+      #000 calc(100% - 6px));
+  mask: radial-gradient(farthest-side,
+      transparent calc(100% - 6px),
+      #000 calc(100% - 6px));
+
+  &.full {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+  }
+}
+
+@keyframes match-point-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 4px 0 currentColor;
+  }
+
+  50% {
+    box-shadow: 0 0 14px 3px currentColor;
+  }
+}
+
+@keyframes falling-point {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 90px));
+  }
+}
+
+@keyframes hitmarker-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.82);
+  }
+
+  36% {
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+}
+
+@keyframes kill-flash {
+  0% {
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes kill-popup-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20%) scale(0.6);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -56%) scale(1.25);
+  }
+
+  28% {
+    transform: translate(-50%, -62%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -170%) scale(1);
+  }
+}
+
+@keyframes streak-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+  }
+
+  16% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.25);
+  }
+
+  32% {
+    transform: translateX(-50%) scale(0.95);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes kill-entry-fade {
+  0% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  10% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  80% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes elimination-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -42%) scale(0.9);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
   }
 }

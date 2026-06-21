@@ -4,8 +4,7 @@ export const defaultOptions: Options = {
   port: 3000,
   name: 'Test server',
   playerLimit: 16,
-  npcCount: 16,
+  npcCount: 8,
   seed: Math.random(),
-  scoreLimit: 1000,
-  worldSize: 8000,
+  scoreLimit: 2500,
 };

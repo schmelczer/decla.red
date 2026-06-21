@@ -1,5 +1,4 @@
-import { Circle } from 'shared';
-import { evaluateSdf } from './evaluate-sdf';
+import { Circle, evaluateSdf } from 'shared';
 import { PhysicalBase } from '../physicals/physical-base';
 
 export const isCircleIntersecting = (

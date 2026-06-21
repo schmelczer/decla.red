@@ -1,4 +1,5 @@
 import { CharacterTeam, PlayerInformation, Random, settings, Command } from 'shared';
+import { Socket } from 'socket.io';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { NPC } from './npc';
 import { Player } from './player';
@@ -29,7 +30,7 @@ export class PlayerContainer {
     }
   }
 
-  public createPlayer(playerInfo: PlayerInformation, socket: SocketIO.Socket): Player {
+  public createPlayer(playerInfo: PlayerInformation, socket: Socket): Player {
     if (this._players.length === this.playerMaxCount) {
       throw new Error('Too many players');
     }
@@ -56,6 +57,12 @@ export class PlayerContainer {
     return this._players.length;
   }
 
+  // Measured round-trip times (ms) of the real connected players, for
+  // server-side latency stats. NPCs have no socket and are excluded.
+  public get connectedPlayerRttsMs(): Array<number> {
+    return this._players.map((p) => p.rttMs);
+  }
+
   public step(deltaTimeInSeconds: number) {
     this.players.forEach((p) => p.step(deltaTimeInSeconds));
   }
@@ -78,11 +85,11 @@ export class PlayerContainer {
 
   private getTeamOfNextPlayer(isNpc = false): CharacterTeam {
     const players = isNpc ? this.players : this._players;
-    const declaCount = players.filter((p) => p.team === CharacterTeam.decla).length;
+    const blueCount = players.filter((p) => p.team === CharacterTeam.blue).length;
     const redCount = players.filter((p) => p.team === CharacterTeam.red).length;
 
-    if ((declaCount === redCount && Random.getRandom() >= 0.5) || declaCount < redCount) {
-      return CharacterTeam.decla;
+    if ((blueCount === redCount && Random.getRandom() >= 0.5) || blueCount < redCount) {
+      return CharacterTeam.blue;
     } else {
       return CharacterTeam.red;
     }

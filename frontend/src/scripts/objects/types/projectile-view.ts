@@ -10,12 +10,12 @@ import {
 } from 'shared';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
-import { Vec2Extrapolator } from '../../helper/extrapolators/vec2-extrapolator';
+import { Vec2Interpolator } from '../../helper/interpolators/vec2-interpolator';
 
 export class ProjectileView extends ProjectileBase {
   private light: CircleLight;
 
-  private centerExtrapolator: Vec2Extrapolator;
+  private centerInterpolator: Vec2Interpolator;
 
   protected commandExecutors: CommandExecutors = {
     [RenderCommand.type]: this.draw.bind(this),
@@ -36,19 +36,22 @@ export class ProjectileView extends ProjectileBase {
       settings.paletteDim[settings.colorIndices[team]],
       0,
     );
-    this.centerExtrapolator = new Vec2Extrapolator(center);
+    this.centerInterpolator = new Vec2Interpolator(center);
   }
 
   private updateProperty({ propertyValue, rateOfChange }: UpdatePropertyCommand): void {
-    this.centerExtrapolator.addFrame(propertyValue, rateOfChange);
+    this.centerInterpolator.addFrame(propertyValue, rateOfChange);
   }
 
   private handleStep({ deltaTimeInSeconds }: StepCommand): void {
     this.step(deltaTimeInSeconds);
 
-    this.center = this.centerExtrapolator.getValue(deltaTimeInSeconds);
+    this.center = this.centerInterpolator.getValue(deltaTimeInSeconds);
     this.light.center = this.center;
-    this.light.intensity = (0.15 * this.strength) / settings.projectileMaxStrength;
+    this.light.intensity = Math.min(
+      0.1,
+      (0.15 * this.strength) / settings.projectileMaxStrength,
+    );
   }
 
   private draw({ renderer }: RenderCommand): void {

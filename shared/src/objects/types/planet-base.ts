@@ -2,11 +2,22 @@ import { vec2 } from 'gl-matrix';
 import { Random } from '../../helper/random';
 import { settings } from '../../settings';
 import { serializable } from '../../serialization/serializable';
+import { toArrayFromFields } from '../../serialization/serialized-fields';
 import { GameObject } from '../game-object';
 import { Id } from '../../communication/id';
+import { CharacterTeam } from './character-base';
 
 @serializable
 export class PlanetBase extends GameObject {
+  // centre/radius are derived from vertices in the constructor, so they are not
+  // serialized — only the constructor parameters are.
+  private static readonly serializedFields = [
+    'id',
+    'vertices',
+    'ownership',
+    'isKeystone',
+  ] as const;
+
   public readonly center: vec2;
   public readonly radius: number;
 
@@ -14,6 +25,7 @@ export class PlanetBase extends GameObject {
     id: Id,
     public readonly vertices: Array<vec2>,
     public ownership: number = 0.5,
+    public readonly isKeystone: boolean = false,
   ) {
     super(id);
     this.center = vertices.reduce((sum, v) => vec2.add(sum, sum, v), vec2.create());
@@ -25,6 +37,10 @@ export class PlanetBase extends GameObject {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public generatedPoints(value: number) {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public onFlipped(team: CharacterTeam) {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public setContested(contested: boolean) {}
 
   public static createPlanetVertices(
     center: vec2,
@@ -38,10 +54,10 @@ export class PlanetBase extends GameObject {
     for (let i = 0; i < vertexCount; i++) {
       vertices.push(
         vec2.fromValues(
-          center.x +
+          center[0] +
             (width / 2) * Math.cos((i / vertexCount) * -Math.PI * 2) +
             Random.getRandomInRange(-randomness, randomness),
-          center.y +
+          center[1] +
             (height / 2) * Math.sin((i / vertexCount) * -Math.PI * 2) +
             Random.getRandomInRange(-randomness, randomness),
         ),
@@ -51,6 +67,6 @@ export class PlanetBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    return [this.id, this.vertices];
+    return toArrayFromFields(this, PlanetBase.serializedFields);
   }
 }

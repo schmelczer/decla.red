@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
     "outDir": "dist",
+    "rootDir": "src",
     "target": "es6",
     "esModuleInterop": true,
     "strict": true,
     "experimentalDecorators": true,
-    "downlevelIteration": true,
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "skipLibCheck": true,
     "module": "commonjs",
     "lib": ["dom", "es2017"],

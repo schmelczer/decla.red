@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 
-# decla.red game server (the `declared-server` package).
+# doppler game server (the `doppler-server` package).
 # The frontend is a static site and is NOT built here — see .forgejo/workflows.
 
 # ---- Stage 1: build the shared lib, then bundle the server -------------------
-# Node 14 matches the project toolchain (webpack 4 / TypeScript 4, see
-# .devcontainer). The full (non-slim) image carries the build tools that
+# Node 22 (current LTS) matches the project toolchain (webpack 5 / TypeScript 6,
+# see .devcontainer). The full (non-slim) image carries the build tools that
 # socket.io's optional native deps (bufferutil/utf-8-validate) compile against.
-FROM node:14-bullseye AS build
+FROM node:22-bookworm AS build
 WORKDIR /app
 
 # `shared` is consumed by the backend as `file:../shared` and is bundled into
@@ -28,7 +28,7 @@ RUN cd backend && npm run build
 RUN cd backend && npm prune --production
 
 # ---- Stage 2: minimal runtime ----------------------------------------------
-FROM node:14-bullseye-slim
+FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 
@@ -46,5 +46,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/state',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
 ENTRYPOINT ["node", "dist/main.js"]
-# Override these to tune the server, e.g. `--name`, `--playerLimit`, `--worldSize`.
+# Override these to tune the server, e.g. `--name`, `--playerLimit`, `--scoreLimit`.
 CMD ["--port", "3000"]

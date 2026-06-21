@@ -1,16 +1,29 @@
 import { Id } from '../../communication/id';
 import { Circle } from '../../helper/circle';
 import { serializable } from '../../serialization/serializable';
+import { toArrayFromFields } from '../../serialization/serialized-fields';
 import { GameObject } from '../game-object';
 
 export enum CharacterTeam {
-  decla = 'decla',
+  blue = 'blue',
   neutral = 'neutral',
   red = 'red',
 }
 
 @serializable
 export class CharacterBase extends GameObject {
+  private static readonly serializedFields = [
+    'id',
+    'name',
+    'killCount',
+    'deathCount',
+    'team',
+    'health',
+    'head',
+    'leftFoot',
+    'rightFoot',
+  ] as const;
+
   constructor(
     id: Id,
     public name: string,
@@ -28,6 +41,14 @@ export class CharacterBase extends GameObject {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public onShoot(strength: number) {}
 
+  public onLeap() {}
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public onHitConfirmed(charge?: number) {}
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public onKillConfirmed(victimName?: string, streak?: number, charge?: number) {}
+
   public setHealth(health: number) {
     this.health = health;
   }
@@ -39,16 +60,6 @@ export class CharacterBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    return [
-      this.id,
-      this.name,
-      this.killCount,
-      this.deathCount,
-      this.team,
-      this.health,
-      this.head,
-      this.leftFoot,
-      this.rightFoot,
-    ];
+    return toArrayFromFields(this, CharacterBase.serializedFields);
   }
 }

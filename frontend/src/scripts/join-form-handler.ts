@@ -1,5 +1,5 @@
 import { ServerInformation, serverInformationEndpoint, TransportEvents } from 'shared';
-import io from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import { Configuration } from './configuration';
 import parser from 'socket.io-msgpack-parser';
 import { SoundHandler, Sounds } from './sound-handler';
@@ -16,12 +16,19 @@ export class JoinFormHandler {
   private resolvePlayerDecision!: (d: PlayerDecision) => void;
   private pollServersTimer: any;
   private keyUpListener = (e: KeyboardEvent) => {
-    if (e.key === 'enter') {
-      this.form.submit();
+    // KeyboardEvent.key for Return is 'Enter' (capital E); the old lowercase
+    // comparison never matched, so pressing Enter silently did nothing.
+    // requestSubmit() (unlike submit()) fires the form's onsubmit handler and
+    // runs HTML5 validation, so Enter behaves exactly like clicking Join.
+    if (e.key === 'Enter' && !this.joinButton.disabled) {
+      this.form.requestSubmit();
     }
   };
 
-  constructor(private form: HTMLFormElement, private readonly container: HTMLElement) {
+  constructor(
+    private form: HTMLFormElement,
+    private readonly container: HTMLElement,
+  ) {
     this.joinButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
     this.joinButton.disabled = true;
     this.waitingForDecision = new Promise((r) => (this.resolvePlayerDecision = r));
@@ -32,9 +39,9 @@ export class JoinFormHandler {
 
     form.onsubmit = (e) => {
       SoundHandler.play(Sounds.click);
-      const result: PlayerDecision = (Array.from(
-        (new FormData(form) as any).entries(),
-      ) as Array<[string, any]>).reduce((result, [name, value]) => {
+      const result: PlayerDecision = (
+        Array.from((new FormData(form) as any).entries()) as Array<[string, any]>
+      ).reduce((result, [name, value]) => {
         (result as any)[name] = value;
         return result;
       }, {}) as any;
@@ -99,7 +106,7 @@ export class JoinFormHandler {
 
   private removeServer(server: ServerChooserOption) {
     this.servers = this.servers.filter((s) => s !== server);
-    if (this.servers.length) {
+    if (!this.servers.length) {
       this.joinButton.disabled = true;
     }
   }
@@ -116,7 +123,7 @@ class ServerChooserOption {
   private serverNameElement = document.createElement('span');
   private completionElement = document.createElement('span');
 
-  private socket: SocketIOClient.Socket;
+  private socket: Socket;
 
   constructor(
     private content: ServerInformation,
@@ -140,15 +147,17 @@ class ServerChooserOption {
     this.setServerInfoLabelText();
 
     this.socket = io(url, {
-      reconnection: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
       timeout: 4000,
       parser,
     } as any);
 
-    this.socket.on('connect_error', this.destroy.bind(this));
-    this.socket.on('connect_timeout', this.destroy.bind(this));
-    this.socket.on('disconnect', this.destroy.bind(this));
-    this.socket.emit(TransportEvents.SubscribeForServerInfoUpdates);
+    this.socket.io.on('reconnect_failed', this.destroy.bind(this));
+
+    this.socket.on('connect', () =>
+      this.socket.emit(TransportEvents.SubscribeForServerInfoUpdates),
+    );
     this.socket.on(
       TransportEvents.ServerInfoUpdate,
       ([playerCount, gameState]: [number, number]) => {

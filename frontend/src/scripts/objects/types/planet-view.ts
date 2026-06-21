@@ -1,21 +1,53 @@
-import { vec2 } from 'gl-matrix';
-import { Id, Random, PlanetBase, UpdatePropertyCommand, CommandExecutors } from 'shared';
+import { vec2, vec3 } from 'gl-matrix';
+import { CircleLight } from 'sdf-2d';
+import {
+  Id,
+  Random,
+  PlanetBase,
+  UpdatePropertyCommand,
+  CommandExecutors,
+  CharacterTeam,
+  settings,
+} from 'shared';
 import { BeforeDestroyCommand } from '../../commands/types/before-destroy';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
+import { LinearInterpolator } from '../../helper/interpolators/linear-interpolator';
 import { PlanetShape } from '../../shapes/planet-shape';
 
-type FallingPoint = {
-  velocity: vec2;
-  position: vec2;
-  element: HTMLElement;
-  addedToOverlay: boolean;
-  timeToLive: number;
-};
+const fallingPointLifetimeMs = 2000;
+
+// Global budget for simultaneously-lit capture flares, so a clustered wave of
+// captures can never white out the SDF exposure — excess flips still pulse the
+// ring and toast, they just skip the extra light. The acquire/release pair keeps
+// the count in one place instead of being hand-maintained at every call site.
+abstract class FlareBudget {
+  private static active = 0;
+
+  public static tryAcquire(): boolean {
+    if (FlareBudget.active >= settings.maxConcurrentFlipFlares) {
+      return false;
+    }
+    FlareBudget.active++;
+    return true;
+  }
+
+  public static release(): void {
+    FlareBudget.active = Math.max(0, FlareBudget.active - 1);
+  }
+}
 
 export class PlanetView extends PlanetBase {
   private shape: PlanetShape;
   private ownershipProgress: HTMLElement;
+  // Rotation is owned by the backend (it drives the collision polygon too) and
+  // streamed in; the interpolator replays the angle on the shared snapshot
+  // timeline, in sync with the characters standing on the surface.
+  private readonly rotationInterpolator = new LinearInterpolator(0);
+
+  private flareLight?: CircleLight;
+  private flareIntensity = 0;
+  private holdsFlareSlot = false;
 
   protected commandExecutors: CommandExecutors = {
     [RenderCommand.type]: this.draw.bind(this),
@@ -24,52 +56,106 @@ export class PlanetView extends PlanetBase {
     [UpdatePropertyCommand.type]: this.updateProperty.bind(this),
   };
 
-  constructor(id: Id, vertices: Array<vec2>, ownership: number) {
-    super(id, vertices);
+  constructor(id: Id, vertices: Array<vec2>, ownership = 0.5, isKeystone = false) {
+    super(id, vertices, ownership, isKeystone);
     this.shape = new PlanetShape(vertices, ownership);
-    (this.shape as any).randomOffset = Random.getRandom();
+    this.shape.randomOffset = Random.getRandom();
 
     this.ownershipProgress = document.createElement('div');
-    this.ownershipProgress.className = 'ownership';
+    this.ownershipProgress.className = 'ownership' + (isKeystone ? ' keystone' : '');
+  }
+
+  public setContested(contested: boolean) {
+    this.ownershipProgress.classList.toggle('contested', contested);
+  }
+
+  private renderedRotation = 0;
+  private rotationSpeed = 0;
+  // Newest streamed rotation VALUE — the server-current angle at the latest
+  // snapshot — as opposed to renderedRotation, which the interpolator holds
+  // ~interpolationDelaySeconds in the PAST for drawing. The predictor seeds the
+  // local body from the same snapshot's pose, so it must collide against the
+  // planet at THIS (newest) phase and advance forward from it; using the drawn
+  // lagged angle biases the body off the surface by omega*delay*radius and
+  // wobbles it whenever the spin or the interpolator's rate cursor varies.
+  private latestRotation = 0;
+  public get predictionRotation(): number {
+    return this.latestRotation;
+  }
+  public get predictionRotationSpeed(): number {
+    return this.rotationSpeed;
   }
 
   private step({ deltaTimeInSeconds }: StepCommand): void {
-    this.shape.randomOffset += deltaTimeInSeconds / 4;
+    this.renderedRotation = this.rotationInterpolator.getValue(deltaTimeInSeconds);
+    this.shape.rotation = this.renderedRotation;
     this.shape.colorMixQ = this.ownership;
 
-    this.generatedPointElements.forEach((p) => {
-      vec2.add(
-        p.velocity,
-        p.velocity,
-        vec2.scale(vec2.create(), vec2.fromValues(0, 50), deltaTimeInSeconds),
+    if (this.flareIntensity > 0) {
+      this.flareIntensity = Math.max(
+        0,
+        this.flareIntensity - deltaTimeInSeconds / settings.lampFlareDecaySeconds,
       );
 
-      vec2.add(
-        p.position,
-        p.position,
-        vec2.scale(vec2.create(), p.velocity, deltaTimeInSeconds),
-      );
+      if (this.flareLight) {
+        this.flareLight.intensity =
+          settings.lampFlareIntensity * this.flareIntensity * this.flareIntensity;
+      }
 
-      p.timeToLive -= deltaTimeInSeconds;
-    });
+      if (this.flareIntensity === 0) {
+        this.releaseFlareSlot();
+      }
+    }
   }
 
-  private generatedPointElements: Array<FallingPoint> = [];
+  private releaseFlareSlot(): void {
+    if (this.holdsFlareSlot) {
+      this.holdsFlareSlot = false;
+      FlareBudget.release();
+    }
+  }
 
   private lastGeneratedPoint?: number;
   public generatedPoints(value: number) {
     this.lastGeneratedPoint = value;
   }
 
-  private beforeDestroy(): void {
-    this.ownershipProgress.parentElement?.removeChild(this.ownershipProgress);
-    this.generatedPointElements.forEach((p) =>
-      p.element.parentElement?.removeChild(p.element),
-    );
+  public onFlipped(team: CharacterTeam): void {
+    const color = settings.palette[settings.colorIndices[team]];
+
+    if (!this.flareLight) {
+      this.flareLight = new CircleLight(vec2.clone(this.center), vec3.clone(color), 0);
+    } else {
+      this.flareLight.color = vec3.clone(color);
+    }
+
+    if (!this.holdsFlareSlot) {
+      if (!FlareBudget.tryAcquire()) {
+        return;
+      }
+      this.holdsFlareSlot = true;
+    }
+
+    this.flareIntensity = 1;
   }
 
-  private updateProperty({ propertyValue }: UpdatePropertyCommand): void {
-    this.ownership = propertyValue;
+  private beforeDestroy(): void {
+    this.ownershipProgress.parentElement?.removeChild(this.ownershipProgress);
+    this.releaseFlareSlot();
+  }
+
+  private updateProperty({
+    propertyKey,
+    propertyValue,
+    rateOfChange,
+  }: UpdatePropertyCommand): void {
+    if (propertyKey === 'rotation') {
+      this.rotationInterpolator.addFrame(propertyValue, rateOfChange);
+      this.latestRotation = propertyValue;
+      this.rotationSpeed = rateOfChange;
+    } else {
+      this.ownership = propertyValue;
+    }
   }
 
   private draw({ renderer, overlay, shouldChangeLayout }: RenderCommand): void {
@@ -80,55 +166,44 @@ export class PlanetView extends PlanetBase {
 
       const screenPosition = renderer.worldToDisplayCoordinates(this.center);
 
-      this.generatedPointElements.forEach((p) => {
-        if (!p.addedToOverlay) {
-          overlay.appendChild(p.element);
-        }
-
-        p.element.style.transform = `translateX(${
-          screenPosition.x + p.position.x
-        }px) translateY(${screenPosition.y + p.position.y}px)`;
-
-        if (p.timeToLive <= 0) {
-          p.element.parentElement?.removeChild(p.element);
-        } else {
-          p.element.style.opacity = Math.min(1, p.timeToLive).toString();
-        }
-      });
-
-      this.generatedPointElements = this.generatedPointElements.filter(
-        (p) => p.timeToLive > 0,
-      );
-
       this.ownershipProgress.style.transform = `translateX(${screenPosition.x}px) translateY(${screenPosition.y}px) translateX(-50%) translateY(-50%)`;
       this.ownershipProgress.style.background = this.getGradient();
 
       if (this.lastGeneratedPoint !== undefined) {
         const element = document.createElement('div');
-        element.className = 'falling-point ' + (this.ownership < 0.5 ? 'decla' : 'red');
+        element.className = 'falling-point ' + (this.ownership < 0.5 ? 'blue' : 'red');
         element.innerText = '+' + this.lastGeneratedPoint;
-        this.generatedPointElements.push({
-          element,
-          addedToOverlay: false,
-          timeToLive: Random.getRandomInRange(2, 3),
-          position: vec2.create(),
-          velocity: vec2.fromValues(Random.getRandomInRange(-30, 30), 0),
-        });
+        element.style.left = `${screenPosition.x}px`;
+        element.style.top = `${screenPosition.y}px`;
+        overlay.appendChild(element);
+        setTimeout(
+          () => element.parentElement?.removeChild(element),
+          fallingPointLifetimeMs,
+        );
 
         this.lastGeneratedPoint = undefined;
       }
     }
 
     renderer.addDrawable(this.shape);
+
+    if (this.flareIntensity > 0 && this.flareLight) {
+      renderer.addDrawable(this.flareLight);
+    }
   }
 
   private getGradient(): string {
-    const sideDecla = this.ownership < 0.5;
-    const sidePercent = (Math.abs(this.ownership - 0.5) / 0.5) * 100;
-    return sideDecla
+    const sideBlue = this.ownership < 0.5;
+    // Keep the ring neutral through the same dead-band that gates scoring
+    // (settings.planetControlThreshold), so "the ring fills" and "this planet
+    // pays my team" happen together rather than disagreeing.
+    const control = Math.abs(this.ownership - 0.5);
+    const t = settings.planetControlThreshold;
+    const sidePercent = control <= t ? 0 : ((control - t) / (0.5 - t)) * 100;
+    return sideBlue
       ? `conic-gradient(
-      var(--bright-decla) ${sidePercent}%,
-      var(--bright-decla) ${sidePercent}%,
+      var(--bright-blue) ${sidePercent}%,
+      var(--bright-blue) ${sidePercent}%,
       rgba(0, 0, 0, 0) ${sidePercent}%,
       rgba(0, 0, 0, 0) 100%
     )`

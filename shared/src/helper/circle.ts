@@ -3,7 +3,10 @@ import { serializable } from '../serialization/serializable';
 
 @serializable
 export class Circle {
-  constructor(public center: vec2, public radius: number) {}
+  constructor(
+    public center: vec2,
+    public radius: number,
+  ) {}
 
   public distance(target: vec2): number {
     return vec2.distance(this.center, target) - this.radius;

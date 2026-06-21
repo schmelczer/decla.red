@@ -4,13 +4,14 @@ import {
   CommandExecutors,
   CommandReceiver,
   GameObject,
+  resolveCircleMovement,
   serializesTo,
 } from 'shared';
 import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
 import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
-import { moveCircle } from '../physics/functions/move-circle';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
+import { Physical } from '../physics/physicals/physical';
 import { ReactToCollisionCommand } from '../commands/react-to-collision';
 
 @serializesTo(Circle)
@@ -32,7 +33,9 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
     private _radius: number,
     public owner: GameObject,
     private readonly container: PhysicalContainer,
-    private restitution = 0,
+    // Public + readonly so a CirclePhysical structurally satisfies the shared
+    // PhysicsBody interface the movement simulation operates on.
+    public readonly restitution = 0,
   ) {
     super();
     this._boundingBox = new BoundingBox();
@@ -88,42 +91,49 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
     );
   }
 
+  // Position-resolution for one tick. Delegates to the shared
+  // resolveCircleMovement so the server integrates a body with the exact same
+  // geometry the client predictor runs (shared/physics) — no parallel copy to
+  // keep in sync. The onHit callback dispatches the collision reactions at the
+  // same points the old inline move-circle did (both the initial march and the
+  // post-bounce slide). `possibleIntersectors`, when supplied, lets a caller
+  // that already broadphased (e.g. a projectile's gravity query) avoid a second
+  // container query; otherwise it is self-gathered from the swept bounding box.
   public stepManually(
     deltaTimeInSeconds: number,
-  ): { hitObject: GameObject | undefined; velocity: vec2 } {
-    let delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
+    possibleIntersectors?: Array<Physical>,
+  ): {
+    hitObject: GameObject | undefined;
+    velocity: vec2;
+  } {
+    const intersecting = (
+      possibleIntersectors ?? this.sweptBroadphase(deltaTimeInSeconds)
+    ).filter((b) => b.gameObject !== this.gameObject && b.canCollide);
 
-    this.radius += vec2.length(delta);
-    const intersecting = this.container
-      .findIntersecting(this.boundingBox)
-      .filter((b) => b.gameObject !== this.gameObject && b.canCollide);
-    this.radius -= vec2.length(delta);
+    const { hitObject, velocity } = resolveCircleMovement(
+      this,
+      deltaTimeInSeconds,
+      intersecting,
+      (intersected) => {
+        const physical = intersected as Physical;
+        physical.handleCommand(new ReactToCollisionCommand(this.gameObject));
+        this.handleCommand(new ReactToCollisionCommand(physical.gameObject));
+      },
+    );
 
-    const { normal, hitSurface, hitObject } = moveCircle(this, delta, intersecting);
+    return { hitObject: (hitObject as Physical | undefined)?.gameObject, velocity };
+  }
 
-    if (hitSurface) {
-      vec2.copy(this.lastNormal, normal!);
-
-      vec2.subtract(
-        this.velocity,
-        this.velocity,
-        vec2.scale(
-          normal!,
-          normal!,
-          (1 + this.restitution) * vec2.dot(normal!, this.velocity),
-        ),
-      );
-
-      if (vec2.length(this.velocity) > 50) {
-        delta = vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds);
-        moveCircle(this, delta, intersecting);
-      }
-    }
-
-    const lastVelocity = vec2.clone(this.velocity);
-    vec2.zero(this.velocity);
-
-    return { hitObject, velocity: lastVelocity };
+  // Query the container with the bounding box grown by this tick's travel, so a
+  // fast-moving body still sees what it is about to sweep into.
+  private sweptBroadphase(deltaTimeInSeconds: number): Array<Physical> {
+    const sweep = vec2.length(
+      vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds),
+    );
+    this.radius += sweep;
+    const intersecting = this.container.findIntersecting(this.boundingBox);
+    this.radius -= sweep;
+    return intersecting;
   }
 
   public toArray(): Array<any> {

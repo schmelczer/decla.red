@@ -1,16 +1,15 @@
 import { vec2 } from 'gl-matrix';
-import { Random, PlanetBase, hsl, settings } from 'shared';
+import { Random, PlanetBase, hsl, settings, evaluateSdf } from 'shared';
 import { LampPhysical } from './objects/lamp-physical';
 import { PlanetPhysical } from './objects/planet-physical';
 import { PhysicalContainer } from './physics/containers/physical-container';
-import { evaluateSdf } from './physics/functions/evaluate-sdf';
 import { Physical } from './physics/physicals/physical';
 
-export const createWorld = (objectContainer: PhysicalContainer, worldRadius: number) => {
+export const createWorld = (objectContainer: PhysicalContainer) => {
   const objects: Array<Physical> = [];
   const lights: Array<Physical> = [];
 
-  for (let r = 0; r < worldRadius; r += settings.radiusSteps) {
+  for (let r = 0; r < settings.worldRadius; r += settings.radiusSteps) {
     const circumference = 2 * Math.PI * r;
     const stepCount = circumference * settings.objectsOnCircleLength;
     for (let rad = 0; rad < 2 * Math.PI; rad += (2 * Math.PI) / stepCount) {
@@ -45,13 +44,16 @@ export const createWorld = (objectContainer: PhysicalContainer, worldRadius: num
         ) {
           const planet =
             objects.length === 0
-              ? new PlanetPhysical(
+              ? // The first, central giant is the keystone "Heart": a named,
+                // always-contested focal objective the whole match orbits.
+                new PlanetPhysical(
                   PlanetBase.createPlanetVertices(
                     position,
                     Random.getRandomInRange(1600, 2400),
                     Random.getRandomInRange(1600, 2400),
                     Random.getRandomInRange(80, 300),
                   ),
+                  true,
                 )
               : new PlanetPhysical(
                   PlanetBase.createPlanetVertices(
@@ -67,8 +69,29 @@ export const createWorld = (objectContainer: PhysicalContainer, worldRadius: num
       }
     }
   }
-  console.info('Generated planet count', objects.length);
-  console.info('Generated light count', lights.length);
+  console.info(`Generated ${objects.length} planets`);
+  console.info(`Generated ${lights.length} light`);
+
+  // Associate each lamp with its NEAREST planet, so a planet can repaint "its"
+  // lamps to the owning team's colour when it flips. Lamps are already placed by
+  // proximity during world-gen, so the nearest planet is the one whose capture
+  // they should advertise. Distances use the planet SDF (negative inside), which
+  // is exactly the "closest planet" metric we want.
+  const planets = objects.filter((o): o is PlanetPhysical => o instanceof PlanetPhysical);
+  lights
+    .filter((l): l is LampPhysical => l instanceof LampPhysical)
+    .forEach((lamp) => {
+      let nearest: PlanetPhysical | undefined;
+      let nearestDistance = Infinity;
+      planets.forEach((planet) => {
+        const distance = planet.distance(lamp.center);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearest = planet;
+        }
+      });
+      nearest?.addLamp(lamp);
+    });
 
   [...objects, ...lights].forEach((o) => objectContainer.addObject(o));
 };

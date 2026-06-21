@@ -1,5 +1,5 @@
 import { PhysicalContainer } from './physics/containers/physical-container';
-import ioserver from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import {
   TransportEvents,
   deserialize,
@@ -13,6 +13,7 @@ import {
   Command,
   CommandReceiver,
   CommandExecutors,
+  ServerAnnouncement,
 } from 'shared';
 import { createWorld } from './create-world';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
@@ -20,6 +21,7 @@ import { Options } from './options';
 import { PlayerContainer } from './players/player-container';
 import { StepCommand } from './commands/step';
 import { GeneratePointsCommand } from './commands/generate-points';
+import { AnnounceCommand } from './commands/announce';
 
 const gameStateSubscribedRoom = 'gameStateSubscribedRoom';
 
@@ -29,8 +31,9 @@ export class GameServer extends CommandReceiver {
   private deltaTimes!: Array<number>;
   private deltaTimeCalculator!: DeltaTimeCalculator;
 
-  private declaPoints = 0;
+  private bluePoints = 0;
   private redPoints = 0;
+  private matchPointAnnounced: Partial<Record<CharacterTeam, boolean>> = {};
 
   private isInEndGame = false;
   private timeScaling = 1;
@@ -41,7 +44,7 @@ export class GameServer extends CommandReceiver {
   private initialize() {
     const previousPlayers = this.players;
     this.objects = new PhysicalContainer();
-    createWorld(this.objects, this.options.worldSize);
+    createWorld(this.objects);
     this.objects.initialize();
     this.players = new PlayerContainer(
       this.objects,
@@ -50,8 +53,9 @@ export class GameServer extends CommandReceiver {
     );
     this.deltaTimeCalculator = new DeltaTimeCalculator();
     this.deltaTimes = [];
-    this.declaPoints = 0;
+    this.bluePoints = 0;
     this.redPoints = 0;
+    this.matchPointAnnounced = {};
     this.isInEndGame = false;
     this.timeScaling = 1;
     previousPlayers?.queueCommandForEachClient(new GameStartCommand());
@@ -60,9 +64,14 @@ export class GameServer extends CommandReceiver {
 
   protected commandExecutors: CommandExecutors = {
     [GeneratePointsCommand.type]: this.addPoints.bind(this),
+    [AnnounceCommand.type]: ({ text }: AnnounceCommand) =>
+      this.players.queueCommandForEachClient(new ServerAnnouncement(text)),
   };
 
-  constructor(private readonly io: ioserver.Server, private options: Options) {
+  constructor(
+    private readonly io: Server,
+    private options: Options,
+  ) {
     super();
 
     this.serverName = options.name;
@@ -70,7 +79,7 @@ export class GameServer extends CommandReceiver {
 
     this.initialize();
 
-    io.on('connection', (socket: SocketIO.Socket) => {
+    io.on('connection', (socket: Socket) => {
       socket.on(TransportEvents.PlayerJoining, (playerInfo: PlayerInformation) => {
         try {
           const player = this.players.createPlayer(playerInfo, socket);
@@ -90,7 +99,8 @@ export class GameServer extends CommandReceiver {
             this.players.deletePlayer(player);
             this.sendServerStateUpdate();
           });
-        } catch {
+        } catch (e) {
+          console.error('Failed to register joining player; disconnecting socket', e);
           socket.disconnect();
         }
       });
@@ -112,17 +122,34 @@ export class GameServer extends CommandReceiver {
     this.handlePhysics();
   }
 
-  private addPoints({ decla, red }: GeneratePointsCommand) {
+  private addPoints({ blue, red }: GeneratePointsCommand) {
     if (this.isInEndGame) {
       return;
     }
 
-    this.declaPoints += decla;
+    this.bluePoints += blue;
     this.redPoints += red;
-    if (this.declaPoints >= this.options.scoreLimit) {
-      this.endGame(CharacterTeam.decla);
+    if (this.bluePoints >= this.options.scoreLimit) {
+      this.endGame(CharacterTeam.blue);
     } else if (this.redPoints >= this.options.scoreLimit) {
       this.endGame(CharacterTeam.red);
+    } else {
+      this.announceMatchPointOnce(CharacterTeam.blue, this.bluePoints);
+      this.announceMatchPointOnce(CharacterTeam.red, this.redPoints);
+    }
+  }
+
+  private announceMatchPointOnce(team: CharacterTeam, points: number) {
+    if (
+      !this.matchPointAnnounced[team] &&
+      points >= this.options.scoreLimit * settings.matchPointScoreRatio
+    ) {
+      this.matchPointAnnounced[team] = true;
+      this.players.queueCommandForEachClient(
+        new ServerAnnouncement(
+          `Match point — team <span class="${team}">${team}</span>!`,
+        ),
+      );
     }
   }
 
@@ -141,6 +168,10 @@ export class GameServer extends CommandReceiver {
   }
 
   private timeSinceLastPointUpdate = 0;
+  private physicsAccumulator = 0;
+  // Frames since the last stats report where physics ran over budget (more
+  // substeps than the cap). Surfaced by handleStats as a saturation signal.
+  private saturatedFrames = 0;
 
   private handlePhysics() {
     const delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds({ setAsBase: true });
@@ -156,18 +187,44 @@ export class GameServer extends CommandReceiver {
     if ((this.timeSinceLastPointUpdate += delta) > 0.5) {
       this.timeSinceLastPointUpdate = 0;
       this.players.queueCommandForEachClient(
-        new UpdateGameState(this.declaPoints, this.redPoints, this.options.scoreLimit),
+        new UpdateGameState(this.bluePoints, this.redPoints, this.options.scoreLimit),
       );
     }
 
-    let scaledDelta = delta;
-    if (this.isInEndGame) {
-      this.timeScaling *= Math.pow(settings.endGameDeltaScaling, delta);
-      scaledDelta /= this.timeScaling;
+    const fixedDelta = settings.targetPhysicsDeltaTimeInSeconds;
+    const maxSubstepsPerFrame = 5;
+    // Cap on retained physics backlog when saturated, so a long stall can't
+    // accumulate an unrecoverable catch-up.
+    const maxBacklogSeconds = 0.25;
+
+    this.physicsAccumulator += delta;
+    let substeps = Math.floor(this.physicsAccumulator / fixedDelta);
+    if (substeps > maxSubstepsPerFrame) {
+      // Saturated: run the cap's worth of substeps but KEEP the remaining
+      // backlog (clamped) instead of zeroing it. Dropping it silently slowed
+      // simulated time for everyone — and diverged client prediction, whose
+      // wall-clock keeps running. Clamping bounds the catch-up so a transient
+      // spike recovers without a death spiral.
+      this.saturatedFrames++;
+      this.physicsAccumulator = Math.min(
+        this.physicsAccumulator - maxSubstepsPerFrame * fixedDelta,
+        maxBacklogSeconds,
+      );
+      substeps = maxSubstepsPerFrame;
+    } else {
+      this.physicsAccumulator -= substeps * fixedDelta;
     }
 
-    this.objects.handleCommand(new StepCommand(scaledDelta, this));
-    this.players.step(scaledDelta);
+    for (let i = 0; i < substeps; i++) {
+      let scaledDelta = fixedDelta;
+      if (this.isInEndGame) {
+        this.timeScaling *= Math.pow(settings.endGameDeltaScaling, fixedDelta);
+        scaledDelta /= this.timeScaling;
+      }
+      this.objects.handleCommand(new StepCommand(scaledDelta, this));
+      this.players.step(scaledDelta);
+    }
+
     this.players.stepCommunication(delta);
     this.objects.resetRemoteCalls();
 
@@ -175,7 +232,7 @@ export class GameServer extends CommandReceiver {
 
     setTimeout(
       this.handlePhysics.bind(this),
-      Math.max(0, settings.targetPhysicsDeltaTimeInSeconds - physicsDelta) * 1000,
+      Math.max(0, fixedDelta - physicsDelta) * 1000,
     );
   }
 
@@ -196,12 +253,29 @@ export class GameServer extends CommandReceiver {
       console.info(
         `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
       );
+
+      const rtts = this.players.connectedPlayerRttsMs.filter((r) => r > 0);
+      if (rtts.length > 0) {
+        rtts.sort((a, b) => a - b);
+        console.info(
+          `Player RTT median ${rtts[Math.floor(rtts.length / 2)].toFixed(0)} ms ` +
+            `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
+        );
+      }
+
+      if (this.saturatedFrames > 0) {
+        console.warn(
+          `Physics saturated on ${this.saturatedFrames} frame(s) since last report — shedding backlog`,
+        );
+        this.saturatedFrames = 0;
+      }
+
       this.deltaTimes = [];
     }
   }
 
   private get gameProgress(): number {
-    return (Math.max(this.declaPoints, this.redPoints) / this.options.scoreLimit) * 100;
+    return (Math.max(this.bluePoints, this.redPoints) / this.options.scoreLimit) * 100;
   }
 
   public get serverInfo(): ServerInformation {

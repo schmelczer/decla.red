@@ -7,6 +7,7 @@ import {
   ProjectileBase,
 } from 'shared';
 import './main.scss';
+import './scripts/analytics';
 import '../static/og-image.png';
 import '../static/favicons/apple-touch-icon.png';
 import '../static/favicons/favicon-16x16.png';
@@ -16,9 +17,6 @@ import { LandingPageBackground } from './scripts/landing-page-background';
 import { JoinFormHandler } from './scripts/join-form-handler';
 import { handleFullScreen } from './scripts/helper/handle-full-screen';
 import { Game } from './scripts/game';
-import { handleInsights } from './scripts/handle-insights';
-import { getInsightsFromRenderer } from './scripts/get-insights-from-renderer';
-import { Renderer } from 'sdf-2d';
 import ResizeObserver from 'resize-observer-polyfill';
 import { OptionsHandler } from './scripts/options-handler';
 import { hide } from './scripts/helper/hide';
@@ -54,39 +52,6 @@ const enableSounds = document.querySelector('#enable-sounds') as HTMLInputElemen
 const enableMusic = document.querySelector('#enable-music') as HTMLInputElement;
 const enableVibration = document.querySelector('#enable-vibration') as HTMLInputElement;
 const spinner = document.querySelector('#spinner-container') as HTMLElement;
-
-let isInGame = false;
-
-const startInsights = (getRenderer: () => Renderer | undefined) => {
-  const { vendor, renderer } = getInsightsFromRenderer(getRenderer());
-  handleInsights(
-    {
-      vendor,
-      renderer,
-      referrer: document.referrer,
-      connection: (navigator as any)?.connection?.effectiveType,
-      devicePixelRatio: devicePixelRatio,
-    },
-    () => {
-      const {
-        fps,
-        renderScale,
-        lightScale,
-        canvasWidth,
-        canvasHeight,
-      } = getInsightsFromRenderer(getRenderer());
-
-      return {
-        isInGame,
-        fps,
-        renderScale,
-        lightScale,
-        canvasWidth,
-        canvasHeight,
-      };
-    },
-  );
-};
 
 const toggleSettings = () => {
   settings.className = settings.className === 'open' ? '' : 'open';
@@ -157,9 +122,6 @@ const main = async () => {
     });
     window.onpopstate = () => game.destroy();
 
-    let backgroundRenderer: Renderer | undefined;
-    startInsights(() => (isInGame ? game.renderer : backgroundRenderer));
-
     for (;;) {
       show(spinner);
       hide(logoutButton, true);
@@ -168,7 +130,7 @@ const main = async () => {
       const background = new LandingPageBackground(canvas);
       const joinHandler = new JoinFormHandler(joinGameForm, serverContainer);
 
-      backgroundRenderer = await background.renderer;
+      await background.renderer;
       hide(spinner);
 
       const playerDecision = await joinHandler.getPlayerDecision();
@@ -185,11 +147,9 @@ const main = async () => {
       game = new Game(playerDecision, canvas, overlay);
       const gameOver = game.start();
       await game.started;
-      isInGame = true;
       hide(spinner);
       show(logoutButton, true, 'block');
       await gameOver;
-      isInGame = false;
     }
   } catch (e) {
     console.error(e);

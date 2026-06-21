@@ -14,6 +14,7 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
           uniform float planetLengths[PLANET_COUNT];
           uniform float planetRandoms[PLANET_COUNT];
           uniform float planetColorMixQ[PLANET_COUNT];
+          uniform float planetRotations[PLANET_COUNT];
 
           uniform sampler2D noiseTexture;
 
@@ -52,10 +53,23 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
               vec2 center = planetCenters[j];
               float l = planetLengths[j];
               float randomOffset = planetRandoms[j];
+              float rotation = planetRotations[j];
+
+              float cr = cos(rotation);
+              float sr = sin(rotation);
+
+              // Spin the whole planet: evaluate the SDF in the planet's own
+              // rotating frame so the polygon outline turns together with its
+              // terrain, instead of the terrain sliding over a fixed outline.
               vec2 targetCenterDelta = target - center;
               float targetDistance = length(targetCenterDelta);
-              vec2 targetTangent = targetCenterDelta / clamp(targetDistance, 0.01, 1000.0);
-              vec2 noisyTarget = target - (
+              vec2 localTarget = center + vec2(
+                cr * targetCenterDelta.x - sr * targetCenterDelta.y,
+                sr * targetCenterDelta.x + cr * targetCenterDelta.y
+              );
+              vec2 targetTangent = (localTarget - center) / clamp(targetDistance, 0.01, 1000.0);
+
+              vec2 noisyTarget = localTarget - (
                 targetTangent * planetTerrain(vec2(
                   l * abs(atan(targetTangent.y, targetTangent.x)),
                   randomOffset
@@ -88,9 +102,9 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
 
               if (dist < minDistance) {
                 minDistance = dist;
-                color = mix(${colorToString(settings.declaPlanetColor)}, ${colorToString(
-        settings.redPlanetColor,
-      )}, planetColorMixQ[j]);
+                color = mix(${colorToString(settings.bluePlanetColor)}, ${colorToString(
+                  settings.redPlanetColor,
+                )}, planetColorMixQ[j]);
               }
             }
 
@@ -105,6 +119,7 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
       center: 'planetCenters',
       vertices: 'planetVertices',
       colorMixQ: 'planetColorMixQ',
+      rotation: 'planetRotations',
     },
     uniformCountMacroName: `PLANET_COUNT`,
     shaderCombinationSteps: [0, 1, 2, 3],
@@ -112,9 +127,31 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
   };
 
   public randomOffset = 0;
+  public rotation = 0;
 
-  constructor(public vertices: Array<vec2>, public colorMixQ: number) {
+  // Circle about the rotation centre (the vertex centroid, which is what the
+  // shader spins around — see planetMinDistance above). The vertices never
+  // change after construction, so cache it once.
+  private readonly cullCenter: vec2;
+  private readonly cullRadius: number;
+
+  constructor(
+    public vertices: Array<vec2>,
+    public colorMixQ: number,
+  ) {
     super(vertices);
+
+    this.cullCenter = vertices.reduce((sum, v) => vec2.add(sum, sum, v), vec2.create());
+    vec2.scale(this.cullCenter, this.cullCenter, 1 / vertices.length);
+
+    this.cullRadius = vertices.reduce(
+      (max, v) => Math.max(max, vec2.distance(this.cullCenter, v)),
+      0,
+    );
+  }
+
+  public minDistance(target: vec2): number {
+    return vec2.distance(target, this.cullCenter) - this.cullRadius;
   }
 
   protected getObjectToSerialize(transform2d: mat2d, _: number): any {
@@ -139,6 +176,7 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
       length,
       random: this.randomOffset,
       colorMixQ: this.colorMixQ,
+      rotation: this.rotation,
     };
   }
 

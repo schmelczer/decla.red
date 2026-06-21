@@ -1,5 +1,6 @@
 import { vec2 } from 'gl-matrix';
-import { CommandGenerator, MoveActionCommand } from 'shared';
+import { CommandGenerator, LeapActionCommand, MoveActionCommand } from 'shared';
+import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
 
 export class KeyboardListener extends CommandGenerator {
   private keysDown: Set<string> = new Set();
@@ -13,7 +14,14 @@ export class KeyboardListener extends CommandGenerator {
   }
 
   private keyDownListener = (event: KeyboardEvent) => {
-    this.keysDown.add(event.key.toLowerCase());
+    const key = event.key.toLowerCase();
+    // Space leaps (W / ArrowUp already cover walking up). Edge-triggered so a
+    // held key's auto-repeat doesn't spam leaps.
+    if ((key === ' ' || key === 'shift') && !this.keysDown.has(key)) {
+      const clientTimeMs = localCharacterPredictor.recordLeap();
+      this.sendCommandToSubscribers(new LeapActionCommand(clientTimeMs));
+    }
+    this.keysDown.add(key);
     this.generateCommands();
   };
 
@@ -28,11 +36,7 @@ export class KeyboardListener extends CommandGenerator {
   };
 
   private generateCommands() {
-    const up = ~~(
-      this.keysDown.has('w') ||
-      this.keysDown.has('arrowup') ||
-      this.keysDown.has(' ')
-    );
+    const up = ~~(this.keysDown.has('w') || this.keysDown.has('arrowup'));
     const down = ~~(this.keysDown.has('s') || this.keysDown.has('arrowdown'));
     const left = ~~(this.keysDown.has('a') || this.keysDown.has('arrowleft'));
     const right = ~~(this.keysDown.has('d') || this.keysDown.has('arrowright'));
@@ -42,7 +46,8 @@ export class KeyboardListener extends CommandGenerator {
       vec2.normalize(movement, movement);
     }
 
-    this.sendCommandToSubscribers(new MoveActionCommand(movement));
+    const clientTimeMs = localCharacterPredictor.recordInput(movement);
+    this.sendCommandToSubscribers(new MoveActionCommand(movement, clientTimeMs));
   }
 
   public destroy() {

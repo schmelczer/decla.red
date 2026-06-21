@@ -52,7 +52,7 @@ export abstract class SoundHandler {
     return sound;
   }
 
-  public static play(sound: Sounds, volume = 1) {
+  public static play(sound: Sounds, volume = 1, playbackRate = 1) {
     if (!this.initialized || !OptionsHandler.options.soundsEnabled) {
       return;
     }
@@ -61,7 +61,8 @@ export abstract class SoundHandler {
       this.sounds[sound].currentTime > 0
         ? (this.sounds[sound].cloneNode(true) as HTMLAudioElement)
         : this.sounds[sound];
-    audio.volume = volume;
+    audio.volume = Math.max(0, Math.min(1, volume));
+    audio.playbackRate = playbackRate;
     audio.play();
   }
 

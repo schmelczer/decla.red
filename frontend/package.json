@@ -1,5 +1,5 @@
 {
-  "name": "decla.red-frontend",
+  "name": "doppler-frontend",
   "version": "0.0.0",
   "description": "",
   "keywords": [],
@@ -8,9 +8,12 @@
     "*.scss"
   ],
   "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "npx webpack --mode production",
-    "start": "npx webpack-dev-server --mode development",
+    "dev": "npx webpack-dev-server --mode development",
     "try-build": "npm run build && cd dist && python3 -m http.server 8080"
   },
   "browserslist": [
@@ -22,32 +25,31 @@
     }
   },
   "devDependencies": {
-    "@types/socket.io-client": "^1.4.34",
-    "clean-webpack-plugin": "^3.0.0",
-    "common-config-webpack-plugin": "^2.0.1",
-    "css-loader": "^1.0.1",
+    "@plausible-analytics/tracker": "^0.4.5",
+    "autoprefixer": "^10.5.0",
+    "clean-webpack-plugin": "^4.0.0",
+    "copy-webpack-plugin": "^14.0.0",
+    "css-loader": "^7.1.4",
+    "file-loader": "^6.2.0",
     "gl-matrix": "3.3.0",
-    "html-webpack-inline-source-plugin": "^1.0.0-beta.2",
-    "html-webpack-inline-svg-plugin": "^2.3.0",
-    "html-webpack-plugin": "^4.5.0",
-    "image-config-webpack-plugin": "^2.0.0",
-    "mini-css-extract-plugin": "^0.9.0",
-    "postcss-loader": "^3.0.0",
+    "html-inline-css-webpack-plugin": "^1.11.2",
+    "html-webpack-plugin": "^5.6.7",
+    "mini-css-extract-plugin": "^2.10.2",
+    "postcss": "^8.5.15",
+    "postcss-loader": "^8.2.1",
     "resize-observer-polyfill": "^1.5.1",
-    "resolve-url-loader": "^3.1.1",
-    "sass": "^1.27.0",
-    "sass-loader": "^8.0.2",
-    "sdf-2d": "^0.7.2",
+    "sass": "^1.100.0",
+    "sass-loader": "^17.0.0",
+    "sdf-2d": "^0.8.0",
     "shared": "file:../shared",
-    "socket.io-client": "^2.3.1",
-    "socket.io-msgpack-parser": "^2.0.0",
-    "source-map-loader": "^1.1.1",
-    "svg-url-loader": "^6.0.0",
-    "terser-webpack-plugin": "^4.2.2",
-    "ts-config-webpack-plugin": "^2.0.0",
-    "typescript": "^4.0.3",
-    "webpack": "^4.43.0",
-    "webpack-cli": "^3.3.11",
-    "webpack-dev-server": "^3.11.0"
+    "socket.io-client": "^4.8.3",
+    "socket.io-msgpack-parser": "^3.0.2",
+    "source-map-loader": "^5.0.0",
+    "terser-webpack-plugin": "^5.6.1",
+    "ts-loader": "^9.6.0",
+    "typescript": "^6.0.3",
+    "webpack": "^5.107.2",
+    "webpack-cli": "^7.0.3",
+    "webpack-dev-server": "^5.2.4"
   }
 }

@@ -42,7 +42,7 @@ export const handleFullScreen = (
   });
 
   addEventListener('resize', () => {
-    if (isInFullScreen && currentWindowHeight > innerHeight) {
+    if (isInFullScreen() && currentWindowHeight > innerHeight) {
       followToggle();
     }
   });
