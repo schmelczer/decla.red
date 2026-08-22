@@ -1,8 +1,8 @@
 import { vec2 } from 'gl-matrix';
 import {
   Circle,
+  CharacterMovementSnapshot,
   CharacterMovementState,
-  Id,
   PhysicsBody,
   settings,
   stepCharacterMovement,
@@ -17,18 +17,22 @@ import { InputHistory } from './input-history';
 const stepMs = 1000 / 200; // match the server's 200 Hz fixed tick
 const stepSeconds = 1 / 200;
 
-// Clock source for the predictor. Injectable so deterministic reconciliation
-// tests can drive prediction without real time passing; defaults to the
-// browser wall clock in production.
-let nowMs: () => number = () => performance.now();
-export const setPredictorClockForTesting = (clock: () => number): void => {
-  nowMs = clock;
+// The client's clock: the timestamp of the frame currently being rendered, set
+// once per frame by the game loop (requestAnimationFrame hands it to us
+// already). Everything time-related on the client reads it from here, so input
+// stamps, the outgoing send cadence and the replay window all sit on one
+// timeline.
+//
+// Sampling performance.now() ad hoc instead — which is what this used to do —
+// reads the frame's *dispatch* time, and the few ms of scheduling jitter
+// between the frame's timestamp and the callback actually running went straight
+// into the replay window. The body then advanced by a slightly different amount
+// than the frame it was drawn in.
+let frameTimeMs = 0;
+export const setFrameTimeMs = (timeMs: number): void => {
+  frameTimeMs = timeMs;
 };
-
-// The same clock the predictor stamps input with. Anything that tells the server
-// "this is how far my input timeline has got" must read it from here, or the
-// acknowledgement comes back in a different time base than the replay window.
-export const predictorNowMs = (): number => nowMs();
+export const predictorNowMs = (): number => frameTimeMs;
 
 // Don't replay more than this far back: if the last acknowledged input is older
 // (a stall, or a backgrounded tab catching up) fall back to a shorter window
@@ -46,11 +50,15 @@ const smoothSeconds = 0.06;
 // the predictor doesn't model. Snap to it rather than gliding across the gap.
 const snapDistance = 250;
 
-const makeBody = (center: vec2, radius: number): PhysicsBody => ({
+const upwards = vec2.fromValues(0, 1);
+
+// Velocity is deliberately zero: the movement simulation rebuilds it from
+// scratch every tick and zeroes it again at the end, so it is not carried state.
+const makeBody = (center: vec2, radius: number, normal: vec2): PhysicsBody => ({
   center: vec2.clone(center),
   radius,
   velocity: vec2.create(),
-  lastNormal: vec2.fromValues(0, 1),
+  lastNormal: vec2.fromValues(normal[0], normal[1]),
   restitution: 0,
 });
 
@@ -77,12 +85,12 @@ export class LocalCharacterPredictor {
   // snapshot was actually taken. Both halves are needed.
   //
   // Anchoring on the acknowledged input time ALONE beats against the send
-  // cadence: input is sent once per frame, so at snapshot time the newest input
-  // the server holds is 0..1 frame old depending on where the client's frames
-  // fell, and that age lands directly in the replay window. Measured on
-  // localhost it walked a sawtooth — 17, 10, 6, 1, 11, 6, 2, 12 ms — so the
-  // window jumped by up to a frame of travel every snapshot and the body
-  // stuttered at 25 Hz. ackAgeMs cancels it exactly.
+  // cadence: at snapshot time the newest input the server holds is 0..1 send
+  // interval old depending on where the client's sends fell, and that age lands
+  // directly in the replay window. Measured on localhost it walked a sawtooth —
+  // 17, 10, 6, 1, 11, 6, 2, 12 ms — so the window jumped by up to a frame of
+  // travel every snapshot and the body stuttered at 25 Hz. ackAgeMs cancels it
+  // exactly.
   //
   // Anchoring on the snapshot's ARRIVAL is free of that beat, but it under-
   // advances by a one-way trip, so the local body trails its own input at any
@@ -93,14 +101,17 @@ export class LocalCharacterPredictor {
   // altogether; that is fixed at the source, by closing every outgoing batch
   // with a ClientHeartbeatCommand.
   private replayAnchorMs?: number;
-  // Authoritative launch momentum at the last snapshot — seeds each replay so a
-  // leap/slingshot/recoil flight is reproduced and continuously corrected.
-  private authoritativeBodyVelocity = vec2.create();
-  // Wall-clock times the player issued a leap, replayed (with the impulse
-  // applied locally) so the launch is felt immediately, not after a round trip.
+  // The rest of the server's movement state at that same instant: facing
+  // direction, launch momentum, foot contact normals and the latched planet.
+  // Together with the pose above it is everything stepCharacterMovement carries
+  // between ticks, so a replay continues the server's simulation instead of
+  // approximating it.
+  private movement?: CharacterMovementSnapshot;
+  // Frame times the player issued a leap, replayed (with the impulse applied
+  // locally) so the launch is felt immediately, not after a round trip.
   private leapHistory: Array<number> = [];
   // clientTimeMs of the last leap the server has folded into the streamed
-  // momentum. Leaps at or before this are already in authoritativeBodyVelocity;
+  // momentum. Leaps at or before this are already in movement.bodyVelocity;
   // only newer ones are replayed, so a leap is never applied twice.
   private lastLeapAckMs = -Infinity;
   // Latest streamed shooting-strength, to gate predicted leaps as the server does.
@@ -111,13 +122,6 @@ export class LocalCharacterPredictor {
   // to input — the server ignores a dead player's movement, so a predicted body
   // that still moved would be a pure client-side desync.
   private alive = true;
-
-  // Continuous state carried between replays (the snapshot carries only poses).
-  // The facing direction is NOT carried — it is re-derived from the pose each
-  // frame (see directionFromPose / simulate); only the latched planet and the
-  // time-since-surface persist.
-  private carriedPlanetId?: Id;
-  private carriedSecondsSinceSurface = 1;
 
   // The eased, rendered pose handed to the view.
   private renderHead = new Circle(vec2.create(), headRadius);
@@ -135,27 +139,27 @@ export class LocalCharacterPredictor {
     return this.renderRightFoot;
   }
 
-  // Stamp a movement command and record it for replay. Returns the wall-clock
+  // Stamp a movement command and record it for replay. Returns the client-clock
   // time the command should carry so the server can echo it back.
   public recordInput(direction: vec2): number {
-    const timeMs = Math.round(nowMs());
+    const timeMs = Math.round(frameTimeMs);
     this.inputHistory.record(direction, timeMs);
     return timeMs;
   }
 
   public acknowledge(
     clientTimeMs: number,
-    bodyVelocity: vec2,
+    movement: CharacterMovementSnapshot,
     lastLeapClientTimeMs: number,
     ackAgeMs = 0,
   ): void {
-    // Inputs only advance the acknowledgement forward; the launch momentum and
+    // Inputs only advance the acknowledgement forward; the movement state and
     // leap boundary always adopt the latest authoritative values.
     const anchor = clientTimeMs + Math.max(0, ackAgeMs);
     if (this.replayAnchorMs === undefined || anchor > this.replayAnchorMs) {
       this.replayAnchorMs = anchor;
     }
-    vec2.set(this.authoritativeBodyVelocity, bodyVelocity[0], bodyVelocity[1]);
+    this.movement = movement;
     this.lastLeapAckMs = lastLeapClientTimeMs;
   }
 
@@ -168,7 +172,7 @@ export class LocalCharacterPredictor {
   // it — a rejected leap (no strength/cooldown) self-corrects via the streamed
   // authoritative momentum.
   public recordLeap(): number {
-    const timeMs = Math.round(nowMs());
+    const timeMs = Math.round(frameTimeMs);
     this.leapHistory.push(timeMs);
     const cutoff = timeMs - 1500;
     while (this.leapHistory.length > 0 && this.leapHistory[0] <= cutoff) {
@@ -191,16 +195,18 @@ export class LocalCharacterPredictor {
     this.lastLeapAckMs = -Infinity;
     this.authoritative = undefined;
     this.replayAnchorMs = undefined;
-    vec2.zero(this.authoritativeBodyVelocity);
+    this.movement = undefined;
     this.currentStrength = settings.playerMaxStrength;
-    this.carriedPlanetId = undefined;
-    this.carriedSecondsSinceSurface = 1;
     this.hasRender = false;
     this.alive = true;
   }
 
   public get canPredict(): boolean {
-    return this.authoritative !== undefined && this.replayAnchorMs !== undefined;
+    return (
+      this.authoritative !== undefined &&
+      this.movement !== undefined &&
+      this.replayAnchorMs !== undefined
+    );
   }
 
   // During spawn-in and death the server freezes walking and only scales the
@@ -237,22 +243,10 @@ export class LocalCharacterPredictor {
     return true;
   }
 
-  // The body's facing angle is encoded in the pose: each part is sprung toward
-  // center + R(direction)*offset and the head's offset points +y, so
-  // direction = atan2(head - center) - PI/2. Re-deriving it from the snapshot
-  // each frame (rather than carrying the previous frame's evolved value onto
-  // this past pose, re-evolved by a variable substep count) keeps the posture
-  // seed a pure function of the snapshot — carrying it fed a frame-rate-dependent
-  // loop that wobbled the rendered limbs.
-  private directionFromPose(head: Circle, leftFoot: Circle, rightFoot: Circle): number {
-    const cx = (head.center[0] + leftFoot.center[0] + rightFoot.center[0]) / 3;
-    const cy = (head.center[1] + leftFoot.center[1] + rightFoot.center[1]) / 3;
-    return Math.atan2(head.center[1] - cy, head.center[0] - cx) - Math.PI / 2;
-  }
-
   private simulate(): CharacterMovementState {
     const auth = this.authoritative!;
-    const now = Math.round(nowMs());
+    const movement = this.movement!;
+    const now = Math.round(frameTimeMs);
     // Replay every input the server has not confirmed yet: from the anchor up to
     // now, clamped so a stall (or a backgrounded tab catching up) cannot grind
     // through hundreds of steps.
@@ -261,16 +255,30 @@ export class LocalCharacterPredictor {
     const steps = Math.floor(windowMs / stepMs);
     const remainderSeconds = (windowMs - steps * stepMs) / 1000;
 
+    // The full authoritative state: the pose from the property updates, the
+    // rest from the acknowledgement. Nothing here is inferred or carried over
+    // from the previous frame, so a replay is a pure function of (snapshot,
+    // input history, window) and cannot drift.
     const state: CharacterMovementState = {
-      head: makeBody(auth.head.center, auth.head.radius),
-      leftFoot: makeBody(auth.leftFoot.center, auth.leftFoot.radius),
-      rightFoot: makeBody(auth.rightFoot.center, auth.rightFoot.radius),
-      direction: this.directionFromPose(auth.head, auth.leftFoot, auth.rightFoot),
-      currentPlanet: this.world.surfaceById(this.carriedPlanetId),
-      secondsSinceOnSurface: this.carriedSecondsSinceSurface,
+      // The head's contact normal is written by the collision but never read by
+      // the movement, so it does not need to travel.
+      head: makeBody(auth.head.center, auth.head.radius, upwards),
+      leftFoot: makeBody(
+        auth.leftFoot.center,
+        auth.leftFoot.radius,
+        movement.leftFootNormal,
+      ),
+      rightFoot: makeBody(
+        auth.rightFoot.center,
+        auth.rightFoot.radius,
+        movement.rightFootNormal,
+      ),
+      direction: movement.direction,
+      currentPlanet: this.world.surfaceById(movement.groundPlanetId),
+      secondsSinceOnSurface: movement.secondsSinceOnSurface,
       // Leaps before the replay window are already baked into this; leaps inside
       // the window are re-applied below, so neither is double-counted.
-      bodyVelocity: vec2.clone(this.authoritativeBodyVelocity),
+      bodyVelocity: vec2.fromValues(movement.bodyVelocity[0], movement.bodyVelocity[1]),
     };
 
     // The planet collision frames were synced (in update(), just before this)
@@ -331,9 +339,6 @@ export class LocalCharacterPredictor {
       );
       this.world.advance(remainderSeconds);
     }
-
-    this.carriedPlanetId = this.world.idOf(state.currentPlanet);
-    this.carriedSecondsSinceSurface = state.secondsSinceOnSurface;
 
     return state;
   }

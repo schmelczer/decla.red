@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
 import { CommandSocket } from '../frontend/src/scripts/commands/command-socket';
-import { setPredictorClockForTesting } from '../frontend/src/scripts/helper/prediction/local-character-predictor';
+import { setFrameTimeMs } from '../frontend/src/scripts/helper/prediction/local-character-predictor';
 
 const require = createRequire(import.meta.url);
 const shared = require('../shared/lib/main.js');
@@ -18,16 +18,13 @@ applyArrayPlugins();
 
 // Collects what would go on the wire.
 const drive = (frameRate: number, seconds: number, onFrame?: (socket: any) => void) => {
-  let clock = 0;
-  setPredictorClockForTesting(() => clock);
-
   const batches: Array<string> = [];
   const socket = { emit: (_event: string, payload: string) => batches.push(payload) };
   const commandSocket = new CommandSocket(socket as never);
 
   const frames = Math.round(frameRate * seconds);
   for (let f = 0; f < frames; f++) {
-    clock = (f * 1000) / frameRate;
+    setFrameTimeMs((f * 1000) / frameRate);
     onFrame?.(commandSocket);
     commandSocket.sendQueuedCommands();
   }

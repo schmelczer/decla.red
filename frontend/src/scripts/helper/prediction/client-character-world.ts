@@ -118,10 +118,6 @@ export class ClientCharacterWorld implements CharacterWorld {
     return id == null ? undefined : this.surfaces.get(id);
   }
 
-  public idOf(surface: GroundSurface | undefined): Id | undefined {
-    return surface instanceof PlanetSurface ? surface.id : undefined;
-  }
-
   public groundsNear(): Array<GroundSurface> {
     return this.ordered;
   }

@@ -283,7 +283,7 @@ export class Player extends PlayerBase {
       this.queueCommandSend(
         new InputAcknowledgement(
           this.lastInputClientTimeMs,
-          this.character.launchMomentum,
+          this.character.movementSnapshot,
           this.lastLeapClientTimeMs,
           this.lastInputReceiptMs > 0
             ? Math.max(0, performance.now() - this.lastInputReceiptMs)
@@ -369,6 +369,10 @@ export class Player extends PlayerBase {
       const sheddable: ReadonlyArray<string> = [
         PropertyUpdatesForObjects.type,
         UpdateMinimap.type,
+        // Only meaningful together with the pose it describes, and regenerated
+        // in full next tick — so it is shed with it rather than advancing the
+        // client's replay anchor past a snapshot it never received.
+        InputAcknowledgement.type,
       ];
       this.commandsToBeSent = this.commandsToBeSent.filter(
         (c) => !sheddable.includes(c.type),

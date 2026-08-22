@@ -12,6 +12,7 @@ import {
   UpdatePropertyCommand,
   CommandExecutors,
   CommandReceiver,
+  CharacterMovementSnapshot,
   mix,
   clamp01,
   stepCharacterMovement,
@@ -209,10 +210,18 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     return this.currentPlanet;
   }
 
-  // Persistent launch momentum, streamed to the owning client so its predictor
-  // can reproduce a leap/slingshot/recoil flight instead of only snapping to it.
-  public get launchMomentum(): vec2 {
-    return this.bodyVelocity;
+  // The continuous movement state streamed to the owning client, so its
+  // predictor resumes this simulation instead of guessing at the parts of it
+  // the pose does not show. See CharacterMovementSnapshot.
+  public get movementSnapshot(): CharacterMovementSnapshot {
+    return new CharacterMovementSnapshot(
+      this.direction,
+      vec2.clone(this.bodyVelocity),
+      vec2.clone(this.leftFoot.lastNormal),
+      vec2.clone(this.rightFoot.lastNormal),
+      this.currentPlanet?.id ?? null,
+      this.secondsSinceOnSurface,
+    );
   }
 
   public addKill(victimName: string, charge = 0) {

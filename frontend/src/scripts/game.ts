@@ -36,7 +36,10 @@ import { PlanetShape } from './shapes/planet-shape';
 import { RenderCommand } from './commands/types/render';
 import { StepCommand } from './commands/types/step';
 import { serverTimeline } from './helper/server-timeline';
-import { localCharacterPredictor } from './helper/prediction/local-character-predictor';
+import {
+  localCharacterPredictor,
+  setFrameTimeMs,
+} from './helper/prediction/local-character-predictor';
 import { Tutorial } from './tutorial';
 import { Scoreboard } from './scoreboard';
 import { Minimap } from './minimap';
@@ -226,7 +229,7 @@ export class Game extends CommandReceiver {
     [InputAcknowledgement.type]: (c: InputAcknowledgement) =>
       localCharacterPredictor.acknowledge(
         c.clientTimeMs,
-        c.bodyVelocity,
+        c.movement,
         c.lastLeapClientTimeMs,
         c.ackAgeMs,
       ),
@@ -334,10 +337,16 @@ export class Game extends CommandReceiver {
   private framesSinceLastLayoutUpdate = 0;
   private gameLoop(
     renderer: Renderer,
-    _: DOMHighResTimeStamp,
+    currentTime: DOMHighResTimeStamp,
     deltaTime: DOMHighResTimeStamp,
   ): boolean {
     this.resolveStarted();
+    // The client's one clock, for input stamps, the outgoing send cadence and
+    // the prediction replay window alike. It has to be the frame's timestamp
+    // rather than performance.now(): the two differ by however long the browser
+    // took to dispatch this callback, and that difference would land straight
+    // in the replay window and jitter the predicted body.
+    setFrameTimeMs(currentTime);
     deltaTime /= 1000;
 
     // Decay the camera impact effects on raw wall-clock time, before any of the
