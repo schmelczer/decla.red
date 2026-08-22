@@ -5,21 +5,18 @@ import { NPC } from './npc';
 import { Player } from './player';
 import { PlayerBase } from './player-base';
 import { ServerFullError } from './server-full-error';
-import { randomUUID } from 'node:crypto';
 
-// Score held for a dropped player so a reconnect inside the grace window
-// resumes the match instead of starting from zero.
-interface ReservedScore {
+// Team and score carried over from the connection a reconnecting client is
+// replacing, so it resumes the match instead of starting from zero.
+export interface CarriedScore {
   team: CharacterTeam;
   kills: number;
   deaths: number;
-  expiresAtMs: number;
 }
 
 export class PlayerContainer {
   private _players: Array<Player> = [];
   private _npcs: Array<NPC> = [];
-  private reservedScores = new Map<string, ReservedScore>();
 
   constructor(
     private readonly objects: PhysicalContainer,
@@ -42,78 +39,32 @@ export class PlayerContainer {
     }
   }
 
-  public createPlayer(playerInfo: PlayerInformation, socket: Socket): Player {
+  public createPlayer(
+    playerInfo: PlayerInformation,
+    socket: Socket,
+    carried?: CarriedScore,
+  ): Player {
     if (this._players.length >= this.playerMaxCount) {
       throw new ServerFullError();
     }
 
-    const reserved = this.claimReservedScore(playerInfo.reconnectToken);
-    const team = reserved ? reserved.team : this.getTeamOfNextPlayer();
+    const team = carried ? carried.team : this.getTeamOfNextPlayer();
 
-    const player = new Player(playerInfo, this, this.objects, team, socket);
-
-    let npcToReplace = this._npcs.find((n) => n.team === team);
-    if (!npcToReplace) {
-      npcToReplace = this._npcs.find((n) => n.team !== team);
-    }
+    // Retire the bot before the player spawns: its body would otherwise push
+    // the spawn search away from the position it picked.
+    const npcToReplace =
+      this._npcs.find((n) => n.team === team) ?? this._npcs.find((n) => n.team !== team);
     npcToReplace?.destroy();
     this._npcs = this._npcs.filter((n) => n !== npcToReplace);
 
+    const player = new Player(playerInfo, this, this.objects, team, socket);
     this._players.push(player);
 
-    if (reserved) {
-      player.restoreScore(reserved.kills, reserved.deaths);
+    if (carried) {
+      player.restoreScore(carried.kills, carried.deaths);
     }
 
     return player;
-  }
-
-  /**
-   * A fresh token for a joining player; only redeemable once the player
-   * actually drops (see reserveScore).
-   */
-  public issueToken(): string {
-    return randomUUID();
-  }
-
-  /**
-   * Hold a dropped player's team and score against its token for the grace
-   * window, so a reconnecting client rejoins as itself.
-   */
-  public reserveScore(
-    token: string,
-    team: CharacterTeam,
-    kills: number,
-    deaths: number,
-    nowMs: number,
-  ) {
-    this.expireReservations(nowMs);
-    this.reservedScores.set(token, {
-      team,
-      kills,
-      deaths,
-      expiresAtMs: nowMs + settings.reconnectGraceSeconds * 1000,
-    });
-  }
-
-  private claimReservedScore(token?: string): ReservedScore | undefined {
-    if (!token || typeof token !== 'string') {
-      return undefined;
-    }
-    const reserved = this.reservedScores.get(token);
-    if (!reserved) {
-      return undefined;
-    }
-    this.reservedScores.delete(token);
-    return reserved;
-  }
-
-  private expireReservations(nowMs: number) {
-    for (const [token, reserved] of this.reservedScores) {
-      if (reserved.expiresAtMs <= nowMs) {
-        this.reservedScores.delete(token);
-      }
-    }
   }
 
   public get players(): Array<PlayerBase> {

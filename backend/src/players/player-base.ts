@@ -8,10 +8,10 @@ import {
   settings,
   sanitizeName,
   boundRadius,
+  evaluateSdf,
 } from 'shared';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
-import { evaluateSdf } from 'shared';
 import { CharacterPhysical } from '../objects/character-physical';
 import { PlanetPhysical } from '../objects/planet-physical';
 import { PlayerContainer } from './player-container';

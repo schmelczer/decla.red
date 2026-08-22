@@ -93,6 +93,7 @@ export class Game extends CommandReceiver {
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
     this.keystoneArrow = undefined;
+    this.connectionBanner = undefined;
     this.lastMinimap = undefined;
     this.isEnding = false;
     this.lastAnnouncementText = '';

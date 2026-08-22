@@ -92,11 +92,7 @@ export class Player extends PlayerBase {
         return;
       }
       this.observeClientTime(c.clientTimeMs);
-      this.character?.shootTowards(
-        position,
-        finiteInRange(c.charge, 0, 1, 0),
-        this.catchUpSeconds,
-      );
+      this.character?.shootTowards(position, finiteInRange(c.charge, 0, 1, 0));
     },
     [LeapActionCommand.type]: (c: LeapActionCommand) => {
       if (!isFiniteNumber(c.clientTimeMs)) {
@@ -123,12 +119,6 @@ export class Player extends PlayerBase {
       this.lastInputClientTimeMs = clientTimeMs;
       this.lastInputReceiptMs = performance.now();
     }
-  }
-
-  // Derived from the measured RTT, NOT the client's timestamp, so a forged
-  // stamp cannot buy extra lag compensation. fastForward caps the result.
-  private get catchUpSeconds(): number {
-    return Math.max(0, this.rttMs / 2 / 1000);
   }
 
   constructor(

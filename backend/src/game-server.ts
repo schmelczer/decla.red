@@ -1,5 +1,6 @@
 import { PhysicalContainer } from './physics/containers/physical-container';
 import { Server, Socket } from 'socket.io';
+import { randomUUID } from 'node:crypto';
 import {
   TransportEvents,
   deserialize,
@@ -19,7 +20,7 @@ import {
 } from 'shared';
 import { createWorld } from './create-world';
 import { Options } from './options';
-import { PlayerContainer } from './players/player-container';
+import { CarriedScore, PlayerContainer } from './players/player-container';
 import { ServerFullError } from './players/server-full-error';
 import { Player } from './players/player';
 import { StepCommand, GeneratePointsCommand, AnnounceCommand } from './commands/commands';
@@ -29,7 +30,7 @@ const gameStateSubscribedRoom = 'gameStateSubscribedRoom';
 export class GameServer extends CommandReceiver {
   private objects!: PhysicalContainer;
   private players!: PlayerContainer;
-  private lastPhysicsBase: [number, number] = process.hrtime();
+  private lastPhysicsBase = process.hrtime.bigint();
 
   private bluePoints = 0;
   private redPoints = 0;
@@ -50,7 +51,7 @@ export class GameServer extends CommandReceiver {
       this.options.playerLimit,
       this.options.npcCount,
     );
-    this.lastPhysicsBase = process.hrtime();
+    this.lastPhysicsBase = process.hrtime.bigint();
     this.bluePoints = 0;
     this.redPoints = 0;
     this.matchPointAnnounced = {};
@@ -85,7 +86,10 @@ export class GameServer extends CommandReceiver {
     });
   }
 
-  private readonly joinedSockets = new Map<Socket, Player>();
+  private readonly joinedSockets = new Map<
+    Socket,
+    { player: Player; release: () => void }
+  >();
 
   private handleJoin(socket: Socket, playerInfo: PlayerInformation) {
     if (this.joinedSockets.has(socket)) {
@@ -98,6 +102,11 @@ export class GameServer extends CommandReceiver {
       return;
     }
 
+    // A reconnect arrives seconds after the drop, long before engine.io times
+    // the dead socket out. Retire that ghost first so its slot, team and score
+    // go back to the returning client.
+    const carried = this.retireGhost(playerInfo.reconnectToken);
+
     if (this.players.isFull) {
       socket.emit(TransportEvents.JoinRejected, JoinRejectionReason.ServerFull);
       return;
@@ -105,7 +114,7 @@ export class GameServer extends CommandReceiver {
 
     let player: Player;
     try {
-      player = this.players.createPlayer(playerInfo, socket);
+      player = this.players.createPlayer(playerInfo, socket, carried);
     } catch (e) {
       console.error('Failed to register joining player', e);
       socket.emit(
@@ -134,31 +143,22 @@ export class GameServer extends CommandReceiver {
     };
 
     const onDisconnect = () => {
-      const p = this.joinedSockets.get(socket);
-      this.joinedSockets.delete(socket);
-      this.inboundBudget.delete(socket);
-      if (!p) {
-        return;
-      }
-      p.detachFromSocket();
-      const { kills, deaths } = player.scoreSnapshot;
-      this.players.reserveScore(
-        player.reconnectToken,
-        player.team,
-        kills,
-        deaths,
-        Date.now(),
-      );
-      player.destroy();
-      this.players.deletePlayer(player);
+      this.removeJoined(socket);
       this.sendServerStateUpdate();
     };
 
     socket.on(TransportEvents.PlayerToServer, onPlayerToServer);
     socket.on('disconnect', onDisconnect);
-    this.joinedSockets.set(socket, player);
+    this.joinedSockets.set(socket, {
+      player,
+      release: () => {
+        socket.off(TransportEvents.PlayerToServer, onPlayerToServer);
+        socket.off('disconnect', onDisconnect);
+        player.detachFromSocket();
+      },
+    });
 
-    player.reconnectToken = this.players.issueToken();
+    player.reconnectToken = randomUUID();
     socket.emit(TransportEvents.PlayerJoined, player.reconnectToken);
 
     this.sendServerStateUpdate();
@@ -188,11 +188,36 @@ export class GameServer extends CommandReceiver {
     return true;
   }
 
-  private releaseJoinedSockets() {
-    for (const [socket, player] of this.joinedSockets) {
-      socket.removeAllListeners();
-      player.detachFromSocket();
+  private retireGhost(token?: string): CarriedScore | undefined {
+    if (!token) {
+      return undefined;
     }
+    for (const [socket, { player }] of this.joinedSockets) {
+      if (player.reconnectToken === token) {
+        const carried = { team: player.team, ...player.scoreSnapshot };
+        this.removeJoined(socket);
+        return carried;
+      }
+    }
+    return undefined;
+  }
+
+  private removeJoined(socket: Socket) {
+    const joined = this.joinedSockets.get(socket);
+    if (!joined) {
+      return;
+    }
+    this.joinedSockets.delete(socket);
+    this.inboundBudget.delete(socket);
+    // Only the listeners this join added: socket.io keeps its own internal
+    // 'error' guard and the connection-scoped PlayerJoining handler here.
+    joined.release();
+    joined.player.destroy();
+    this.players.deletePlayer(joined.player);
+  }
+
+  private releaseJoinedSockets() {
+    this.joinedSockets.forEach(({ release }) => release());
     this.joinedSockets.clear();
     this.inboundBudget.clear();
   }
@@ -255,9 +280,9 @@ export class GameServer extends CommandReceiver {
   private saturatedFrames = 0;
 
   private handlePhysics() {
-    const now = process.hrtime(this.lastPhysicsBase);
-    const delta = now[0] + now[1] / 1e9;
-    this.lastPhysicsBase = process.hrtime();
+    const frameStart = process.hrtime.bigint();
+    const delta = Number(frameStart - this.lastPhysicsBase) / 1e9;
+    this.lastPhysicsBase = frameStart;
 
     if (Date.now() - this.statReportMs > 30000) {
       this.statReportMs = Date.now();
@@ -317,13 +342,9 @@ export class GameServer extends CommandReceiver {
     this.players.stepCommunication(delta);
     this.objects.resetRemoteCalls();
 
-    const elapsed = process.hrtime(now);
-    const physicsDelta = elapsed[0] + elapsed[1] / 1e9;
+    const elapsed = Number(process.hrtime.bigint() - frameStart) / 1e9;
 
-    setTimeout(
-      this.handlePhysics.bind(this),
-      Math.max(0, fixedDelta - physicsDelta) * 1000,
-    );
+    setTimeout(this.handlePhysics.bind(this), Math.max(0, fixedDelta - elapsed) * 1000);
   }
 
   public get serverInfo(): ServerInformation {

@@ -173,4 +173,9 @@ const main = async () => {
   }
 };
 
-main();
+main().catch((error) => {
+  console.error(error);
+  hide(spinner);
+  joinNotice.innerText = 'Something went wrong. Please reload the page.';
+  joinNotice.style.display = 'block';
+});

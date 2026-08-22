@@ -34,8 +34,8 @@ export class PlanetBase extends GameObject {
       this.vertices.length;
   }
 
-  // Single rule for the dead-band: scoring (server) and every tint (client)
-  // read this rather than duplicating the comparison.
+  // The one capture rule: server flips and scoring, client tints and the
+  // keystone arrow all read this.
   public get team(): CharacterTeam {
     return Math.abs(this.ownership - 0.5) < settings.planetControlThreshold
       ? CharacterTeam.neutral

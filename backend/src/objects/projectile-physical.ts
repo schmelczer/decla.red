@@ -82,25 +82,6 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
       wasCollision = hitSurface;
       this.object.syncBoundingBox();
     }
-    vec2.add(this.center, this.center, delta);
-    vec2.add(this.center, this.center, delta);
-    this.object.syncBoundingBox();
-  }
-
-  /**
-   * Lag compensation: runs the projectile forward by the time its command spent
-   * travelling to the server. Capped by settings.maxProjectileCatchUpSeconds so
-   * a forged timestamp cannot spawn a shot arbitrarily far downrange.
-   */
-  public fastForward(seconds: number) {
-    const step = settings.targetPhysicsDeltaTimeInSeconds;
-    let remaining = Math.min(Math.max(seconds, 0), settings.maxProjectileCatchUpSeconds);
-
-    while (remaining > 0 && this.isAlive) {
-      const delta = Math.min(step, remaining);
-      this.advance(delta);
-      remaining -= delta;
-    }
   }
 
   // Live view of the circle's box, not a snapshot — the circle keeps it in sync

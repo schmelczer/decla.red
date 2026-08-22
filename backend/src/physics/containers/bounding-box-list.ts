@@ -9,10 +9,10 @@ export class BoundingBoxList {
   }
 
   public remove(object: DynamicPhysical) {
-    this.objects.splice(
-      this.objects.findIndex((i) => i === object),
-      1,
-    );
+    const index = this.objects.indexOf(object);
+    if (index >= 0) {
+      this.objects.splice(index, 1);
+    }
   }
 
   public forEach(func: (object: DynamicPhysical) => unknown) {

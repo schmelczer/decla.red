@@ -255,6 +255,44 @@ describe('reconnect tokens', () => {
   });
 });
 
+describe('reconnect while the dropped socket is still live', () => {
+  // engine.io needs ~45 s to notice a transport drop; the client is back in ~1 s.
+  it('retires the ghost so the returning player keeps its slot, team and score', () => {
+    const { server, attach } = startServer({ playerLimit: 1, npcCount: 0 });
+
+    const first = attach();
+    first.fire(TransportEvents.PlayerJoining, { name: 'flaky' });
+    const token = first.lastPayloadFor(TransportEvents.PlayerJoined) as string;
+    expect(server.serverInfo.playerCount).toBe(1);
+
+    // No 'disconnect' fired: the server still holds the dead socket's player.
+    const second = attach();
+    second.fire(TransportEvents.PlayerJoining, { name: 'flaky', reconnectToken: token });
+
+    expect(second.lastPayloadFor(TransportEvents.JoinRejected)).toBeUndefined();
+    expect(second.lastPayloadFor(TransportEvents.PlayerJoined)).toBeTruthy();
+    expect(server.serverInfo.playerCount).toBe(1);
+    expect(first.listenerCount(TransportEvents.PlayerToServer)).toBe(0);
+  });
+
+  it('does not hand a slot to an unknown token', () => {
+    const { server, attach } = startServer({ playerLimit: 1, npcCount: 0 });
+
+    attach().fire(TransportEvents.PlayerJoining, { name: 'holder' });
+
+    const stranger = attach();
+    stranger.fire(TransportEvents.PlayerJoining, {
+      name: 'stranger',
+      reconnectToken: 'not-a-real-token',
+    });
+
+    expect(stranger.lastPayloadFor(TransportEvents.JoinRejected)).toBe(
+      JoinRejectionReason.ServerFull,
+    );
+    expect(server.serverInfo.playerCount).toBe(1);
+  });
+});
+
 describe('socket listeners', () => {
   it('takes every listener back off when the player drops', () => {
     const { attach } = startServer({ playerLimit: 4, npcCount: 0 });
@@ -266,7 +304,8 @@ describe('socket listeners', () => {
     socket.fire('disconnect');
 
     expect(socket.listenerCount(TransportEvents.Pong)).toBe(0);
-    expect(socket.listenerCount(TransportEvents.PlayerToServer)).toBe(1);
+    expect(socket.listenerCount(TransportEvents.PlayerToServer)).toBe(0);
+    expect(socket.listenerCount('disconnect')).toBe(0);
   });
 
   it('does not stack a listener per reconnect', () => {

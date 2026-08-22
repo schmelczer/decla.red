@@ -78,7 +78,9 @@ export const marchCircle = (
     );
   }
 
-  vec2.scaleAndAdd(body.center, body.center, direction, deltaLength);
+  // lastFreeDistance, not deltaLength: on a completed march they are equal, and
+  // if the step budget ran out it is the furthest point actually checked.
+  vec2.scaleAndAdd(body.center, body.center, direction, lastFreeDistance);
 
   return {
     hitSurface: false,

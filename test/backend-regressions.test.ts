@@ -69,31 +69,7 @@ describe('projectile broadphase registration', () => {
     expect(container.findIntersecting(boxAround([0, 0], 100))).not.toContain(projectile);
   });
 
-  it('fast-forwards a shot by the sender latency', () => {
-    const container = new PhysicalContainer();
-    container.initialize();
-    const spawn = vec2.fromValues(0, 0);
-
-    const make = () =>
-      new ProjectilePhysical(
-        vec2.clone(spawn),
-        20,
-        40,
-        CharacterTeam.blue,
-        vec2.fromValues(3000, 0),
-        { team: CharacterTeam.blue } as never,
-        container,
-        0,
-      );
-
-    const plain = make();
-    const compensated = make();
-    compensated.fastForward(0.1);
-
-    expect(compensated.center[0]).toBeGreaterThan(plain.center[0] + 200);
-  });
-
-  it('never fast-forwards further than the cap', () => {
+  it('spawns a shot just clear of the shooter, not a jump downrange', () => {
     const container = new PhysicalContainer();
     container.initialize();
     const projectile = new ProjectilePhysical(
@@ -106,9 +82,8 @@ describe('projectile broadphase registration', () => {
       container,
       0,
     );
-    projectile.fastForward(10);
-    const cap = settings.chargeShotSpeedMax * settings.maxProjectileCatchUpSeconds;
-    expect(projectile.center[0]).toBeLessThanOrEqual(cap + 50);
+
+    expect(projectile.center[0]).toBeLessThanOrEqual(15);
   });
 });
 

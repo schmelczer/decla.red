@@ -249,7 +249,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     }
   }
 
-  public shootTowards(position: vec2, charge = 0, catchUpSeconds = 0) {
+  public shootTowards(position: vec2, charge = 0) {
     if (
       !this.isAlive ||
       this.timeSinceLastShot < settings.projectileCreationInterval ||
@@ -295,7 +295,6 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       c,
     );
     this.container.addObject(projectile);
-    projectile.fastForward(catchUpSeconds);
 
     if (c > 0) {
       vec2.scaleAndAdd(

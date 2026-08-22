@@ -30,12 +30,9 @@ export const settings = {
   maxGravityDistance: 800,
   minGravityDistance: 1,
   maxGravityQ: 5000,
-  // Neutral dead-band around 50% ownership; the rendered ring uses the same
-  // threshold as scoring so visuals match state.
+  // Neutral dead-band around 50% ownership. The single capture rule: flips,
+  // scoring and every client-side tint all read PlanetBase.team.
   planetControlThreshold: 0.12,
-  // Schmitt trigger: extra margin beyond planetControlThreshold before a flip
-  // pays out again, so boundary-hovering doesn't re-trigger the reward.
-  planetFlipHysteresis: 0.06,
   playerMaxHealth: 100,
   maxGravityStrength: 50000,
   planetMinReferenceRadius: 150,
@@ -170,11 +167,6 @@ export const settings = {
   slingshotScale: 1,
 
   chargeShotRecoilMax: 650,
-
-  // Capped so a forged timestamp cannot spawn a shot arbitrarily far downrange.
-  maxProjectileCatchUpSeconds: 0.2,
-
-  reconnectGraceSeconds: 30,
 
   // DoS guard: parsing is synchronous with the physics loop, so one oversized
   // message stalls the tick for everyone.
