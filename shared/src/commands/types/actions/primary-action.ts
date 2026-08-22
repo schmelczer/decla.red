@@ -7,11 +7,17 @@ export class PrimaryActionCommand extends Command {
   public constructor(
     public readonly position: vec2,
     public readonly charge: number = 0,
+    // Client wall-clock at the moment the shot was released. Appended last so
+    // the existing wire order is unchanged. The server uses it (together with
+    // the measured RTT) to fast-forward the projectile by the time the command
+    // spent in flight, so the shooter does not have to lead by their own
+    // latency on top of the projectile's travel time.
+    public readonly clientTimeMs: number = 0,
   ) {
     super();
   }
 
   public toArray(): Array<any> {
-    return [this.position, this.charge];
+    return [this.position, this.charge, this.clientTimeMs];
   }
 }

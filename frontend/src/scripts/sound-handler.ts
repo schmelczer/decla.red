@@ -57,13 +57,20 @@ export abstract class SoundHandler {
       return;
     }
 
-    const audio =
-      this.sounds[sound].currentTime > 0
-        ? (this.sounds[sound].cloneNode(true) as HTMLAudioElement)
-        : this.sounds[sound];
+    // Reuse the pooled element unless it is still mid-playback; only overlapping
+    // sounds need a clone. Testing `currentTime > 0` instead stayed true forever
+    // after the first play, so every later effect allocated a fresh element.
+    const pooled = this.sounds[sound];
+    const isBusy = !pooled.paused && !pooled.ended;
+    const audio = isBusy ? (pooled.cloneNode(true) as HTMLAudioElement) : pooled;
+    if (!isBusy) {
+      audio.currentTime = 0;
+    }
     audio.volume = Math.max(0, Math.min(1, volume));
     audio.playbackRate = playbackRate;
-    audio.play();
+    // A rejected play() (autoplay policy, or a clone GC'd mid-play) is expected
+    // and must not surface as an unhandled rejection.
+    void audio.play().catch(() => undefined);
   }
 
   public static playAmbient() {

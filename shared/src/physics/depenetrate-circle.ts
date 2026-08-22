@@ -26,11 +26,6 @@ export const depenetrateCircle = (
     }
 
     vec2.copy(body.lastNormal, normal);
-    body.center = vec2.scaleAndAdd(
-      vec2.create(),
-      body.center,
-      normal,
-      body.radius - distance + 0.01,
-    );
+    vec2.scaleAndAdd(body.center, body.center, normal, body.radius - distance + 0.01);
   }
 };

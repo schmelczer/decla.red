@@ -171,17 +171,25 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     };
   }
 
+  private hasFiredSinceSpawn = false;
   private get isSpawnProtected(): boolean {
     return (
+      !this.hasFiredSinceSpawn &&
       this.timeAlive <
       settings.spawnDespawnTime + settings.spawnInvulnerabilityExtraSeconds
     );
   }
 
   private hasGeneratedPoints = false;
+  private wasKilledInCombat = false;
   private getPoints(game: CommandReceiver) {
     if (!this.isAlive && !this.hasGeneratedPoints) {
       this.hasGeneratedPoints = true;
+
+      if (!this.wasKilledInCombat) {
+        return;
+      }
+
       const blue = this.team === CharacterTeam.blue ? 0 : settings.playerKillPoint;
       const red = this.team === CharacterTeam.red ? 0 : settings.playerKillPoint;
 
@@ -260,7 +268,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
           other.direction,
           mix(settings.deathImpulseMin, settings.deathImpulseMax, other.charge),
         );
-        this.onDie();
+        this.onDie(true);
         other.originator.addKill(this.name, other.charge);
       } else {
         other.originator.registerHit(other.charge);
@@ -268,7 +276,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     }
   }
 
-  public shootTowards(position: vec2, charge = 0) {
+  public shootTowards(position: vec2, charge = 0, catchUpSeconds = 0) {
     if (
       !this.isAlive ||
       this.timeSinceLastShot < settings.projectileCreationInterval ||
@@ -277,21 +285,31 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       return;
     }
 
-    this.timeSinceLastShot = 0;
+    const direction = vec2.subtract(vec2.create(), position, this.center);
+    if (vec2.length(direction) === 0) {
+      return;
+    }
 
-    const c = clamp01(charge);
+    this.timeSinceLastShot = 0;
+    this.hasFiredSinceSpawn = true;
+
+    const requestedCharge = clamp01(charge);
     const desiredStrength = mix(
       settings.chargeShotStrengthMin,
       settings.chargeShotStrengthMax,
-      c,
+      requestedCharge,
     );
     const strength = Math.min(desiredStrength, this.projectileStrength);
     this.projectileStrength -= strength;
 
+    const c = clamp01(
+      (strength - settings.chargeShotStrengthMin) /
+      (settings.chargeShotStrengthMax - settings.chargeShotStrengthMin),
+    );
+
     const radius = mix(settings.chargeShotRadiusMin, settings.chargeShotRadiusMax, c);
     const speed = mix(settings.chargeShotSpeedMin, settings.chargeShotSpeedMax, c);
 
-    const direction = vec2.subtract(vec2.create(), position, this.center);
     vec2.normalize(direction, direction);
     // Keep the unit direction before vec2.scale repurposes it as the velocity.
     const shotDirection = vec2.clone(direction);
@@ -307,6 +325,10 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       c,
     );
     this.container.addObject(projectile);
+    // Lag compensation: advance the shot by the time the command spent reaching
+    // us, so the shooter does not have to lead by their own latency as well as
+    // by the projectile's travel time.
+    projectile.fastForward(catchUpSeconds);
 
     if (c > 0) {
       vec2.scaleAndAdd(
@@ -435,8 +457,6 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       ),
       (this.rightFoot.radius - oldRightFoot.radius) / deltaTime,
     );
-
-    this.animateScaling(1);
   }
 
   private step({ deltaTimeInSeconds, game }: StepCommand) {
@@ -467,6 +487,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     if (this.hasJustBorn) {
       if ((this.timeSinceBorn += deltaTimeInSeconds) > settings.spawnDespawnTime) {
         this.hasJustBorn = false;
+        this.animateScaling(1);
       } else {
         this.animateScaling(this.timeSinceBorn / settings.spawnDespawnTime);
       }
@@ -486,7 +507,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     this.projectileStrength = Math.min(
       settings.playerMaxStrength,
       this.projectileStrength +
-        settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
+      settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
     );
 
     this.regenerateHealth(deltaTimeInSeconds);
@@ -550,7 +571,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     }
   }
 
-  public onDie() {
+  public onDie(killedInCombat = false) {
+    this.wasKilledInCombat = killedInCombat;
     this.isDestroyed = true;
     this.remoteCall('onDie');
   }

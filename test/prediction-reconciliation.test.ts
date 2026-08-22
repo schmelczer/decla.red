@@ -93,4 +93,90 @@ describe('local prediction reconciliation', () => {
     // not be predicted/moved — that was the "move while dead" bug.
     expect(predictor.update([], 1 / 60)).toBe(false);
   });
+
+  // The replay window spans everything the server has not acknowledged, not just
+  // the snapshot's age. Anchoring on the snapshot's arrival made the window just
+  // that age, so prediction cancelled the interpolation buffer and nothing else
+  // and the local body sat a full one-way trip behind the server.
+  it('replays the whole un-acknowledged span, so a longer trip predicts further', () => {
+    const driveWithUnackedSpan = (ackAgeMs: number) => {
+      let clock = 0;
+      setPredictorClockForTesting(() => clock);
+
+      const predictor = new LocalCharacterPredictor();
+      predictor.setStrength(80);
+      // The key went down well before the acknowledged span and is still held —
+      // the case that used to freeze the acknowledgement, because movement is
+      // only transmitted when it changes.
+      clock = 9_000;
+      predictor.recordInput([1, 0]);
+
+      clock = 10_000;
+      const auth = poseAt(0, 0);
+      // The server has confirmed input only up to `ackAgeMs` ago; the snapshot
+      // carrying that acknowledgement arrives now.
+      predictor.acknowledge(clock - ackAgeMs, [0, 0], -Infinity);
+      predictor.setAuthoritative(
+        auth.head as never,
+        auth.leftFoot as never,
+        auth.rightFoot as never,
+      );
+
+      predictor.update([], 1 / 60);
+      return predictor.head.center[0];
+    };
+
+    const shortTrip = driveWithUnackedSpan(40);
+    const longTrip = driveWithUnackedSpan(200);
+
+    expect(shortTrip).toBeGreaterThan(0);
+    // A 200 ms un-acknowledged span must predict meaningfully further ahead than
+    // a 40 ms one; when the window was pinned to the snapshot they were equal.
+    expect(longTrip).toBeGreaterThan(shortTrip * 2);
+  });
+  // ...but the anchor must not also inherit the AGE of whichever input happened
+  // to be the newest one the server had when it took the snapshot. Input is sent
+  // once per frame, so that age is 0..1 frame depending on where the client's
+  // frames fell between two snapshots, and it walks a sawtooth: measured against
+  // a real server on localhost it ran 5, 16, 12, 8, 3, 14, 9, 1 ms and so on.
+  // Left in the window, it jumped the predicted body by up to a frame of travel
+  // 25 times a second — the local body was choppy on a link with no latency at
+  // all to hide it. The server reports the age with the acknowledgement so the
+  // anchor lands on the snapshot instant instead.
+  it('cancels the age of the acknowledged input, so the send cadence cannot beat', () => {
+    // Both runs describe the SAME snapshot: taken 20 ms ago, of the same pose.
+    // They differ only in how long before it the server's newest input arrived.
+    const snapshotAgeMs = 20;
+    const drive = (inputAgeMs: number, serverReportsAge: boolean) => {
+      let clock = 0;
+      setPredictorClockForTesting(() => clock);
+
+      const predictor = new LocalCharacterPredictor();
+      predictor.setStrength(80);
+      clock = 9_000;
+      predictor.recordInput([1, 0]); // held down throughout
+
+      clock = 10_000;
+      predictor.acknowledge(
+        clock - snapshotAgeMs - inputAgeMs,
+        [0, 0],
+        -Infinity,
+        serverReportsAge ? inputAgeMs : 0,
+      );
+      const auth = poseAt(0, 0);
+      predictor.setAuthoritative(
+        auth.head as never,
+        auth.leftFoot as never,
+        auth.rightFoot as never,
+      );
+
+      predictor.update([], 1 / 60);
+      return predictor.head.center[0];
+    };
+
+    expect(drive(16, true)).toBeCloseTo(drive(0, true), 6);
+    // And the difference being cancelled is a real one: uncancelled, the same
+    // 16 ms moves the body, so the assertion above does not hold vacuously.
+    expect(Math.abs(drive(16, false) - drive(0, false))).toBeGreaterThan(0.5);
+  });
 });

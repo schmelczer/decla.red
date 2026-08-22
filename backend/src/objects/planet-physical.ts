@@ -69,7 +69,7 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
     const sizeClass = clamp01(
       (this.radius - settings.planetMinReferenceRadius) /
-        (settings.planetMaxReferenceRadius - settings.planetMinReferenceRadius),
+      (settings.planetMaxReferenceRadius - settings.planetMinReferenceRadius),
     );
 
     this.sizePointMultiplier = mix(1, settings.planetSizePointMultiplierMax, sizeClass);
@@ -222,8 +222,25 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
     }
   }
 
+  // hysteresis
+  private get flipTeam(): CharacterTeam {
+    const control = this.ownership - 0.5;
+    const enter = settings.planetControlThreshold + settings.planetFlipHysteresis;
+
+    if (control > enter) {
+      return CharacterTeam.red;
+    }
+    if (control < -enter) {
+      return CharacterTeam.blue;
+    }
+    if (Math.abs(control) < settings.planetControlThreshold) {
+      return CharacterTeam.neutral;
+    }
+    return this.lastTeam;
+  }
+
   private detectFlip(game: CommandReceiver) {
-    const currentTeam = this.team;
+    const currentTeam = this.flipTeam;
     if (currentTeam === this.lastTeam) {
       return;
     }

@@ -99,6 +99,18 @@ export abstract class FeedbackHud {
     this.elimination = undefined;
   }
 
+  /**
+   * Tear the HUD down entirely. Its root lives on document.body rather than the
+   * game overlay, so leaving a match while dead used to leave "Eliminated /
+   * Respawning…" painted over the landing page.
+   */
+  public static reset(): void {
+    this.hideElimination();
+    this.root?.parentElement?.removeChild(this.root);
+    this.root = undefined;
+    this.killfeed = undefined;
+  }
+
   private static streakName(streak: number): string | undefined {
     switch (streak) {
       case 2:

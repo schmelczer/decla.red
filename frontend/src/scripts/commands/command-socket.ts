@@ -1,5 +1,21 @@
-import { Command, CommandReceiver, serialize, TransportEvents } from 'shared';
+import {
+  ClientHeartbeatCommand,
+  Command,
+  CommandReceiver,
+  serialize,
+  settings,
+  TransportEvents,
+} from 'shared';
 import { Socket } from 'socket.io-client';
+import { predictorNowMs } from '../helper/prediction/local-character-predictor';
+
+const heartbeatIntervalMs = settings.clientSendInterval * 1000;
+
+// A frame that lands a hair short of the deadline still counts as due. At an
+// exact ratio of frame rate to interval — 60 Hz against 30 Hz — whether the gap
+// compares as reached is decided by floating-point noise, and the heartbeat
+// slips a whole frame every third beat, drifting to ~21 Hz instead of 30.
+const dueToleranceMs = 1;
 
 export class CommandSocket extends CommandReceiver {
   constructor(private readonly socket: Socket) {
@@ -7,14 +23,35 @@ export class CommandSocket extends CommandReceiver {
   }
 
   private commandQueue: Array<Command> = [];
+  private lastSendMs = -Infinity;
+
   protected defaultCommandExecutor(command: Command) {
     this.commandQueue.push(command);
   }
 
   public sendQueuedCommands() {
-    if (this.commandQueue.length > 0) {
-      this.socket.emit(TransportEvents.PlayerToServer, serialize(this.commandQueue));
-      this.commandQueue = [];
+    const nowMs = predictorNowMs();
+
+    // Real input goes out on the frame it happens — that is the whole latency
+    // budget the player feels. An idle client still has to keep the server's
+    // input acknowledgement moving (a held key generates no fresh command), but
+    // that heartbeat is paced by the clock rather than by the frame rate.
+    //
+    // Sending once per rendered frame instead put every display above
+    // settings.maxInboundMessagesPerSecond permanently over the server's inbound
+    // allowance; once the burst was spent it silently discarded whole batches,
+    // and since movement commands are edge-triggered and never re-sent, a lost
+    // batch meant the direction change simply never happened.
+    if (
+      this.commandQueue.length === 0 &&
+      nowMs - this.lastSendMs < heartbeatIntervalMs - dueToleranceMs
+    ) {
+      return;
     }
+    this.lastSendMs = nowMs;
+
+    this.commandQueue.push(new ClientHeartbeatCommand(Math.round(nowMs)));
+    this.socket.emit(TransportEvents.PlayerToServer, serialize(this.commandQueue));
+    this.commandQueue = [];
   }
 }

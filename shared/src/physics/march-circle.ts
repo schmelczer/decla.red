@@ -9,12 +9,18 @@ export interface MarchResult {
   hitObject?: Sdf;
 }
 
+const minimumStep = 0.5;
+const maximumSteps = 256;
+
 // Raymarch a circle by `delta`, stopping at the first surface it would overlap.
-// Extracted verbatim from the backend's move-circle so server and client
-// resolve motion identically. The collision *reaction* is no longer dispatched
-// here: on a real (non-ignored) hit, `onHit(intersecting)` is invoked at the
-// exact point the backend used to dispatch its ReactToCollisionCommands, and
-// the backend wrapper supplies that callback. The client passes none.
+// Shared so server and client resolve motion identically. The collision
+// *reaction* is not dispatched here: on a real (non-ignored) hit,
+// `onHit(intersecting)` is invoked at the point the backend used to dispatch its
+// ReactToCollisionCommands, and the backend wrapper supplies that callback. The
+// client passes none.
+//
+// The march advances by the *free gap* (distance minus the circle's radius),
+// which is what sphere-tracing a circle of radius r requires. 
 export const marchCircle = (
   body: PhysicsBody,
   delta: vec2,
@@ -22,23 +28,23 @@ export const marchCircle = (
   ignoreCollision = false,
   onHit?: (intersecting: Sdf) => void,
 ): MarchResult => {
-  const direction = vec2.clone(delta);
+  const deltaLength = vec2.length(delta);
 
-  if (vec2.length(delta) > 0) {
-    vec2.normalize(direction, direction);
+  // A zero-length move cannot resolve a contact by advancing, so report no hit
+  // rather than letting a caller that loops on `hitSurface` spin forever.
+  if (!(deltaLength > 0)) {
+    return { hitSurface: false };
   }
 
-  const deltaLength = vec2.length(delta);
-  let travelled = 0;
+  const direction = vec2.normalize(vec2.create(), delta);
+
   const rayEnd = vec2.create();
-  let prevMinDistance = 0;
-  while (travelled < deltaLength) {
-    travelled += prevMinDistance;
-    vec2.add(
-      rayEnd,
-      body.center,
-      vec2.scale(vec2.create(), direction, Math.min(travelled, deltaLength)),
-    );
+  let travelled = 0;
+  // Furthest point along the ray known to be overlap-free; a hit rewinds here.
+  let lastFreeDistance = 0;
+
+  for (let step = 0; step < maximumSteps; step++) {
+    vec2.scaleAndAdd(rayEnd, body.center, direction, travelled);
 
     const minDistance = evaluateSdf(rayEnd, possibleIntersectors);
 
@@ -48,31 +54,37 @@ export const marchCircle = (
       )!;
 
       if (ignoreCollision) {
-        body.center = vec2.add(body.center, body.center, delta);
-      } else {
-        onHit?.(intersecting);
+        // Pass straight through, but still report the contact so callers that
+        // march repeatedly to escape geometry keep making progress.
+        vec2.scaleAndAdd(body.center, body.center, direction, deltaLength);
+        return { hitSurface: true, hitObject: intersecting };
       }
 
-      vec2.add(
-        rayEnd,
-        body.center,
-        vec2.scale(vec2.create(), direction, travelled - prevMinDistance),
-      );
+      onHit?.(intersecting);
 
+      vec2.scaleAndAdd(rayEnd, body.center, direction, lastFreeDistance);
       vec2.copy(body.center, rayEnd);
 
-      const normal = sdfNormal(rayEnd, [intersecting]);
       return {
         hitSurface: true,
-        normal,
+        normal: sdfNormal(rayEnd, [intersecting]),
         hitObject: intersecting,
       };
     }
 
-    prevMinDistance = minDistance;
+    lastFreeDistance = travelled;
+
+    if (travelled >= deltaLength) {
+      break;
+    }
+
+    travelled = Math.min(
+      travelled + Math.max(minDistance - body.radius, minimumStep),
+      deltaLength,
+    );
   }
 
-  vec2.add(body.center, body.center, delta);
+  vec2.scaleAndAdd(body.center, body.center, direction, deltaLength);
 
   return {
     hitSurface: false,

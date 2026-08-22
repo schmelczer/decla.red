@@ -21,6 +21,7 @@ import {
   Command,
   settings,
   InputAcknowledgement,
+  JoinRejectionReason,
 } from 'shared';
 import { io, Socket } from 'socket.io-client';
 import { KeyboardListener } from './commands/keyboard-listener';
@@ -40,6 +41,7 @@ import { Tutorial } from './tutorial';
 import { Scoreboard } from './scoreboard';
 import { Minimap } from './minimap';
 import { ScreenShake } from './screen-shake';
+import { FeedbackHud } from './feedback-hud';
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
@@ -60,6 +62,11 @@ export class Game extends CommandReceiver {
   private keystoneArrow?: HTMLElement;
   private socketReceiver!: CommandSocket;
   private tutorial!: Tutorial;
+  // Issued by the server on join; presented on reconnect to reclaim this
+  // player's team and score instead of coming back as a blank slate.
+  private reconnectToken?: string;
+  private connectionBanner?: HTMLElement;
+  private rejectionReason?: JoinRejectionReason;
 
   constructor(
     private readonly playerDecision: PlayerDecision,
@@ -110,19 +117,76 @@ export class Game extends CommandReceiver {
       this.socket.io.opts.transports = ['polling', 'websocket'];
     });
 
+    // A transport drop is not the end of the match. Previously this tore the
+    // game down on the first `disconnect`, which stopped the render loop, which
+    // closed the socket — cancelling the reconnection the client is configured
+    // for before it could ever run, and dumping the player on the server list.
     this.socket.on('disconnect', () => {
-      if (!this.isBetweenGames) {
-        this.destroy();
+      if (this.isBetweenGames) {
+        return;
       }
+      this.showConnectionBanner('Reconnecting…');
     });
 
-    this.socket.on(TransportEvents.Ping, () => {
-      this.socket.emit(TransportEvents.Pong);
+    this.socket.on('connect', () => {
+      if (this.isBetweenGames) {
+        return;
+      }
+      // A reconnect is a brand-new server-side connection that has never seen a
+      // join, so the join has to be re-sent or the client sits connected and
+      // invisible forever.
+      this.hideConnectionBanner();
+      serverTimeline.reset();
+      localCharacterPredictor.reset();
+      // ...and it is a brand-new server-side *player*, whose view-area
+      // bookkeeping starts empty. Anything the dropped session was told about
+      // will never be retracted, so the old world has to go here.
+      this.gameObjects.reset();
+      this.socket.emit(TransportEvents.PlayerJoining, {
+        ...this.playerDecision,
+        reconnectToken: this.reconnectToken,
+      });
+    });
+
+    this.socket.io.on('reconnect_failed', () => {
+      this.showConnectionBanner('Connection lost');
+      this.destroy();
+    });
+
+    this.socket.on(TransportEvents.PlayerJoined, (token: string) => {
+      this.reconnectToken = typeof token === 'string' ? token : undefined;
+      this.hideConnectionBanner();
+    });
+
+    this.socket.on(TransportEvents.JoinRejected, (reason: JoinRejectionReason) => {
+      this.rejectionReason = reason;
+      this.showConnectionBanner(Game.rejectionText(reason));
+      this.destroy();
+    });
+
+    // Echo the nonce: the server only accepts a reply that matches the ping
+    // still outstanding, so a stale or duplicated Pong cannot move its RTT.
+    this.socket.on(TransportEvents.Ping, (nonce: unknown) => {
+      this.socket.emit(TransportEvents.Pong, nonce);
     });
 
     this.socket.on(TransportEvents.ServerToPlayer, (serializedCommands: string) => {
-      const commands: Array<Command> = deserialize(serializedCommands);
-      commands.forEach((c) => this.handleCommand(c));
+      // One malformed object must not take down the message pump. deserialize
+      // revives classes by name from the payload, so a hostile or corrupt field
+      // can throw inside JSON.parse's reviver — and every later batch would be
+      // lost with it.
+      try {
+        const commands: Array<Command> = deserialize(serializedCommands);
+        commands.forEach((c) => {
+          try {
+            this.handleCommand(c);
+          } catch (e) {
+            console.error('Failed to apply a server command', e);
+          }
+        });
+      } catch (e) {
+        console.error('Dropped an undecodable server message', e);
+      }
     });
 
     this.socketReceiver = new CommandSocket(this.socket);
@@ -138,9 +202,10 @@ export class Game extends CommandReceiver {
     this.touchListener.subscribe(this.socketReceiver);
     this.touchListener.subscribe(this.tutorial);
 
+    // The join is emitted from the socket's `connect` handler above, which fires
+    // for the first connection and for every reconnection alike — so one code
+    // path covers both, and a reconnect can never be left unjoined.
     this.isBetweenGames = false;
-
-    this.socket.emit(TransportEvents.PlayerJoining, this.playerDecision);
   }
 
   protected defaultCommandExecutor(c: Command) {
@@ -163,6 +228,7 @@ export class Game extends CommandReceiver {
         c.clientTimeMs,
         c.bodyVelocity,
         c.lastLeapClientTimeMs,
+        c.ackAgeMs,
       ),
     [GameEndCommand.type]: () => (this.isEnding = true),
     [UpdateMinimap.type]: (c: UpdateMinimap) => (this.lastMinimap = c),
@@ -208,9 +274,47 @@ export class Game extends CommandReceiver {
     );
     this.socket.close();
     this.overlay.innerHTML = '';
+    this.hideConnectionBanner();
+    // The HUD root lives on document.body, not the overlay, so it has to be torn
+    // down explicitly or it stays painted over the landing page.
+    FeedbackHud.reset();
     this.keyboardListener.destroy();
     this.mouseListener.destroy();
     this.touchListener.destroy();
+  }
+
+  /** Why the player was sent back to the server list, if they were. */
+  public get lastRejectionReason(): JoinRejectionReason | undefined {
+    return this.rejectionReason;
+  }
+
+  public static rejectionText(reason: JoinRejectionReason): string {
+    switch (reason) {
+      case JoinRejectionReason.ServerFull:
+        return 'That server is full — pick another';
+      case JoinRejectionReason.RoundEnding:
+        return 'That round is just finishing — try again in a moment';
+      case JoinRejectionReason.AlreadyJoined:
+        return 'Already joined on this connection';
+      default:
+        return 'The server refused the connection';
+    }
+  }
+
+  private showConnectionBanner(text: string) {
+    if (!this.connectionBanner) {
+      this.connectionBanner = document.createElement('div');
+      this.connectionBanner.className = 'connection-banner';
+      this.overlay.appendChild(this.connectionBanner);
+    }
+    this.connectionBanner.innerText = text;
+    this.connectionBanner.style.display = 'block';
+  }
+
+  private hideConnectionBanner() {
+    if (this.connectionBanner) {
+      this.connectionBanner.style.display = 'none';
+    }
   }
 
   public displayToWorldCoordinates(p: vec2): vec2 {

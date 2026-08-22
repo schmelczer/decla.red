@@ -38,6 +38,11 @@ export const settings = {
   // exceeds this, and the rendered ownership ring stays neutral until the same
   // point — so what you see matches what scores.
   planetControlThreshold: 0.12,
+  // Extra margin a planet must clear *beyond* planetControlThreshold before a
+  // capture flip pays out again (a Schmitt trigger). Without it, ownership
+  // hovering on the dead-band edge re-triggers the reward, the announcement and
+  // the flare every time it grazes the boundary.
+  planetFlipHysteresis: 0.06,
   playerMaxHealth: 100,
   maxGravityStrength: 50000,
   planetMinReferenceRadius: 150,
@@ -201,6 +206,53 @@ export const settings = {
 
   // Recoil speed imparted opposite a shot, scaled by its charge (0 for taps).
   chargeShotRecoilMax: 650,
+
+  // Lag compensation for projectiles. A shot is fast-forwarded by the time its
+  // command spent reaching the server, so the shooter does not have to lead by
+  // their own latency on top of the projectile's travel time. Capped so a very
+  // bad (or forged) timestamp cannot spawn a shot arbitrarily far downrange.
+  maxProjectileCatchUpSeconds: 0.2,
+
+  // How long a dropped player's score and team are held so a reconnect within
+  // the window rejoins as the same player instead of a blank slate.
+  reconnectGraceSeconds: 30,
+
+  // Hard ceiling on one inbound client message. socket.io's 1 MB default is far
+  // more than any legitimate command batch, and parsing is synchronous with the
+  // physics loop — a single oversized message stalls the tick for everyone.
+  maxInboundMessageBytes: 16 * 1024,
+
+  // How often an idle client flushes its command queue. Input is flushed on the
+  // frame it happens, so this only paces the heartbeat that keeps the server's
+  // input acknowledgement moving while a key is simply held.
+  //
+  // It must NOT be the frame rate. Sending once per rendered frame put a 144 Hz
+  // display permanently over the inbound allowance below, and once the burst was
+  // spent the server silently discarded whole batches — including the
+  // edge-triggered movement commands, which are never re-sent, so the player
+  // kept walking the old way until they pressed something else.
+  clientSendInterval: 1 / 30,
+
+  // Inbound allowance per socket: a token bucket sized far above anything a
+  // legitimate client produces (a 30 Hz heartbeat plus whatever discrete input
+  // events a human generates), so it only ever trips on a flood. Dropping a
+  // batch loses real input, so the headroom is deliberate.
+  maxInboundMessagesPerSecond: 240,
+  maxInboundMessageBurst: 480,
+
+  // Ceiling on a measured round-trip time. The Pong that carries it comes from
+  // the client, which can always answer late; the nonce check makes the reply
+  // unforgeable and single-use, and this bounds what stalling one can buy.
+  maxMeasuredRttMs: 1000,
+
+  // Skip the bulky part of a snapshot when the socket already has this much
+  // unflushed. A slow or stalled client otherwise accumulates a backlog it will
+  // never catch up on, and the newest snapshot is the only one that matters.
+  maxBufferedBytesPerClient: 256 * 1024,
+
+  // Sanity bound on a client-supplied world position (the arena is
+  // worldRadius across, so anything past this is nonsense).
+  maxClientPositionMagnitude: 1e6,
 
   // The central giant is a named, always-contested focus. Its neutral decay is
   // slowed so control lingers and teams keep fighting over it; flips are

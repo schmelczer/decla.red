@@ -10,7 +10,10 @@ import {
 } from 'shared';
 import { Game } from '../game';
 import { ChargeIndicator } from '../charge-indicator';
-import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
+import {
+  localCharacterPredictor,
+  predictorNowMs,
+} from '../helper/prediction/local-character-predictor';
 
 export class TouchListener extends CommandGenerator {
   private static readonly deadZone = 8;
@@ -24,6 +27,7 @@ export class TouchListener extends CommandGenerator {
   private isJoystickActive = false;
   private touchStartPosition!: vec2;
   private primaryDownAt: number | null = null;
+  private gestureTouchId: number | null = null;
 
   private fireButton: HTMLElement;
   private fireStrengthRing: HTMLElement;
@@ -69,23 +73,43 @@ export class TouchListener extends CommandGenerator {
     target.addEventListener('touchstart', this.touchStartListener);
     target.addEventListener('touchmove', this.touchMoveListener);
     target.addEventListener('touchend', this.touchEndListener);
+    target.addEventListener('touchcancel', this.touchCancelListener);
+  }
+
+  // The contact that started this gesture, or undefined if it is not in `list`.
+  private findGestureTouch(list: TouchList): Touch | undefined {
+    if (this.gestureTouchId === null) {
+      return undefined;
+    }
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].identifier === this.gestureTouchId) {
+        return list[i];
+      }
+    }
+    return undefined;
   }
 
   private touchStartListener = (event: TouchEvent) => {
     event.preventDefault();
     if (this.isJoystickActive) {
       const center = vec2.fromValues(
-        last(event.touches)!.clientX,
-        last(event.touches)!.clientY,
+        last(event.changedTouches)!.clientX,
+        last(event.changedTouches)!.clientY,
       );
       this.sendCommandToSubscribers(
-        new PrimaryActionCommand(this.game.displayToWorldCoordinates(center)),
+        new PrimaryActionCommand(
+          this.game.displayToWorldCoordinates(center),
+          0,
+          Math.round(predictorNowMs()),
+        ),
       );
     } else {
-      this.touchStartPosition = vec2.fromValues(
-        event.touches[0].clientX,
-        event.touches[0].clientY,
-      );
+      const touch = event.changedTouches[0];
+      if (!touch) {
+        return;
+      }
+      this.gestureTouchId = touch.identifier;
+      this.touchStartPosition = vec2.fromValues(touch.clientX, touch.clientY);
       this.primaryDownAt = performance.now();
       ChargeIndicator.begin(this.touchStartPosition.x, this.touchStartPosition.y);
     }
@@ -94,10 +118,12 @@ export class TouchListener extends CommandGenerator {
   private touchMoveListener = (event: TouchEvent) => {
     event.preventDefault();
 
-    const touchPosition = vec2.fromValues(
-      event.touches[0].clientX,
-      event.touches[0].clientY,
-    );
+    const touch = this.findGestureTouch(event.touches);
+    if (!touch || !this.touchStartPosition) {
+      return;
+    }
+
+    const touchPosition = vec2.fromValues(touch.clientX, touch.clientY);
 
     const delta = vec2.subtract(vec2.create(), touchPosition, this.touchStartPosition);
     vec2.scale(delta, delta, TouchListener.deltaScaling);
@@ -133,6 +159,14 @@ export class TouchListener extends CommandGenerator {
   private touchEndListener = (event: TouchEvent) => {
     event.preventDefault();
 
+    // Only the contact that owns the gesture ends it — not whichever finger
+    // happens to lift, and not "the screen is now empty".
+    const touch = this.findGestureTouch(event.changedTouches);
+    if (!touch) {
+      return;
+    }
+    this.gestureTouchId = null;
+
     if (!this.isJoystickActive) {
       ChargeIndicator.end();
       const charge =
@@ -140,19 +174,38 @@ export class TouchListener extends CommandGenerator {
           ? 0
           : holdDurationToCharge((performance.now() - this.primaryDownAt) / 1000);
       this.primaryDownAt = null;
-      const center = vec2.fromValues(
-        event.changedTouches[0].clientX,
-        event.changedTouches[0].clientY,
-      );
+      const center = vec2.fromValues(touch.clientX, touch.clientY);
       this.sendCommandToSubscribers(
-        new PrimaryActionCommand(this.game.displayToWorldCoordinates(center), charge),
+        new PrimaryActionCommand(
+          this.game.displayToWorldCoordinates(center),
+          charge,
+          Math.round(predictorNowMs()),
+        ),
       );
-    } else if (event.touches.length === 0) {
-      this.isJoystickActive = false;
-      this.joystick.parentElement?.removeChild(this.joystick);
-      this.sendMove(vec2.create());
+    } else {
+      this.releaseJoystick();
     }
   };
+
+  // Also reached from touchcancel: a system gesture, an incoming call or a
+  // palm rejection would otherwise leave the stick latched at full tilt.
+  private touchCancelListener = (event: TouchEvent) => {
+    if (!this.findGestureTouch(event.changedTouches)) {
+      return;
+    }
+    this.gestureTouchId = null;
+    this.primaryDownAt = null;
+    ChargeIndicator.end();
+    if (this.isJoystickActive) {
+      this.releaseJoystick();
+    }
+  };
+
+  private releaseJoystick() {
+    this.isJoystickActive = false;
+    this.joystick.parentElement?.removeChild(this.joystick);
+    this.sendMove(vec2.create());
+  }
 
   private swallowTouch = (event: TouchEvent) => {
     event.preventDefault();
@@ -237,7 +290,9 @@ export class TouchListener extends CommandGenerator {
       direction,
       settings.touchAimRange,
     );
-    this.sendCommandToSubscribers(new PrimaryActionCommand(aim, charge));
+    this.sendCommandToSubscribers(
+      new PrimaryActionCommand(aim, charge, Math.round(predictorNowMs())),
+    );
   };
 
   public update(_deltaTimeInSeconds: number) {
@@ -250,9 +305,8 @@ export class TouchListener extends CommandGenerator {
 
     const character = this.game.gameObjects.player;
     if (character) {
-      this.fireStrengthRing.style.background = `conic-gradient(rgba(255, 255, 255, 0.75) ${
-        character.strengthFraction * 360
-      }deg, transparent 0deg)`;
+      this.fireStrengthRing.style.background = `conic-gradient(rgba(255, 255, 255, 0.75) ${character.strengthFraction * 360
+        }deg, transparent 0deg)`;
     }
   }
 
@@ -261,6 +315,7 @@ export class TouchListener extends CommandGenerator {
     this.target.removeEventListener('touchstart', this.touchStartListener);
     this.target.removeEventListener('touchmove', this.touchMoveListener);
     this.target.removeEventListener('touchend', this.touchEndListener);
+    this.target.removeEventListener('touchcancel', this.touchCancelListener);
 
     this.fireButton.removeEventListener('touchstart', this.fireButtonDownListener);
     this.fireButton.removeEventListener('touchmove', this.fireButtonMoveListener);

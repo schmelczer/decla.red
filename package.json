@@ -22,6 +22,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "init": "cd shared && npm install && cd ../frontend && npm install && cd ../backend && npm install",
-    "dev": "concurrently --kill-others-on-fail \"cd shared && npm dev\"  \"cd backend && npm dev\"  \"cd frontend && npm dev\""
+    "dev": "concurrently --kill-others-on-fail --names shared,backend,frontend \"cd shared && npm run dev\" \"cd backend && npm run dev\" \"cd frontend && npm run dev\""
   }
 }

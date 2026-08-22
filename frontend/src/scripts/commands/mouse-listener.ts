@@ -2,6 +2,7 @@ import { vec2 } from 'gl-matrix';
 import { CommandGenerator, PrimaryActionCommand, holdDurationToCharge } from 'shared';
 import { Game } from '../game';
 import { ChargeIndicator } from '../charge-indicator';
+import { predictorNowMs } from '../helper/prediction/local-character-predictor';
 import { Pointer } from '../helper/pointer';
 
 export class MouseListener extends CommandGenerator {
@@ -16,9 +17,13 @@ export class MouseListener extends CommandGenerator {
     super();
 
     target.addEventListener('mousedown', this.mouseDownListener);
-    target.addEventListener('mouseup', this.mouseUpListener);
     target.addEventListener('mousemove', this.mouseMoveListener);
     target.addEventListener('contextmenu', this.contextMenuListener);
+    // Release is watched on the window, not the canvas: a charge released over
+    // the settings gear, the fullscreen icon, or outside the window otherwise
+    // never fired the shot and left the charge ring up until the next press.
+    window.addEventListener('mouseup', this.mouseUpListener);
+    window.addEventListener('blur', this.cancelPrimary);
   }
 
   // Only the screen position is stored; it is reprojected to world space each
@@ -46,8 +51,21 @@ export class MouseListener extends CommandGenerator {
     const charge = holdDurationToCharge((performance.now() - this.primaryDownAt) / 1000);
     this.primaryDownAt = null;
     this.sendCommandToSubscribers(
-      new PrimaryActionCommand(this.positionFromEvent(event), charge),
+      new PrimaryActionCommand(
+        this.positionFromEvent(event),
+        charge,
+        Math.round(predictorNowMs()),
+      ),
     );
+  };
+
+  // Losing the window mid-charge cannot produce a meaningful aim point, so drop
+  // the charge rather than leaving the indicator running.
+  private cancelPrimary = () => {
+    if (this.primaryDownAt !== null) {
+      this.primaryDownAt = null;
+      ChargeIndicator.end();
+    }
   };
 
   // Suppress the browser context menu on the canvas; right-click has no action.
@@ -64,8 +82,9 @@ export class MouseListener extends CommandGenerator {
   public destroy() {
     ChargeIndicator.end();
     this.target.removeEventListener('mousedown', this.mouseDownListener);
-    this.target.removeEventListener('mouseup', this.mouseUpListener);
     this.target.removeEventListener('mousemove', this.mouseMoveListener);
     this.target.removeEventListener('contextmenu', this.contextMenuListener);
+    window.removeEventListener('mouseup', this.mouseUpListener);
+    window.removeEventListener('blur', this.cancelPrimary);
   }
 }

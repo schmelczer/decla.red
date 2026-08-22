@@ -14,20 +14,26 @@ export class KeyboardListener extends CommandGenerator {
   }
 
   private keyDownListener = (event: KeyboardEvent) => {
-    const key = event.key.toLowerCase();
-    // Space leaps (W / ArrowUp already cover walking up). Edge-triggered so a
-    // held key's auto-repeat doesn't spam leaps.
-    if ((key === ' ' || key === 'shift') && !this.keysDown.has(key)) {
+    const key = event.code;
+    if (
+      (key === 'Space' || key === 'ShiftLeft' || key === 'ShiftRight') &&
+      !this.keysDown.has(key)
+    ) {
       const clientTimeMs = localCharacterPredictor.recordLeap();
       this.sendCommandToSubscribers(new LeapActionCommand(clientTimeMs));
+    }
+
+    if (this.keysDown.has(key)) {
+      return;
     }
     this.keysDown.add(key);
     this.generateCommands();
   };
 
   private keyUpListener = (event: KeyboardEvent) => {
-    this.keysDown.delete(event.key.toLowerCase());
-    this.generateCommands();
+    if (this.keysDown.delete(event.code)) {
+      this.generateCommands();
+    }
   };
 
   private blurListener = () => {
@@ -36,10 +42,10 @@ export class KeyboardListener extends CommandGenerator {
   };
 
   private generateCommands() {
-    const up = ~~(this.keysDown.has('w') || this.keysDown.has('arrowup'));
-    const down = ~~(this.keysDown.has('s') || this.keysDown.has('arrowdown'));
-    const left = ~~(this.keysDown.has('a') || this.keysDown.has('arrowleft'));
-    const right = ~~(this.keysDown.has('d') || this.keysDown.has('arrowright'));
+    const up = ~~(this.keysDown.has('KeyW') || this.keysDown.has('ArrowUp'));
+    const down = ~~(this.keysDown.has('KeyS') || this.keysDown.has('ArrowDown'));
+    const left = ~~(this.keysDown.has('KeyA') || this.keysDown.has('ArrowLeft'));
+    const right = ~~(this.keysDown.has('KeyD') || this.keysDown.has('ArrowRight'));
 
     const movement = vec2.fromValues(right - left, up - down);
     if (vec2.squaredLength(movement) > 0) {

@@ -1,5 +1,6 @@
 import { glMatrix } from 'gl-matrix';
 import {
+  applyArrayPlugins,
   LampBase,
   overrideDeserialization,
   PlanetBase,
@@ -29,6 +30,7 @@ import { PlanetView } from './scripts/objects/types/planet-view';
 import { ProjectileView } from './scripts/objects/types/projectile-view';
 
 glMatrix.setMatrixArrayType(Array);
+applyArrayPlugins();
 
 overrideDeserialization(CharacterBase, CharacterView);
 overrideDeserialization(PlanetBase, PlanetView);
@@ -52,6 +54,11 @@ const enableSounds = document.querySelector('#enable-sounds') as HTMLInputElemen
 const enableMusic = document.querySelector('#enable-music') as HTMLInputElement;
 const enableVibration = document.querySelector('#enable-vibration') as HTMLInputElement;
 const spinner = document.querySelector('#spinner-container') as HTMLElement;
+
+const joinNotice = document.createElement('p');
+joinNotice.className = 'join-notice';
+joinNotice.style.display = 'none';
+joinGameForm.prepend(joinNotice);
 
 const toggleSettings = () => {
   settings.className = settings.className === 'open' ? '' : 'open';
@@ -122,7 +129,7 @@ const main = async () => {
     });
     window.onpopstate = () => game.destroy();
 
-    for (;;) {
+    for (; ;) {
       show(spinner);
       hide(logoutButton, true);
       show(landingUI, true, 'flex');
@@ -150,6 +157,14 @@ const main = async () => {
       hide(spinner);
       show(logoutButton, true, 'block');
       await gameOver;
+
+      const reason = game.lastRejectionReason;
+      if (reason) {
+        joinNotice.innerText = Game.rejectionText(reason);
+        joinNotice.style.display = 'block';
+      } else {
+        joinNotice.style.display = 'none';
+      }
     }
   } catch (e) {
     console.error(e);

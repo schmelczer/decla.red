@@ -15,6 +15,7 @@ import {
   UpdatePropertyCommand,
 } from 'shared';
 import { BeforeDestroyCommand } from '../commands/types/before-destroy';
+import { RenderCommand } from '../commands/types/render';
 import { StepCommand } from '../commands/types/step';
 import { FeedbackHud } from '../feedback-hud';
 import { Game } from '../game';
@@ -31,6 +32,19 @@ export class GameObjectContainer extends CommandReceiver {
   public camera: Camera = new Camera(this.game);
   private wasLocalPlayerAlive = false;
 
+  // Create and delete arrive on the wire, but positions are drawn
+  // interpolationDelaySeconds in the past — so applying them the instant a
+  // packet lands made every projectile pop into existence and hang at its muzzle
+  // for 100 ms, then disappear a few hundred units before its rendered impact.
+  // Objects are therefore admitted and retired on the render timeline instead:
+  // they exist (and accumulate interpolation frames) from the moment they
+  // arrive, but only draw once the cursor reaches the snapshot that introduced
+  // them, and keep drawing until it reaches the one that removed them.
+  private visibleFrom = new Map<Id, number>();
+  private deleteAt = new Map<Id, number>();
+  private awaitingCreateStamp: Array<Id> = [];
+  private awaitingDeleteStamp: Array<Id> = [];
+
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
       this.player = c.character as CharacterView;
@@ -45,9 +59,17 @@ export class GameObjectContainer extends CommandReceiver {
     },
 
     [CreateObjectsCommand.type]: (c: CreateObjectsCommand) =>
-      c.objects.forEach((o) => this.addObject(o as GameObject)),
+      c.objects.forEach((o) => {
+        this.addObject(o as GameObject);
+        this.awaitingCreateStamp.push((o as GameObject).id);
+      }),
 
     [StepCommand.type]: (c: StepCommand) => {
+      // A batch carrying no property updates (a bare announcement, say) leaves
+      // entries unstamped; fall back to the newest known snapshot so nothing is
+      // stranded invisible.
+      this.stampPending(serverTimeline.snapshotTime);
+      this.retireDueObjects();
       this.defaultCommandExecutor(c);
 
       // The local body is alive only while its object still exists (the server
@@ -91,6 +113,9 @@ export class GameObjectContainer extends CommandReceiver {
 
     [PropertyUpdatesForObjects.type]: (c: PropertyUpdatesForObjects) => {
       serverTimeline.onSnapshot(c.timestamp);
+      // Create/delete precede the property updates inside a batch, so this is
+      // where the batch's server timestamp becomes known to them.
+      this.stampPending(c.timestamp);
       c.updates.forEach((u) => {
         u.updates.forEach((au) => this.objects.get(u.id)?.handleCommand(au));
         if (this.player && u.id === this.player.id) {
@@ -100,17 +125,36 @@ export class GameObjectContainer extends CommandReceiver {
     },
 
     [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
-      c.ids.forEach((id: Id) => this.deleteObject(id)),
+      c.ids.forEach((id: Id) => this.awaitingDeleteStamp.push(id)),
   };
 
   constructor(private game: Game) {
     super();
   }
 
-  // The local player's world position, but only while the body is alive. On
-  // death the server deletes the character object (yet `player` keeps pointing
-  // at the now-stale view), so gate on the object still being present — otherwise
-  // the minimap would pin the "you" dot at the death spot for the whole respawn.
+  /**
+   * Forget everything the previous connection was told about.
+   *
+   * A reconnect is a brand-new server-side player whose view-area bookkeeping
+   * starts empty, so it re-announces what is in view NOW and never sends a
+   * delete for anything the dropped session held. Without this, every object
+   * that has since moved out of view — the old character included — stays in the
+   * map and on screen forever, as a frozen ghost.
+   *
+   * `player` is deliberately left pointing at the stale view: every read of it
+   * is gated on the object still being in `objects`, so clearing the map is what
+   * makes it inert, and the next CreatePlayerCommand replaces it.
+   */
+  public reset() {
+    this.objects.forEach((o) => o.handleCommand(new BeforeDestroyCommand()));
+    this.objects.clear();
+    this.visibleFrom.clear();
+    this.deleteAt.clear();
+    this.awaitingCreateStamp = [];
+    this.awaitingDeleteStamp = [];
+    this.wasLocalPlayerAlive = false;
+  }
+
   public get localPlayerPosition(): vec2 | undefined {
     return this.player && this.objects.has(this.player.id)
       ? this.player.position
@@ -128,8 +172,46 @@ export class GameObjectContainer extends CommandReceiver {
   }
 
   protected defaultCommandExecutor(c: Command) {
-    this.objects.forEach((o) => o.handleCommand(c));
+    const isRender = c.type === RenderCommand.type;
+    this.objects.forEach((o) => {
+      // Stepping always runs, so an object that has not appeared yet is still
+      // accumulating interpolation frames and enters the scene already moving.
+      if (isRender && !this.isVisible(o.id)) {
+        return;
+      }
+      o.handleCommand(c);
+    });
     this.camera.handleCommand(c);
+  }
+
+  private isVisible(id: Id): boolean {
+    const from = this.visibleFrom.get(id);
+    return from === undefined || serverTimeline.renderTime >= from;
+  }
+
+  private stampPending(timestamp: number) {
+    for (const id of this.awaitingCreateStamp) {
+      this.visibleFrom.set(id, timestamp);
+    }
+    this.awaitingCreateStamp = [];
+
+    for (const id of this.awaitingDeleteStamp) {
+      this.deleteAt.set(id, timestamp);
+    }
+    this.awaitingDeleteStamp = [];
+  }
+
+  private retireDueObjects() {
+    if (this.deleteAt.size === 0) {
+      return;
+    }
+    const renderTime = serverTimeline.renderTime;
+    for (const [id, at] of [...this.deleteAt]) {
+      if (renderTime >= at) {
+        this.deleteAt.delete(id);
+        this.deleteObject(id);
+      }
+    }
   }
 
   // Hand the local player's raw authoritative pose to the predictor (the
@@ -168,5 +250,7 @@ export class GameObjectContainer extends CommandReceiver {
     const object = this.objects.get(id);
     object?.handleCommand(new BeforeDestroyCommand());
     this.objects.delete(id);
+    this.visibleFrom.delete(id);
+    this.deleteAt.delete(id);
   }
 }

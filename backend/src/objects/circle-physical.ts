@@ -39,7 +39,7 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
   ) {
     super();
     this._boundingBox = new BoundingBox();
-    this.recalculateBoundingBox();
+    this.syncBoundingBox();
   }
 
   public get boundingBox(): BoundingBoxBase {
@@ -52,7 +52,7 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
 
   public set center(value: vec2) {
     this._center = value;
-    this.recalculateBoundingBox();
+    this.syncBoundingBox();
   }
 
   public onCollision(c: ReactToCollisionCommand) {
@@ -69,14 +69,14 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
 
   public set radius(value: number) {
     this._radius = value;
-    this.recalculateBoundingBox();
+    this.syncBoundingBox();
   }
 
   public distance(target: vec2): number {
     return vec2.distance(target, this.center) - this.radius;
   }
 
-  private recalculateBoundingBox() {
+  public syncBoundingBox() {
     this._boundingBox.xMin = this.center.x - this._radius;
     this._boundingBox.xMax = this.center.x + this._radius;
     this._boundingBox.yMin = this.center.y - this._radius;
@@ -120,6 +120,9 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
         this.handleCommand(new ReactToCollisionCommand(physical.gameObject));
       },
     );
+
+    // The body has moved; re-register it where it actually is.
+    this.syncBoundingBox();
 
     return { hitObject: (hitObject as Physical | undefined)?.gameObject, velocity };
   }

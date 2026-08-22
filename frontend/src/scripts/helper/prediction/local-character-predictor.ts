@@ -25,10 +25,16 @@ export const setPredictorClockForTesting = (clock: () => number): void => {
   nowMs = clock;
 };
 
+// The same clock the predictor stamps input with. Anything that tells the server
+// "this is how far my input timeline has got" must read it from here, or the
+// acknowledgement comes back in a different time base than the replay window.
+export const predictorNowMs = (): number => nowMs();
+
 // Don't replay more than this far back: if the last acknowledged input is older
-// (a stall, or a backgrounded tab catching up) snap to the authoritative pose
-// instead of grinding through hundreds of steps.
-const maxReplayMs = 300;
+// (a stall, or a backgrounded tab catching up) fall back to a shorter window
+// instead of grinding through hundreds of steps. Comfortably covers the replay
+// a 300 ms round trip needs; beyond that the body simply trails a little.
+const maxReplayMs = 400;
 
 // Render-side easing of the correction the reconciliation produces each frame,
 // so a snapshot that disagrees with the prediction is smoothed out instead of
@@ -60,15 +66,33 @@ export class LocalCharacterPredictor {
   private readonly world = new ClientCharacterWorld();
 
   private authoritative?: { head: Circle; leftFoot: Circle; rightFoot: Circle };
-  private lastAckClientTimeMs?: number;
-  // Wall-clock (client) time the latest authoritative snapshot was received. The
-  // replay predicts forward from HERE by the snapshot's age, so the local pose
-  // advances smoothly with real time between the 25 Hz snapshots. Anchoring to
-  // the last *acked input* time instead breaks when input is sent only on change
-  // (a held key sends nothing): that time freezes, the window pins to the
-  // maxReplayMs clamp, the replay displacement goes constant, and the pose
-  // stair-steps at the snapshot rate.
-  private authReceiptMs = 0;
+  // Client-clock instant the authoritative pose below belongs to, less one
+  // one-way trip — which is exactly the lead the local body should have, since
+  // the input the player is giving right now will not reach the server for that
+  // long. Replaying from here reproduces every input the server has not applied
+  // yet, so the body responds immediately at any latency.
+  //
+  // It is built from BOTH halves of the acknowledgement: the client-clock time
+  // of the newest input the server had applied, plus how long after that the
+  // snapshot was actually taken. Both halves are needed.
+  //
+  // Anchoring on the acknowledged input time ALONE beats against the send
+  // cadence: input is sent once per frame, so at snapshot time the newest input
+  // the server holds is 0..1 frame old depending on where the client's frames
+  // fell, and that age lands directly in the replay window. Measured on
+  // localhost it walked a sawtooth — 17, 10, 6, 1, 11, 6, 2, 12 ms — so the
+  // window jumped by up to a frame of travel every snapshot and the body
+  // stuttered at 25 Hz. ackAgeMs cancels it exactly.
+  //
+  // Anchoring on the snapshot's ARRIVAL is free of that beat, but it under-
+  // advances by a one-way trip, so the local body trails its own input at any
+  // real latency. This anchor degenerates to arrival on a zero-latency link and
+  // grows into full compensation as latency rises.
+  //
+  // A held key sends no fresh movement, which would freeze the acknowledgement
+  // altogether; that is fixed at the source, by closing every outgoing batch
+  // with a ClientHeartbeatCommand.
+  private replayAnchorMs?: number;
   // Authoritative launch momentum at the last snapshot — seeds each replay so a
   // leap/slingshot/recoil flight is reproduced and continuously corrected.
   private authoritativeBodyVelocity = vec2.create();
@@ -123,14 +147,13 @@ export class LocalCharacterPredictor {
     clientTimeMs: number,
     bodyVelocity: vec2,
     lastLeapClientTimeMs: number,
+    ackAgeMs = 0,
   ): void {
     // Inputs only advance the acknowledgement forward; the launch momentum and
     // leap boundary always adopt the latest authoritative values.
-    if (
-      this.lastAckClientTimeMs === undefined ||
-      clientTimeMs > this.lastAckClientTimeMs
-    ) {
-      this.lastAckClientTimeMs = clientTimeMs;
+    const anchor = clientTimeMs + Math.max(0, ackAgeMs);
+    if (this.replayAnchorMs === undefined || anchor > this.replayAnchorMs) {
+      this.replayAnchorMs = anchor;
     }
     vec2.set(this.authoritativeBodyVelocity, bodyVelocity[0], bodyVelocity[1]);
     this.lastLeapAckMs = lastLeapClientTimeMs;
@@ -138,7 +161,6 @@ export class LocalCharacterPredictor {
 
   public setAuthoritative(head: Circle, leftFoot: Circle, rightFoot: Circle): void {
     this.authoritative = { head, leftFoot, rightFoot };
-    this.authReceiptMs = Math.round(nowMs());
   }
 
   // The player pressed leap; remember when, so the replay applies the same
@@ -168,8 +190,7 @@ export class LocalCharacterPredictor {
     this.leapHistory = [];
     this.lastLeapAckMs = -Infinity;
     this.authoritative = undefined;
-    this.lastAckClientTimeMs = undefined;
-    this.authReceiptMs = 0;
+    this.replayAnchorMs = undefined;
     vec2.zero(this.authoritativeBodyVelocity);
     this.currentStrength = settings.playerMaxStrength;
     this.carriedPlanetId = undefined;
@@ -179,7 +200,7 @@ export class LocalCharacterPredictor {
   }
 
   public get canPredict(): boolean {
-    return this.authoritative !== undefined && this.lastAckClientTimeMs !== undefined;
+    return this.authoritative !== undefined && this.replayAnchorMs !== undefined;
   }
 
   // During spawn-in and death the server freezes walking and only scales the
@@ -232,11 +253,10 @@ export class LocalCharacterPredictor {
   private simulate(): CharacterMovementState {
     const auth = this.authoritative!;
     const now = Math.round(nowMs());
-    // Predict forward from the latest snapshot by its age, clamped so a stall
-    // (or a backgrounded tab catching up) snaps instead of grinding hundreds of
-    // steps. This advances with wall-clock time even while a held key sends no
-    // fresh input, so the pose no longer pins to the 25 Hz snapshot cadence.
-    const startMs = Math.max(this.authReceiptMs, now - maxReplayMs);
+    // Replay every input the server has not confirmed yet: from the anchor up to
+    // now, clamped so a stall (or a backgrounded tab catching up) cannot grind
+    // through hundreds of steps.
+    const startMs = Math.min(now, Math.max(this.replayAnchorMs!, now - maxReplayMs));
     const windowMs = Math.max(0, now - startMs);
     const steps = Math.floor(windowMs / stepMs);
     const remainderSeconds = (windowMs - steps * stepMs) / 1000;

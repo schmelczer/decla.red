@@ -255,7 +255,7 @@ export const decayMomentum = (
     : settings.airMomentumFriction;
   const target = Math.min(
     speed * Math.exp(-friction * deltaTimeInSeconds) -
-      settings.momentumStopDeceleration * deltaTimeInSeconds,
+    settings.momentumStopDeceleration * deltaTimeInSeconds,
     settings.maxBodyMomentum,
   );
   if (target <= 1) {
@@ -326,9 +326,13 @@ export const stepCharacterMovement = (
     vec2.add(leftFootGravity, leftFootGravity, rightFootGravity);
     const gravity = vec2.scale(leftFootGravity, leftFootGravity, 0.5);
 
+    const movementLength = vec2.length(movementForce);
+    const gravityLength = vec2.length(gravity);
     if (
+      movementLength > 0 &&
+      gravityLength > 0 &&
       vec2.dot(movementForce, gravity) <
-      -vec2.length(movementForce) * settings.climbDotThreshold
+      -movementLength * gravityLength * settings.climbDotThreshold
     ) {
       vec2.scale(gravity, gravity, settings.climbGravityScale);
     }
@@ -359,7 +363,7 @@ export const stepCharacterMovement = (
 
   latchGround(state, world.stepBody(state.leftFoot, deltaTimeInSeconds));
   latchGround(state, world.stepBody(state.rightFoot, deltaTimeInSeconds));
-  latchGround(state, world.stepBody(state.head, deltaTimeInSeconds));
+  world.stepBody(state.head, deltaTimeInSeconds);
 
   decayBodyMomentum(state, deltaTimeInSeconds);
 };

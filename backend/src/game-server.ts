@@ -14,16 +14,26 @@ import {
   CommandReceiver,
   CommandExecutors,
   ServerAnnouncement,
+  JoinRejectionReason,
+  beginPropertyUpdateGeneration,
 } from 'shared';
 import { createWorld } from './create-world';
 import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { Options } from './options';
 import { PlayerContainer } from './players/player-container';
+import { ServerFullError } from './players/server-full-error';
+import { Player } from './players/player';
 import { StepCommand } from './commands/step';
 import { GeneratePointsCommand } from './commands/generate-points';
 import { AnnounceCommand } from './commands/announce';
 
 const gameStateSubscribedRoom = 'gameStateSubscribedRoom';
+
+interface JoinedSocket {
+  player: Player;
+  onPlayerToServer: (json: string) => void;
+  onDisconnect: () => void;
+}
 
 export class GameServer extends CommandReceiver {
   private objects!: PhysicalContainer;
@@ -43,6 +53,7 @@ export class GameServer extends CommandReceiver {
 
   private initialize() {
     const previousPlayers = this.players;
+    this.releaseJoinedSockets();
     this.objects = new PhysicalContainer();
     createWorld(this.objects);
     this.objects.initialize();
@@ -80,35 +91,141 @@ export class GameServer extends CommandReceiver {
     this.initialize();
 
     io.on('connection', (socket: Socket) => {
-      socket.on(TransportEvents.PlayerJoining, (playerInfo: PlayerInformation) => {
-        try {
-          const player = this.players.createPlayer(playerInfo, socket);
-          socket.on(TransportEvents.PlayerToServer, (json: string) => {
-            try {
-              const commands: Array<Command> = deserialize(json);
-              commands.forEach((c) => player.handleCommand(c));
-            } catch (e) {
-              console.error('Error while processing command', e);
-            }
-          });
-
-          this.sendServerStateUpdate();
-
-          socket.on('disconnect', () => {
-            player.destroy();
-            this.players.deletePlayer(player);
-            this.sendServerStateUpdate();
-          });
-        } catch (e) {
-          console.error('Failed to register joining player; disconnecting socket', e);
-          socket.disconnect();
-        }
-      });
+      socket.on(TransportEvents.PlayerJoining, (playerInfo: PlayerInformation) =>
+        this.handleJoin(socket, playerInfo),
+      );
 
       socket.on(TransportEvents.SubscribeForServerInfoUpdates, () => {
         socket.join(gameStateSubscribedRoom);
       });
     });
+  }
+
+  private readonly joinedSockets = new Map<Socket, JoinedSocket>();
+
+  private handleJoin(socket: Socket, playerInfo: PlayerInformation) {
+    if (this.joinedSockets.has(socket)) {
+      socket.emit(TransportEvents.JoinRejected, JoinRejectionReason.AlreadyJoined);
+      return;
+    }
+
+    if (this.isInEndGame) {
+      // The round is already over and the world is about to be rebuilt; joining
+      // now drops the player into an arena running in slow motion with no
+      // end-of-round card.
+      socket.emit(TransportEvents.JoinRejected, JoinRejectionReason.RoundEnding);
+      return;
+    }
+
+    if (this.players.isFull) {
+      socket.emit(TransportEvents.JoinRejected, JoinRejectionReason.ServerFull);
+      return;
+    }
+
+    let player: Player;
+    try {
+      player = this.players.createPlayer(playerInfo, socket);
+    } catch (e) {
+      console.error('Failed to register joining player', e);
+      socket.emit(
+        TransportEvents.JoinRejected,
+        e instanceof ServerFullError
+          ? JoinRejectionReason.ServerFull
+          : JoinRejectionReason.InvalidRequest,
+      );
+      socket.disconnect();
+      return;
+    }
+
+    const onPlayerToServer = (json: string) => {
+      try {
+        if (typeof json !== 'string' || json.length > settings.maxInboundMessageBytes) {
+          return;
+        }
+        if (!this.allowInboundMessage(socket)) {
+          return;
+        }
+        const commands: Array<Command> = deserialize(json);
+        if (!Array.isArray(commands)) {
+          return;
+        }
+        commands.forEach((c) => player.handleCommand(c));
+      } catch (e) {
+        console.error('Error while processing command', e);
+      }
+    };
+
+    const onDisconnect = () => {
+      const record = this.joinedSockets.get(socket);
+      this.joinedSockets.delete(socket);
+      // The bucket is keyed by the Socket object, so leaving the entry behind
+      // pins the socket for the rest of the round.
+      this.inboundBudget.delete(socket);
+      if (!record) {
+        return;
+      }
+      record.player.detachFromSocket();
+      const { kills, deaths } = player.scoreSnapshot;
+      // Hold the score briefly so a client whose transport blipped can rejoin as
+      // itself rather than as a blank slate.
+      this.players.reserveScore(
+        player.reconnectToken,
+        player.team,
+        kills,
+        deaths,
+        Date.now(),
+      );
+      player.destroy();
+      this.players.deletePlayer(player);
+      this.sendServerStateUpdate();
+    };
+
+    socket.on(TransportEvents.PlayerToServer, onPlayerToServer);
+    socket.on('disconnect', onDisconnect);
+    this.joinedSockets.set(socket, { player, onPlayerToServer, onDisconnect });
+
+    player.reconnectToken = this.players.issueToken();
+    socket.emit(TransportEvents.PlayerJoined, player.reconnectToken);
+
+    this.sendServerStateUpdate();
+  }
+
+  // Cheap per-socket token bucket, sized well above what a legitimate client
+  // produces so it only ever trips on a flood.
+  private readonly inboundBudget = new Map<Socket, { tokens: number; lastMs: number }>();
+  private droppedInboundMessages = 0;
+  private allowInboundMessage(socket: Socket): boolean {
+    const nowMs = Date.now();
+    const burst = settings.maxInboundMessageBurst;
+    const perSecond = settings.maxInboundMessagesPerSecond;
+
+    const budget = this.inboundBudget.get(socket) ?? { tokens: burst, lastMs: nowMs };
+    budget.tokens = Math.min(
+      burst,
+      budget.tokens + ((nowMs - budget.lastMs) / 1000) * perSecond,
+    );
+    budget.lastMs = nowMs;
+    this.inboundBudget.set(socket, budget);
+
+    if (budget.tokens < 1) {
+      this.droppedInboundMessages++;
+      return false;
+    }
+
+    budget.tokens -= 1;
+    return true;
+  }
+
+  // Detach the per-join listeners of every socket still attached to the round
+  // that is ending, so a client that survives the restart can join the new one.
+  private releaseJoinedSockets() {
+    for (const [socket, record] of this.joinedSockets) {
+      socket.off(TransportEvents.PlayerToServer, record.onPlayerToServer);
+      socket.off('disconnect', record.onDisconnect);
+      record.player.detachFromSocket();
+    }
+    this.joinedSockets.clear();
+    this.inboundBudget.clear();
   }
 
   private timeSinceLastServerStateUpdate = 0;
@@ -225,6 +342,7 @@ export class GameServer extends CommandReceiver {
       this.players.step(scaledDelta);
     }
 
+    beginPropertyUpdateGeneration();
     this.players.stepCommunication(delta);
     this.objects.resetRemoteCalls();
 
@@ -259,8 +377,16 @@ export class GameServer extends CommandReceiver {
         rtts.sort((a, b) => a - b);
         console.info(
           `Player RTT median ${rtts[Math.floor(rtts.length / 2)].toFixed(0)} ms ` +
-            `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
+          `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
         );
+      }
+
+      if (this.droppedInboundMessages > 0) {
+        console.warn(
+          `Rate limited ${this.droppedInboundMessages} inbound message(s) since last report — ` +
+          'client input was discarded',
+        );
+        this.droppedInboundMessages = 0;
       }
 
       if (this.saturatedFrames > 0) {

@@ -73,15 +73,38 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
       vec2.normalize(vec2.create(), this.velocity),
       10,
     );
-    while (wasCollision) {
+    // Bounded: each pass advances by `delta`, but a degenerate direction would
+    // otherwise spin here forever inside the physics tick.
+    let passes = 0;
+    while (wasCollision && passes++ < 32) {
       const intersecting = this.container
         .findIntersecting(this.boundingBox)
         .filter((g) => g instanceof CharacterPhysical && g.team === this.team);
       const { hitSurface } = marchCircle(this.object, delta, intersecting, true);
       wasCollision = hitSurface;
+      this.object.syncBoundingBox();
     }
     vec2.add(this.center, this.center, delta);
     vec2.add(this.center, this.center, delta);
+    this.object.syncBoundingBox();
+  }
+
+  /**
+   * Lag compensation. Runs the projectile forward by the time its command spent
+   * travelling to the server, so a shot lands where the shooter aimed rather
+   * than forcing them to lead by their own latency on top of the projectile's
+   * travel time. Capped by settings.maxProjectileCatchUpSeconds so a bad or
+   * forged timestamp cannot spawn a shot arbitrarily far downrange.
+   */
+  public fastForward(seconds: number) {
+    const step = settings.targetPhysicsDeltaTimeInSeconds;
+    let remaining = Math.min(Math.max(seconds, 0), settings.maxProjectileCatchUpSeconds);
+
+    while (remaining > 0 && this.isAlive) {
+      const delta = Math.min(step, remaining);
+      this.advance(delta);
+      remaining -= delta;
+    }
   }
 
   public get boundingBox(): ImmutableBoundingBox {
@@ -123,6 +146,10 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
   }
 
   private handleStep({ deltaTimeInSeconds }: StepCommand) {
+    this.advance(deltaTimeInSeconds);
+  }
+
+  private advance(deltaTimeInSeconds: number) {
     super.step(deltaTimeInSeconds);
 
     if (this.strength <= 0) {

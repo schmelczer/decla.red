@@ -8,7 +8,7 @@ export class RemoteCall {
   constructor(
     public readonly functionName: string,
     public readonly args: Array<any>,
-  ) {}
+  ) { }
 
   public toArray(): Array<any> {
     return [this.functionName, this.args];
@@ -49,15 +49,22 @@ export class PropertyUpdatesForObject {
   constructor(
     public readonly id: Id,
     public readonly updates: Array<UpdatePropertyCommand>,
-  ) {}
+  ) { }
 
   public toArray(): Array<any> {
     return [this.id, this.updates];
   }
 }
 
+let currentUpdateGeneration = 0;
+export const beginPropertyUpdateGeneration = (): void => {
+  currentUpdateGeneration++;
+};
+
 export abstract class GameObject extends CommandReceiver {
   private remoteCalls: Array<RemoteCall> = [];
+  private updateGeneration = -1;
+  private cachedPropertyUpdates?: PropertyUpdatesForObject;
 
   // The only methods a peer may invoke over the wire. processRemoteCalls
   // dispatches by a raw string taken straight off the network, so without this
@@ -95,7 +102,15 @@ export abstract class GameObject extends CommandReceiver {
     });
   }
 
-  public getPropertyUpdates(): PropertyUpdatesForObject | void {}
+  public getPropertyUpdates(): PropertyUpdatesForObject | void { }
+
+  public getPropertyUpdatesForFrame(): PropertyUpdatesForObject | undefined {
+    if (this.updateGeneration !== currentUpdateGeneration) {
+      this.updateGeneration = currentUpdateGeneration;
+      this.cachedPropertyUpdates = this.getPropertyUpdates() ?? undefined;
+    }
+    return this.cachedPropertyUpdates;
+  }
 
   public getRemoteCalls(): Array<RemoteCall> {
     return this.remoteCalls;

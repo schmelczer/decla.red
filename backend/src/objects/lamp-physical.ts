@@ -33,6 +33,8 @@ export class LampPhysical extends LampBase implements StaticPhysical {
   }
 
   public queueSetLight(color: vec3, lightness: number) {
+    this.color = vec3.clone(color);
+    this.lightness = lightness;
     this.remoteCall('setLight', color, lightness);
   }
 
