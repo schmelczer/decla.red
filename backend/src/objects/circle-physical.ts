@@ -1,5 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import {
+  applyForce,
   Circle,
   CommandExecutors,
   CommandReceiver,
@@ -12,6 +13,7 @@ import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { Physical } from '../physics/physicals/physical';
+import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { ReactToCollisionCommand } from '../commands/react-to-collision';
 
 @serializesTo(Circle)
@@ -84,11 +86,7 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
   }
 
   public applyForce(force: vec2, timeInSeconds: number) {
-    vec2.add(
-      this.velocity,
-      this.velocity,
-      vec2.scale(vec2.create(), force, timeInSeconds),
-    );
+    applyForce(this, force, timeInSeconds);
   }
 
   // Position-resolution for one tick. Delegates to the shared
@@ -133,10 +131,11 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
     const sweep = vec2.length(
       vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds),
     );
-    this.radius += sweep;
-    const intersecting = this.container.findIntersecting(this.boundingBox);
-    this.radius -= sweep;
-    return intersecting;
+    // Grow the query, not the object: inflating and deflating this.radius ran
+    // the setter (and so re-registered the body's extent) twice mid-tick.
+    return this.container.findIntersecting(
+      getBoundingBoxOfCircle(new Circle(this.center, this.radius + sweep)),
+    );
   }
 
   public toArray(): Array<any> {

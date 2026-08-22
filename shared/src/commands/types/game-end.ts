@@ -1,18 +1,12 @@
-import { CharacterTeam } from '../../objects/types/character-base';
 import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 
+// "The round is over" — a bare signal, like GameStartCommand. The winner is
+// announced through ServerAnnouncement and the end-card length is the server's
+// own restart timer, so neither has to travel here.
 @serializable
 export class GameEndCommand extends Command {
-  constructor(
-    public readonly winningTeam: CharacterTeam,
-    public readonly endCardLengthInSeconds: number,
-    public readonly shouldReconnect: boolean,
-  ) {
-    super();
-  }
-
   public toArray(): Array<any> {
-    return [this.winningTeam, this.endCardLengthInSeconds, this.shouldReconnect];
+    return [];
   }
 }

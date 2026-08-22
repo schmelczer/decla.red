@@ -384,7 +384,7 @@ export class Game extends CommandReceiver {
       new RenderCommand(this.renderer, this.overlay, shouldChangeLayout),
     );
 
-    this.touchListener.update(deltaTime);
+    this.touchListener.update();
 
     this.tutorial.step(this.gameObjects);
 
@@ -406,7 +406,9 @@ export class Game extends CommandReceiver {
 
     this.handleKeystoneArrow();
 
-    this.announcementText.innerHTML = this.lastAnnouncementText;
+    if (this.announcementText.innerHTML !== this.lastAnnouncementText) {
+      this.announcementText.innerHTML = this.lastAnnouncementText;
+    }
   }
 
   // Points an off-screen chevron toward the keystone "Heart" planet, tinted by
@@ -438,14 +440,7 @@ export class Game extends CommandReceiver {
       display.y >= margin &&
       display.y <= height - margin;
 
-    const control = Math.abs(keystone.ownership - 0.5);
-    const team =
-      control < settings.planetControlThreshold
-        ? 'neutral'
-        : keystone.ownership < 0.5
-          ? 'blue'
-          : 'red';
-    this.keystoneArrow.className = 'keystone-arrow ' + team;
+    this.keystoneArrow.className = 'keystone-arrow ' + keystone.team;
 
     if (onScreen) {
       this.keystoneArrow.style.display = 'none';

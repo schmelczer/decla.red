@@ -1,7 +1,7 @@
 import { vec2 } from 'gl-matrix';
 
 import {
-  clamp,
+  Circle,
   clamp01,
   id,
   mix,
@@ -12,6 +12,8 @@ import {
   CharacterTeam,
   PropertyUpdatesForObject,
   UpdatePropertyCommand,
+  planetDistance,
+  planetGravity,
   CommandExecutors,
   CommandReceiver,
 } from 'shared';
@@ -20,6 +22,7 @@ import { AnnounceCommand } from '../commands/announce';
 import { StepCommand } from '../commands/step';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
+import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { StaticPhysical } from '../physics/physicals/static-physical';
 import { LampPhysical } from './lamp-physical';
 import type { CharacterPhysical } from './character-physical';
@@ -69,7 +72,7 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
     const sizeClass = clamp01(
       (this.radius - settings.planetMinReferenceRadius) /
-      (settings.planetMaxReferenceRadius - settings.planetMinReferenceRadius),
+        (settings.planetMaxReferenceRadius - settings.planetMinReferenceRadius),
     );
 
     this.sizePointMultiplier = mix(1, settings.planetSizePointMultiplierMax, sizeClass);
@@ -85,73 +88,32 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   }
 
   public distance(target: vec2): number {
-    // Evaluate the SDF in the planet's own rotating frame so this collision
-    // outline turns in lockstep with the rendered planet (see planet-shape.ts).
-    const local = this.toLocalFrame(target);
-
-    const startEnd = this.vertices[0];
-    let vb = startEnd;
-
-    let d = vec2.dist(local, vb);
-    let sign = 1;
-
-    for (let i = 1; i <= this.vertices.length; i++) {
-      const va = vb;
-      vb = i === this.vertices.length ? startEnd : this.vertices[i];
-      const targetFromDelta = vec2.subtract(vec2.create(), local, va);
-      const toFromDelta = vec2.subtract(vec2.create(), vb, va);
-      const h = clamp01(
-        vec2.dot(targetFromDelta, toFromDelta) / vec2.squaredLength(toFromDelta),
-      );
-
-      const ds = vec2.fromValues(
-        vec2.dist(targetFromDelta, vec2.scale(vec2.create(), toFromDelta, h)),
-        toFromDelta.x * targetFromDelta.y - toFromDelta.y * targetFromDelta.x,
-      );
-
-      if (
-        (local.y >= va.y && local.y < vb.y && ds.y > 0) ||
-        (local.y < va.y && local.y >= vb.y && ds.y <= 0)
-      ) {
-        sign *= -1;
-      }
-
-      d = Math.min(d, ds.x);
-    }
-
-    return sign * d;
+    // The one shared planet outline — the same function the client predictor
+    // collides against, which is what lets prediction reconcile. Only the
+    // cos/sin memo lives here, because distance() is called many times per tick
+    // by the raymarcher and the angle rarely changes between those calls.
+    this.syncRotationTrigonometry();
+    return planetDistance(
+      target,
+      this.vertices,
+      this.center,
+      this.cosRotation,
+      this.sinRotation,
+    );
   }
 
-  // Rotate a world point by -rotation about the centre, matching the shader's
-  // `localTarget = center + R(rotation) * (target - center)` transform exactly.
-  private toLocalFrame(target: vec2): vec2 {
+  private syncRotationTrigonometry() {
     if (this.rotation !== this.cachedRotation) {
       this.cachedRotation = this.rotation;
       this.cosRotation = Math.cos(this.rotation);
       this.sinRotation = Math.sin(this.rotation);
     }
-
-    const dx = target.x - this.center.x;
-    const dy = target.y - this.center.y;
-
-    return vec2.fromValues(
-      this.center.x + this.cosRotation * dx - this.sinRotation * dy,
-      this.center.y + this.sinRotation * dx + this.cosRotation * dy,
-    );
   }
 
   // Signed angular velocity in rad/s, exposed so a character standing on the
   // planet can ride its spin (see carryWithRotatingPlanet in shared).
   public get angularVelocity(): number {
     return this.rotationSpeed;
-  }
-
-  public get team(): CharacterTeam {
-    return Math.abs(this.ownership - 0.5) < settings.planetControlThreshold
-      ? CharacterTeam.neutral
-      : this.ownership < 0.5
-        ? CharacterTeam.blue
-        : CharacterTeam.red;
   }
 
   private timeSinceLastPointGeneration = 0;
@@ -317,32 +279,22 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
         0,
       );
 
-      this._boundingBox = new ImmutableBoundingBox(
-        this.center.x - maxVertexDistance,
-        this.center.x + maxVertexDistance,
-        this.center.y - maxVertexDistance,
-        this.center.y + maxVertexDistance,
+      this._boundingBox = getBoundingBoxOfCircle(
+        new Circle(this.center, maxVertexDistance),
       );
     }
 
     return this._boundingBox;
   }
 
-  public getForce(position: vec2): vec2 {
-    const diff = vec2.subtract(vec2.create(), this.center, position);
-    const dist = Math.max(settings.minGravityDistance, vec2.length(diff) - this.radius);
-    vec2.normalize(diff, diff);
-    const scale = clamp(
-      settings.maxGravityQ * ((settings.maxGravityDistance / dist) ** 1.5 - 1),
-      0,
-      settings.maxGravityStrength,
-    );
-    return vec2.scale(diff, diff, scale);
+  // GroundSurface gravity, shared with the client predictor.
+  public gravityAt(position: vec2): vec2 {
+    return planetGravity(this.center, this.radius, position);
   }
 
-  // GroundSurface alias the shared movement simulation calls for gravity.
-  public gravityAt(position: vec2): vec2 {
-    return this.getForce(position);
+  // forceAtPosition's name for the same thing.
+  public getForce(position: vec2): vec2 {
+    return this.gravityAt(position);
   }
 
   public get gameObject(): this {

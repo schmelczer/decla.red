@@ -69,7 +69,6 @@ export class PlanetView extends PlanetBase {
     this.ownershipProgress.classList.toggle('contested', contested);
   }
 
-  private renderedRotation = 0;
   private rotationSpeed = 0;
   // Newest streamed rotation VALUE — the server-current angle at the latest
   // snapshot — as opposed to renderedRotation, which the interpolator holds
@@ -87,8 +86,7 @@ export class PlanetView extends PlanetBase {
   }
 
   private step({ deltaTimeInSeconds }: StepCommand): void {
-    this.renderedRotation = this.rotationInterpolator.getValue(deltaTimeInSeconds);
-    this.shape.rotation = this.renderedRotation;
+    this.shape.rotation = this.rotationInterpolator.getValue(deltaTimeInSeconds);
     this.shape.colorMixQ = this.ownership;
 
     if (this.flareIntensity > 0) {
@@ -167,7 +165,14 @@ export class PlanetView extends PlanetBase {
       const screenPosition = renderer.worldToDisplayCoordinates(this.center);
 
       this.ownershipProgress.style.transform = `translateX(${screenPosition.x}px) translateY(${screenPosition.y}px) translateX(-50%) translateY(-50%)`;
-      this.ownershipProgress.style.background = this.getGradient();
+      // Re-parsing a conic-gradient for every planet on screen every layout
+      // frame is not free, and ownership moves far more slowly than the ring
+      // can show.
+      const gradient = this.getGradient();
+      if (gradient !== this.lastGradient) {
+        this.lastGradient = gradient;
+        this.ownershipProgress.style.background = gradient;
+      }
 
       if (this.lastGeneratedPoint !== undefined) {
         const element = document.createElement('div');
@@ -192,6 +197,7 @@ export class PlanetView extends PlanetBase {
     }
   }
 
+  private lastGradient?: string;
   private getGradient(): string {
     const sideBlue = this.ownership < 0.5;
     // Keep the ring neutral through the same dead-band that gates scoring

@@ -15,10 +15,12 @@ import {
   CharacterMovementSnapshot,
   mix,
   clamp01,
+  strengthToCharge,
   stepCharacterMovement,
   applyLeapImpulse,
   decayMomentum,
-  CharacterMovementState,
+  tickPlanetDetachment,
+  characterCenter,
   CharacterWorld,
   GroundSurface,
   headRadius,
@@ -40,19 +42,20 @@ import { StepCommand } from '../commands/step';
 import { ReactToCollisionCommand } from '../commands/react-to-collision';
 import { GeneratePointsCommand } from '../commands/generate-points';
 
+// The three body circles, as a value — used to diff a tick's movement into the
+// rate of change the client interpolates on.
+interface BodyPose {
+  head: Circle;
+  leftFoot: Circle;
+  rightFoot: Circle;
+}
+
 @serializesTo(CharacterBase)
 export class CharacterPhysical extends CharacterBase implements DynamicPhysical {
   public readonly canCollide = true;
   public readonly canMove = true;
 
   private projectileStrength = settings.playerMaxStrength;
-
-  // Body geometry (head/foot radii, posture offsets, bound radius) is defined
-  // once in the shared movement module and imported here, so the authoritative
-  // body and the client's predicted body are bit-identical by construction
-  // instead of by a hand-synced "copied verbatim" duplicate. Re-exposed as a
-  // static only because external callers reference CharacterPhysical.boundRadius.
-  public static readonly boundRadius = boundRadius;
 
   private timeSinceDying = 0;
   private isDestroyed = false;
@@ -66,19 +69,19 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
 
   private killStreak = 0;
 
-  private direction = 0;
-  private currentPlanet?: PlanetPhysical;
-  private secondsSinceOnSurface = settings.planetDetachmentSeconds;
+  // CharacterMovementState, held directly rather than mirrored through an
+  // adapter: the shared simulation reads and writes these in place, so the
+  // character simply IS the state it is stepped as.
+  public direction = 0;
+  public currentPlanet: GroundSurface | undefined;
+  public secondsSinceOnSurface = settings.planetDetachmentSeconds;
+  public readonly bodyVelocity = vec2.create();
 
-  private bodyVelocity = vec2.create();
   private timeSinceLastLeap = settings.leapCooldownSeconds;
 
   public head: CirclePhysical;
   public leftFoot: CirclePhysical;
   public rightFoot: CirclePhysical;
-
-  private movementState!: CharacterMovementState;
-  private movementWorld!: CharacterWorld;
 
   private movementActions: Array<MoveActionCommand> = [];
   private lastMovementAction: MoveActionCommand = new MoveActionCommand(vec2.create());
@@ -122,62 +125,29 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     container.addObject(this.head);
     container.addObject(this.leftFoot);
     container.addObject(this.rightFoot);
-
-    this.initMovementBridge();
   }
 
-  private initMovementBridge() {
-    // The movementState object-literal getters/setters below can't use `this`
-    // (it would bind to the literal), so alias the character instance.
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-    this.movementState = {
-      head: this.head,
-      leftFoot: this.leftFoot,
-      rightFoot: this.rightFoot,
-      get direction() {
-        return self.direction;
-      },
-      set direction(value: number) {
-        self.direction = value;
-      },
-      get currentPlanet() {
-        return self.currentPlanet;
-      },
-      set currentPlanet(value: GroundSurface | undefined) {
-        // On the server every ground is a PlanetPhysical (the world only ever
-        // hands back planets), so this narrowing is safe.
-        self.currentPlanet = value as PlanetPhysical | undefined;
-      },
-      get secondsSinceOnSurface() {
-        return self.secondsSinceOnSurface;
-      },
-      set secondsSinceOnSurface(value: number) {
-        self.secondsSinceOnSurface = value;
-      },
-      bodyVelocity: this.bodyVelocity,
-    };
-
-    this.movementWorld = {
-      // Same set and order forceAtPosition used: planets in the force field,
-      // in container-traversal order (so the f64 gravity sum is unchanged).
-      groundsNear: (center, radius) =>
-        self.container
-          .findIntersecting(getBoundingBoxOfCircle(new Circle(center, radius)))
-          .filter((o): o is PlanetPhysical => o instanceof PlanetPhysical),
-      stepBody: (body, deltaTimeInSeconds) => {
-        const { hitObject } = (body as CirclePhysical).stepManually(deltaTimeInSeconds);
-        return hitObject instanceof PlanetPhysical ? hitObject : undefined;
-      },
-    };
-  }
+  // The container, presented as the collision/gravity world the shared movement
+  // queries.
+  private readonly movementWorld: CharacterWorld = {
+    // Same set and order forceAtPosition used: planets in the force field, in
+    // container-traversal order (so the f64 gravity sum is unchanged).
+    groundsNear: (center, radius) =>
+      this.container
+        .findIntersecting(getBoundingBoxOfCircle(new Circle(center, radius)))
+        .filter((o): o is PlanetPhysical => o instanceof PlanetPhysical),
+    stepBody: (body, deltaTimeInSeconds) => {
+      const { hitObject } = (body as CirclePhysical).stepManually(deltaTimeInSeconds);
+      return hitObject instanceof PlanetPhysical ? hitObject : undefined;
+    },
+  };
 
   private hasFiredSinceSpawn = false;
   private get isSpawnProtected(): boolean {
     return (
       !this.hasFiredSinceSpawn &&
       this.timeAlive <
-      settings.spawnDespawnTime + settings.spawnInvulnerabilityExtraSeconds
+        settings.spawnDespawnTime + settings.spawnInvulnerabilityExtraSeconds
     );
   }
 
@@ -206,8 +176,10 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     this.movementActions.push(c);
   }
 
+  // The world only ever hands back planets, so narrowing the shared
+  // GroundSurface is safe here.
   public get groundPlanet(): PlanetPhysical | undefined {
-    return this.currentPlanet;
+    return this.currentPlanet as PlanetPhysical | undefined;
   }
 
   // The continuous movement state streamed to the owning client, so its
@@ -219,7 +191,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       vec2.clone(this.bodyVelocity),
       vec2.clone(this.leftFoot.lastNormal),
       vec2.clone(this.rightFoot.lastNormal),
-      this.currentPlanet?.id ?? null,
+      this.groundPlanet?.id ?? null,
       this.secondsSinceOnSurface,
     );
   }
@@ -311,10 +283,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     const strength = Math.min(desiredStrength, this.projectileStrength);
     this.projectileStrength -= strength;
 
-    const c = clamp01(
-      (strength - settings.chargeShotStrengthMin) /
-      (settings.chargeShotStrengthMax - settings.chargeShotStrengthMin),
-    );
+    const c = strengthToCharge(strength);
 
     const radius = mix(settings.chargeShotRadiusMin, settings.chargeShotRadiusMax, c);
     const speed = mix(settings.chargeShotSpeedMin, settings.chargeShotSpeedMax, c);
@@ -367,12 +336,12 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
 
     // Same impulse the client predicts with (shared), so a leap launches
     // identically on both sides.
-    applyLeapImpulse(this.movementState, this.lastMovementAction.direction);
+    applyLeapImpulse(this, this.lastMovementAction.direction);
     this.remoteCall('onLeap');
   }
 
   public get boundingBox(): BoundingBoxBase {
-    return getBoundingBoxOfCircle(new Circle(this.center, CharacterPhysical.boundRadius));
+    return getBoundingBoxOfCircle(new Circle(this.center, boundRadius));
   }
 
   public get gameObject(): this {
@@ -380,9 +349,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
   }
 
   public get center(): vec2 {
-    const bodyCenter = vec2.add(vec2.create(), this.head.center, this.leftFoot.center);
-    vec2.add(bodyCenter, bodyCenter, this.rightFoot.center);
-    return vec2.scale(bodyCenter, bodyCenter, 1 / 3);
+    return characterCenter(this.head, this.leftFoot, this.rightFoot);
   }
 
   public distance(target: vec2): number {
@@ -434,53 +401,42 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     ]);
   }
 
-  private setPropertyUpdates(
-    oldHead: Circle,
-    oldLeftFoot: Circle,
-    oldRightFoot: Circle,
-    deltaTime: number,
-  ) {
-    this.headVelocity = new Circle(
+  // Rate of change of one body part over the tick, which the client's
+  // interpolator coasts on when a snapshot is late. `previous` is consumed as
+  // scratch so this allocates nothing beyond the Circle it returns.
+  private static rateOfChange(previous: Circle, current: Circle, deltaTime: number) {
+    return new Circle(
       vec2.scale(
-        oldHead.center,
-        vec2.subtract(oldHead.center, this.head.center, oldHead.center),
+        previous.center,
+        vec2.subtract(previous.center, current.center, previous.center),
         1 / deltaTime,
       ),
-      (this.head.radius - oldHead.radius) / deltaTime,
+      (current.radius - previous.radius) / deltaTime,
     );
+  }
 
-    this.leftFootVelocity = new Circle(
-      vec2.scale(
-        oldLeftFoot.center,
-        vec2.subtract(oldLeftFoot.center, this.leftFoot.center, oldLeftFoot.center),
-        1 / deltaTime,
-      ),
-      (this.leftFoot.radius - oldLeftFoot.radius) / deltaTime,
-    );
+  private setPropertyUpdates(previous: BodyPose, deltaTime: number) {
+    const rate = CharacterPhysical.rateOfChange;
+    this.headVelocity = rate(previous.head, this.head, deltaTime);
+    this.leftFootVelocity = rate(previous.leftFoot, this.leftFoot, deltaTime);
+    this.rightFootVelocity = rate(previous.rightFoot, this.rightFoot, deltaTime);
+  }
 
-    this.rightFootVelocity = new Circle(
-      vec2.scale(
-        oldRightFoot.center,
-        vec2.subtract(oldRightFoot.center, this.rightFoot.center, oldRightFoot.center),
-        1 / deltaTime,
-      ),
-      (this.rightFoot.radius - oldRightFoot.radius) / deltaTime,
-    );
+  private get pose(): BodyPose {
+    const snapshot = (circle: Circle) =>
+      new Circle(vec2.clone(circle.center), circle.radius);
+    return {
+      head: snapshot(this.head),
+      leftFoot: snapshot(this.leftFoot),
+      rightFoot: snapshot(this.rightFoot),
+    };
   }
 
   private step({ deltaTimeInSeconds, game }: StepCommand) {
     this.getPoints(game);
     this.timeAlive += deltaTimeInSeconds;
     this.timeSinceLastLeap += deltaTimeInSeconds;
-    const oldHead = new Circle(vec2.clone(this.head.center), this.head.radius);
-    const oldLeftFoot = new Circle(
-      vec2.clone(this.leftFoot.center),
-      this.leftFoot.radius,
-    );
-    const oldRightFoot = new Circle(
-      vec2.clone(this.rightFoot.center),
-      this.rightFoot.radius,
-    );
+    const previousPose = this.pose;
 
     if (this.isDestroyed) {
       if ((this.timeSinceDying += deltaTimeInSeconds) > settings.spawnDespawnTime) {
@@ -489,7 +445,7 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
         this.freeFallCorpse(deltaTimeInSeconds);
         this.animateScaling(1 - this.timeSinceDying / settings.spawnDespawnTime);
       }
-      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
+      this.setPropertyUpdates(previousPose, deltaTimeInSeconds);
       return;
     }
 
@@ -500,30 +456,25 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       } else {
         this.animateScaling(this.timeSinceBorn / settings.spawnDespawnTime);
       }
-      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
+      this.setPropertyUpdates(previousPose, deltaTimeInSeconds);
       return;
     }
 
-    if (
-      (this.secondsSinceOnSurface += deltaTimeInSeconds) >
-      settings.planetDetachmentSeconds
-    ) {
-      this.currentPlanet = undefined;
-    }
+    tickPlanetDetachment(this, deltaTimeInSeconds);
 
     this.timeSinceLastShot += deltaTimeInSeconds;
 
     this.projectileStrength = Math.min(
       settings.playerMaxStrength,
       this.projectileStrength +
-      settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
+        settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
     );
 
     this.regenerateHealth(deltaTimeInSeconds);
 
     // The planet tallies who is standing on it and resolves capture itself, so
     // a contested rock can freeze instead of two squads silently cancelling.
-    this.currentPlanet?.registerPresence(this);
+    this.groundPlanet?.registerPresence(this);
 
     // The whole walking model — gravity gather, movement force, on/off-planet
     // branch, posture springs, body-momentum, and stepping the three parts —
@@ -531,23 +482,15 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     // drift. Server-only concerns (scoring, health, shooting, spawn/death,
     // ownership) stay here around it.
     const direction = this.averageAndResetMovementActions();
-    stepCharacterMovement(
-      this.movementState,
-      this.movementWorld,
-      direction,
-      deltaTimeInSeconds,
-    );
+    stepCharacterMovement(this, this.movementWorld, direction, deltaTimeInSeconds);
 
-    this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
+    this.setPropertyUpdates(previousPose, deltaTimeInSeconds);
   }
 
   private freeFallCorpse(deltaTime: number) {
     const intersecting = this.container.findIntersecting(
       getBoundingBoxOfCircle(
-        new Circle(
-          this.center,
-          CharacterPhysical.boundRadius + settings.maxGravityDistance,
-        ),
+        new Circle(this.center, boundRadius + settings.maxGravityDistance),
       ),
     );
     let grounded = false;

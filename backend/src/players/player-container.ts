@@ -135,7 +135,11 @@ export class PlayerContainer {
   }
 
   public step(deltaTimeInSeconds: number) {
-    this.players.forEach((p) => p.step(deltaTimeInSeconds));
+    // Iterates the two backing arrays rather than the merged `players` getter:
+    // this runs once per 200 Hz physics substep, and the getter builds a new
+    // array every call.
+    this._players.forEach((p) => p.step(deltaTimeInSeconds));
+    this._npcs.forEach((p) => p.step(deltaTimeInSeconds));
   }
 
   public stepCommunication(deltaTimeInSeconds: number) {

@@ -1,7 +1,8 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { LampBase, settings, id, serializesTo } from 'shared';
+import { Circle, LampBase, settings, id, serializesTo } from 'shared';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
+import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { StaticPhysical } from '../physics/physicals/static-physical';
 
 @serializesTo(LampBase)
@@ -17,11 +18,8 @@ export class LampPhysical extends LampBase implements StaticPhysical {
 
   public get boundingBox(): ImmutableBoundingBox {
     if (!this._boundingBox) {
-      this._boundingBox = new ImmutableBoundingBox(
-        this.center.x - settings.lightCutoffDistance,
-        this.center.x + settings.lightCutoffDistance,
-        this.center.y - settings.lightCutoffDistance,
-        this.center.y + settings.lightCutoffDistance,
+      this._boundingBox = getBoundingBoxOfCircle(
+        new Circle(this.center, settings.lightCutoffDistance),
       );
     }
 

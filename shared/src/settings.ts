@@ -157,7 +157,6 @@ export const settings = {
   // so slower (charged) shots arc. Scale kept tiny: near a surface gravity is
   // maxGravityStrength=50000, which at full strength would corkscrew a shot into
   // the planet — 0.04 gives a readable bend instead.
-  projectileGravityEnabled: true,
   projectileGravityScale: 0.04,
 
   // Speed the corpse is flung at along the killing shot's direction, lerped by

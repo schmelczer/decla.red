@@ -35,6 +35,17 @@ export class PlanetBase extends GameObject {
       this.vertices.length;
   }
 
+  // Which team controls this planet, with the neutral dead-band around 50%
+  // applied. Lives here so scoring (server) and every tint the player sees
+  // (client) read one rule rather than three copies of the same comparison.
+  public get team(): CharacterTeam {
+    return Math.abs(this.ownership - 0.5) < settings.planetControlThreshold
+      ? CharacterTeam.neutral
+      : this.ownership < 0.5
+        ? CharacterTeam.blue
+        : CharacterTeam.red;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public generatedPoints(value: number) {}
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

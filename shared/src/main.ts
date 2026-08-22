@@ -35,7 +35,6 @@ export * from './communication/id';
 export * from './communication/server-information';
 export * from './communication/player-information';
 export * from './helper/rotate-90-deg';
-export * from './helper/rotate-minus-90-deg';
 export * from './objects/game-object';
 export * from './serialization/deserialize';
 export * from './serialization/serialize';

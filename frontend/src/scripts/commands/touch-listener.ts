@@ -295,7 +295,7 @@ export class TouchListener extends CommandGenerator {
     );
   };
 
-  public update(_deltaTimeInSeconds: number) {
+  public update() {
     if (!this.fireButton.parentElement) {
       this.overlay.appendChild(this.fireButton);
     }
@@ -305,8 +305,9 @@ export class TouchListener extends CommandGenerator {
 
     const character = this.game.gameObjects.player;
     if (character) {
-      this.fireStrengthRing.style.background = `conic-gradient(rgba(255, 255, 255, 0.75) ${character.strengthFraction * 360
-        }deg, transparent 0deg)`;
+      this.fireStrengthRing.style.background = `conic-gradient(rgba(255, 255, 255, 0.75) ${
+        character.strengthFraction * 360
+      }deg, transparent 0deg)`;
     }
   }
 

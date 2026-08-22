@@ -20,7 +20,7 @@ const maximumSteps = 256;
 // client passes none.
 //
 // The march advances by the *free gap* (distance minus the circle's radius),
-// which is what sphere-tracing a circle of radius r requires. 
+// which is what sphere-tracing a circle of radius r requires.
 export const marchCircle = (
   body: PhysicsBody,
   delta: vec2,

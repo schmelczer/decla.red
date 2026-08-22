@@ -129,7 +129,7 @@ const main = async () => {
     });
     window.onpopstate = () => game.destroy();
 
-    for (; ;) {
+    for (;;) {
       show(spinner);
       hide(logoutButton, true);
       show(landingUI, true, 'flex');

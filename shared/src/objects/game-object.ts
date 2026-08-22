@@ -8,7 +8,7 @@ export class RemoteCall {
   constructor(
     public readonly functionName: string,
     public readonly args: Array<any>,
-  ) { }
+  ) {}
 
   public toArray(): Array<any> {
     return [this.functionName, this.args];
@@ -49,7 +49,7 @@ export class PropertyUpdatesForObject {
   constructor(
     public readonly id: Id,
     public readonly updates: Array<UpdatePropertyCommand>,
-  ) { }
+  ) {}
 
   public toArray(): Array<any> {
     return [this.id, this.updates];
@@ -102,7 +102,7 @@ export abstract class GameObject extends CommandReceiver {
     });
   }
 
-  public getPropertyUpdates(): PropertyUpdatesForObject | void { }
+  public getPropertyUpdates(): PropertyUpdatesForObject | void {}
 
   public getPropertyUpdatesForFrame(): PropertyUpdatesForObject | undefined {
     if (this.updateGeneration !== currentUpdateGeneration) {

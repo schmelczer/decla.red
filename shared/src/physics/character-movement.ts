@@ -64,7 +64,14 @@ export interface CharacterWorld {
   stepBody(body: PhysicsBody, deltaTimeInSeconds: number): GroundSurface | undefined;
 }
 
-const applyForce = (body: PhysicsBody, force: vec2, deltaTimeInSeconds: number) => {
+// Integrate a force into a body's velocity for one tick. Exported so the
+// backend's CirclePhysical accumulates forces through the exact same
+// expression, f32 intermediate included.
+export const applyForce = (
+  body: PhysicsBody,
+  force: vec2,
+  deltaTimeInSeconds: number,
+) => {
   vec2.add(
     body.velocity,
     body.velocity,
@@ -72,11 +79,16 @@ const applyForce = (body: PhysicsBody, force: vec2, deltaTimeInSeconds: number) 
   );
 };
 
-// ((head + leftFoot) + rightFoot) / 3, in the exact association the server uses
-// everywhere it reads the character centre — do not reassociate.
-export const characterCenter = (state: CharacterMovementState): vec2 => {
-  const center = vec2.add(vec2.create(), state.head.center, state.leftFoot.center);
-  vec2.add(center, center, state.rightFoot.center);
+// ((head + leftFoot) + rightFoot) / 3, in the exact association every reader of
+// the character centre uses — do not reassociate. Takes the three circles
+// rather than a whole movement state so the client's view can call it too.
+export const characterCenter = (
+  head: { center: vec2 },
+  leftFoot: { center: vec2 },
+  rightFoot: { center: vec2 },
+): vec2 => {
+  const center = vec2.add(vec2.create(), head.center, leftFoot.center);
+  vec2.add(center, center, rightFoot.center);
   return vec2.scale(center, center, 1 / 3);
 };
 
@@ -106,7 +118,7 @@ const springMove = (
 };
 
 const keepPosture = (state: CharacterMovementState) => {
-  const center = characterCenter(state);
+  const center = characterCenter(state.head, state.leftFoot, state.rightFoot);
   springMove(
     state,
     state.leftFoot,
@@ -190,7 +202,7 @@ export const applyLeapImpulse = (state: CharacterMovementState, moveDirection: v
 
   // Slingshot: add the tangential velocity of the spinning surface under the
   // body (the same motion carryWithRotatingPlanet imparts).
-  const center = characterCenter(state);
+  const center = characterCenter(state.head, state.leftFoot, state.rightFoot);
   const omega = planet.angularVelocity;
   const surfaceVelocity = vec2.fromValues(
     omega * (center[1] - planet.center[1]),
@@ -255,7 +267,7 @@ export const decayMomentum = (
     : settings.airMomentumFriction;
   const target = Math.min(
     speed * Math.exp(-friction * deltaTimeInSeconds) -
-    settings.momentumStopDeceleration * deltaTimeInSeconds,
+      settings.momentumStopDeceleration * deltaTimeInSeconds,
     settings.maxBodyMomentum,
   );
   if (target <= 1) {
@@ -297,9 +309,6 @@ export const stepCharacterMovement = (
   inputDirection: vec2,
   deltaTimeInSeconds: number,
 ) => {
-  const center = characterCenter(state);
-  const grounds = world.groundsNear(center, boundRadius + settings.maxGravityDistance);
-
   const movementForce = vec2.scale(
     inputDirection,
     inputDirection,
@@ -309,6 +318,12 @@ export const stepCharacterMovement = (
   applyForce(state.rightFoot, movementForce, deltaTimeInSeconds);
 
   if (!state.currentPlanet) {
+    // Only the airborne branch needs the surrounding planets, and this is the
+    // widest query the character makes — running it while grounded (the common
+    // case) walked the server's spatial tree once per character per tick for a
+    // result nothing read.
+    const center = characterCenter(state.head, state.leftFoot, state.rightFoot);
+    const grounds = world.groundsNear(center, boundRadius + settings.maxGravityDistance);
     const leftFootGravity = sumGravity(grounds, state.leftFoot.center);
     const rightFootGravity = sumGravity(grounds, state.rightFoot.center);
 
@@ -332,7 +347,7 @@ export const stepCharacterMovement = (
       movementLength > 0 &&
       gravityLength > 0 &&
       vec2.dot(movementForce, gravity) <
-      -movementLength * gravityLength * settings.climbDotThreshold
+        -movementLength * gravityLength * settings.climbDotThreshold
     ) {
       vec2.scale(gravity, gravity, settings.climbGravityScale);
     }

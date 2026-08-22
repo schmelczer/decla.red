@@ -11,7 +11,7 @@ import {
   Circle,
   marchCircle,
 } from 'shared';
-import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
+import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
 import { CirclePhysical } from './circle-physical';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { PhysicalContainer } from '../physics/containers/physical-container';
@@ -28,7 +28,6 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
 
   private isDestroyed = false;
   private bounceCount = 0;
-  private _boundingBox?: ImmutableBoundingBox;
 
   public object: CirclePhysical;
 
@@ -107,12 +106,11 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
     }
   }
 
-  public get boundingBox(): ImmutableBoundingBox {
-    if (!this._boundingBox) {
-      this._boundingBox = (this.object as CirclePhysical).boundingBox;
-    }
-
-    return this._boundingBox;
+  // The circle keeps its own box in sync as it moves, so this is a live view of
+  // it, not a snapshot — caching it saved nothing and mistyped a mutable box as
+  // immutable.
+  public get boundingBox(): BoundingBoxBase {
+    return this.object.boundingBox;
   }
 
   public get gameObject(): this {
@@ -163,22 +161,18 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
     // This single broadphase is reused for the step below: the gravity radius
     // (maxGravityDistance) dwarfs one tick's travel, so the set is a superset of
     // the swept-collision box and the step needn't query the container again.
-    const intersecting = settings.projectileGravityEnabled
-      ? this.container.findIntersecting(
-          getBoundingBoxOfCircle(
-            new Circle(this.center, this.object.radius + settings.maxGravityDistance),
-          ),
-        )
-      : undefined;
+    const intersecting = this.container.findIntersecting(
+      getBoundingBoxOfCircle(
+        new Circle(this.center, this.object.radius + settings.maxGravityDistance),
+      ),
+    );
 
-    if (intersecting) {
-      vec2.scaleAndAdd(
-        this.velocity,
-        this.velocity,
-        forceAtPosition(this.center, intersecting),
-        settings.projectileGravityScale * deltaTimeInSeconds,
-      );
-    }
+    vec2.scaleAndAdd(
+      this.velocity,
+      this.velocity,
+      forceAtPosition(this.center, intersecting),
+      settings.projectileGravityScale * deltaTimeInSeconds,
+    );
 
     vec2.copy(this.object.velocity, this.velocity);
     const { velocity } = this.object.stepManually(deltaTimeInSeconds, intersecting);

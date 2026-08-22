@@ -20,16 +20,6 @@ const isDevelopment =
   typeof location !== 'undefined' &&
   (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
-const servers: Array<string> = isDevelopment
+export const servers: Array<string> = isDevelopment
   ? [`http://${location.hostname}:3000`, ...productionServers]
   : productionServers;
-
-export abstract class Configuration {
-  public static async initialize(): Promise<void> {
-    // Kept async for call-site compatibility; the server list is static now.
-  }
-
-  public static get servers(): Array<string> {
-    return servers;
-  }
-}

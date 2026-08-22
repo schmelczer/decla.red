@@ -2,6 +2,7 @@ import { vec2, vec3 } from 'gl-matrix';
 import { CircleLight, Renderer } from 'sdf-2d';
 
 import {
+  characterCenter,
   Circle,
   Id,
   CharacterBase,
@@ -10,6 +11,7 @@ import {
   clamp,
   clamp01,
   mix,
+  strengthToCharge,
   CommandExecutors,
   UpdatePropertyCommand,
 } from 'shared';
@@ -123,9 +125,7 @@ export class CharacterView extends CharacterBase {
   }
 
   public get bodyCenter(): vec2 {
-    const center = vec2.add(vec2.create(), this.head!.center, this.leftFoot!.center);
-    vec2.add(center, center, this.rightFoot!.center);
-    return vec2.scale(center, center, 1 / 3);
+    return characterCenter(this.head!, this.leftFoot!, this.rightFoot!);
   }
 
   public get facingDirection(): vec2 {
@@ -271,10 +271,7 @@ export class CharacterView extends CharacterBase {
   }
 
   public onShoot(strength: number) {
-    const q = clamp01(
-      (strength - settings.chargeShotStrengthMin) /
-        (settings.chargeShotStrengthMax - settings.chargeShotStrengthMin),
-    );
+    const q = strengthToCharge(strength);
     SoundHandler.play(Sounds.shoot, mix(0.55, 1, q), mix(1.15, 0.8, q));
     this.muzzleFlashIntensity = mix(0.35, 1, q);
   }
@@ -332,16 +329,11 @@ export class CharacterView extends CharacterBase {
   }
 
   private calculateTextPosition(): vec2 {
-    const footAverage = vec2.add(
+    return vec2.scaleAndAdd(
       vec2.create(),
-      this.leftFoot!.center,
-      this.rightFoot!.center,
+      this.head!.center,
+      this.facingDirection,
+      this.head!.radius + 80,
     );
-    vec2.scale(footAverage, footAverage, 0.5);
-
-    const headFeetDelta = vec2.subtract(footAverage, this.head!.center, footAverage);
-    vec2.normalize(headFeetDelta, headFeetDelta);
-    const textOffset = vec2.scale(headFeetDelta, headFeetDelta, this.head!.radius + 80);
-    return vec2.add(textOffset, this.head!.center, textOffset);
   }
 }

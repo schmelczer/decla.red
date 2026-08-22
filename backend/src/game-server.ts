@@ -48,9 +48,6 @@ export class GameServer extends CommandReceiver {
   private isInEndGame = false;
   private timeScaling = 1;
 
-  private serverName: string;
-  private playerLimit: number;
-
   private initialize() {
     const previousPlayers = this.players;
     this.releaseJoinedSockets();
@@ -84,9 +81,6 @@ export class GameServer extends CommandReceiver {
     private options: Options,
   ) {
     super();
-
-    this.serverName = options.name;
-    this.playerLimit = options.playerLimit;
 
     this.initialize();
 
@@ -274,14 +268,9 @@ export class GameServer extends CommandReceiver {
     this.isInEndGame = true;
     const endTitleLength = 6;
     this.players.endGame(winningTeam);
-    this.players.queueCommandForEachClient(
-      new GameEndCommand(winningTeam, endTitleLength, true),
-    );
-    setTimeout(() => this.destroy(), endTitleLength * 1000 * 1.1);
-  }
-
-  private destroy() {
-    this.initialize();
+    this.players.queueCommandForEachClient(new GameEndCommand());
+    // Rebuild the world for the next round once the end card has been shown.
+    setTimeout(() => this.initialize(), endTitleLength * 1000 * 1.1);
   }
 
   private timeSinceLastPointUpdate = 0;
@@ -377,14 +366,14 @@ export class GameServer extends CommandReceiver {
         rtts.sort((a, b) => a - b);
         console.info(
           `Player RTT median ${rtts[Math.floor(rtts.length / 2)].toFixed(0)} ms ` +
-          `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
+            `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
         );
       }
 
       if (this.droppedInboundMessages > 0) {
         console.warn(
           `Rate limited ${this.droppedInboundMessages} inbound message(s) since last report — ` +
-          'client input was discarded',
+            'client input was discarded',
         );
         this.droppedInboundMessages = 0;
       }
@@ -406,9 +395,9 @@ export class GameServer extends CommandReceiver {
 
   public get serverInfo(): ServerInformation {
     return {
-      serverName: this.serverName,
+      serverName: this.options.name,
       playerCount: this.players.count,
-      playerLimit: this.playerLimit,
+      playerLimit: this.options.playerLimit,
       gameStatePercent: this.gameProgress,
     };
   }

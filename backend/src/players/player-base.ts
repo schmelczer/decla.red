@@ -7,6 +7,7 @@ import {
   Random,
   settings,
   sanitizeName,
+  boundRadius,
 } from 'shared';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
@@ -23,6 +24,7 @@ export abstract class PlayerBase extends CommandReceiver {
 
   protected sumKills = 0;
   protected sumDeaths = 0;
+  protected timeUntilRespawn = 0;
 
   constructor(
     protected readonly playerInfo: PlayerInformation,
@@ -52,6 +54,44 @@ export abstract class PlayerBase extends CommandReceiver {
   }
 
   public abstract step(deltaTimeInSeconds: number): void;
+
+  /**
+   * The death/respawn lifecycle both a connected player and an NPC go through:
+   * bank the score off a body that just died, hold the corpse for the respawn
+   * timeout, then build a new one. Returns whether there is a living character
+   * to act with this tick — returned as the character itself, so a subclass can
+   * `const character = this.stepLifecycle(dt); if (!character) return;` and go
+   * on to use it without re-narrowing.
+   */
+  protected stepLifecycle(deltaTimeInSeconds: number): CharacterPhysical | undefined {
+    if (this.character) {
+      this.center = this.character.center;
+
+      if (this.character.isAlive) {
+        return this.character;
+      }
+
+      this.sumDeaths++;
+      this.sumKills = this.character.killCount;
+      this.onCharacterDied(this.character);
+      this.character = null;
+      this.timeUntilRespawn = settings.playerDiedTimeout;
+      return undefined;
+    }
+
+    if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
+      this.onBeforeRespawn();
+      this.createCharacter();
+      this.center = this.character!.center;
+    }
+    return undefined;
+  }
+
+  // Hooks for what a subclass wants to do with the body it just lost, and just
+  // before a new one is built. Both are no-ops by default.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected onCharacterDied(character: CharacterPhysical) {}
+  protected onBeforeRespawn() {}
 
   private findSpawnCenter(): vec2 {
     const planets = this.objectContainer
@@ -96,10 +136,7 @@ export abstract class PlayerBase extends CommandReceiver {
         radius * Math.sin(rotation) + preferredCenter.y,
       );
 
-      const playerBoundingCircle = new Circle(
-        playerPosition,
-        CharacterPhysical.boundRadius,
-      );
+      const playerBoundingCircle = new Circle(playerPosition, boundRadius);
 
       const playerBoundingBox = getBoundingBoxOfCircle(playerBoundingCircle);
       const possibleIntersectors =

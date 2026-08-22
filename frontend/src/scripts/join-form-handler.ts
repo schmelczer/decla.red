@@ -1,6 +1,6 @@
 import { ServerInformation, serverInformationEndpoint, TransportEvents } from 'shared';
 import { io, Socket } from 'socket.io-client';
-import { Configuration } from './configuration';
+import { servers } from './configuration';
 import parser from 'socket.io-msgpack-parser';
 import { SoundHandler, Sounds } from './sound-handler';
 
@@ -69,11 +69,7 @@ export class JoinFormHandler {
 
   private servers: Array<ServerChooserOption> = [];
   private async loadServers() {
-    await Configuration.initialize();
-
-    const serverList = Configuration.servers.filter(
-      (u) => !this.servers.find((s) => s.url === u),
-    );
+    const serverList = servers.filter((u) => !this.servers.find((s) => s.url === u));
 
     serverList.map(async (url) => {
       const controller = new AbortController();

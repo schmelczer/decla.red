@@ -7,6 +7,7 @@ import {
   MoveActionCommand,
   CharacterTeam,
   Id,
+  rotate90Deg,
 } from 'shared';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { PlayerContainer } from './player-container';
@@ -100,23 +101,9 @@ export class NPC extends PlayerBase {
     this.step(0);
   }
 
-  private timeUntilRespawn = 0;
   public step(deltaTimeInSeconds: number) {
-    if (this.character) {
-      this.center = this.character.center;
-
-      if (!this.character.isAlive) {
-        this.sumDeaths++;
-        this.sumKills = this.character.killCount;
-        this.character = null;
-        this.timeUntilRespawn = settings.playerDiedTimeout;
-        return;
-      }
-    } else {
-      if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
-        this.createCharacter();
-        this.center = this.character!.center;
-      }
+    const character = this.stepLifecycle(deltaTimeInSeconds);
+    if (!character) {
       return;
     }
 
@@ -143,16 +130,16 @@ export class NPC extends PlayerBase {
     this.dodgeCommitRemaining -= deltaTimeInSeconds;
     this.dodgeCooldownRemaining -= deltaTimeInSeconds;
     const movement = this.decideMovement(this.nearObjects);
-    this.character.handleMovementAction(new MoveActionCommand(movement));
+    character.handleMovementAction(new MoveActionCommand(movement));
 
     if (
       !this.isComingBack &&
-      this.character.groundPlanet &&
+      character.groundPlanet &&
       vec2.length(movement) > 0 &&
       Random.getRandom() <
         npcTuning.leapChancePerSecond * this.aggression * deltaTimeInSeconds
     ) {
-      this.character.leap();
+      character.leap();
     }
 
     if (
@@ -178,18 +165,15 @@ export class NPC extends PlayerBase {
     const nearObjects = this.observe(npcTuning.planScanRadius);
     const enemies = this.enemiesByDistance(nearObjects);
 
-    if (enemies.length > 0) {
-      const nearest = enemies[0];
+    const nearest = enemies[0];
+    if (nearest) {
       const fleeRange =
         npcTuning.fleeBaseRange * (npcTuning.fleeAggressionFalloff - this.aggression);
       if (nearest.distance < fleeRange) {
         vec2.subtract(this.direction, this.center, nearest.character.center);
         return;
       }
-    }
 
-    if (enemies.length > 0) {
-      const nearest = enemies[0];
       const chaseRange =
         npcTuning.chaseBaseRange + npcTuning.chaseAggressionRange * this.aggression;
       if (nearest.distance < chaseRange) {
@@ -275,7 +259,7 @@ export class NPC extends PlayerBase {
       return undefined;
     }
 
-    const perpendicular = vec2.fromValues(-threat.direction.y, threat.direction.x);
+    const perpendicular = rotate90Deg(threat.direction);
     const toMe = vec2.subtract(vec2.create(), this.center, threat.center);
     if (vec2.dot(perpendicular, toMe) < 0) {
       vec2.negate(perpendicular, perpendicular);

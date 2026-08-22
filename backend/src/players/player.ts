@@ -52,9 +52,11 @@ const maximumBufferedBytes = settings.maxBufferedBytesPerClient;
 export class Player extends PlayerBase {
   // default, until the clients sends its real value
   private aspectRatio: number = 16 / 9;
-  private timeUntilRespawn = 0;
   private timeSinceLastMessage = 0;
-  private objectsPreviouslyInViewArea: Array<GameObject> = [];
+  // What this client has already been told about, in the order it was told.
+  // A Set because the per-snapshot diff below is membership-heavy; iteration
+  // order is insertion order, so the streamed object order is unchanged.
+  private objectsInViewArea = new Set<GameObject>();
   private lastInputClientTimeMs = 0;
   private lastInputReceiptMs = 0;
   private lastLeapClientTimeMs = 0;
@@ -190,7 +192,7 @@ export class Player extends PlayerBase {
   protected createCharacter() {
     super.createCharacter();
 
-    this.objectsPreviouslyInViewArea.push(this.character!);
+    this.objectsInViewArea.add(this.character!);
     this.queueCommandSend(new CreatePlayerCommand(this.character!));
   }
 
@@ -205,26 +207,17 @@ export class Player extends PlayerBase {
   private dyingCharacter?: CharacterPhysical | null;
 
   public step(deltaTimeInSeconds: number) {
-    if (this.character) {
-      this.center = this.character?.center;
+    this.stepLifecycle(deltaTimeInSeconds);
+  }
 
-      if (!this.character.isAlive) {
-        this.sumDeaths++;
-        this.sumKills = this.character.killCount;
+  protected onCharacterDied(character: CharacterPhysical) {
+    this.dyingCharacter = character;
+  }
 
-        this.dyingCharacter = this.character;
-        this.character = null;
-        this.timeUntilRespawn = settings.playerDiedTimeout;
-      }
-    } else {
-      if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
-        if (this.dyingCharacter) {
-          this.sumKills = Math.max(this.sumKills, this.dyingCharacter.killCount);
-          this.dyingCharacter = null;
-        }
-        this.createCharacter();
-        this.center = this.character!.center;
-      }
+  protected onBeforeRespawn() {
+    if (this.dyingCharacter) {
+      this.sumKills = Math.max(this.sumKills, this.dyingCharacter.killCount);
+      this.dyingCharacter = null;
     }
   }
 
@@ -234,26 +227,30 @@ export class Player extends PlayerBase {
     bb.topLeft = viewArea.topLeft;
     bb.size = viewArea.size;
 
-    const objectsInViewArea = Array.from(
-      new Set(this.objectContainer.findIntersecting(bb).map((o) => o.gameObject)),
+    const inViewArea = new Set(
+      this.objectContainer.findIntersecting(bb).map((o) => o.gameObject),
     );
 
     // The owning character must always be in its own snapshot, regardless of the
     // view-area query, so the client predictor never loses its authoritative
     // anchor (the body can ride a fast spinner to the very edge of the box).
-    if (this.character && !objectsInViewArea.includes(this.character)) {
-      objectsInViewArea.push(this.character);
+    if (this.character) {
+      inViewArea.add(this.character);
     }
 
-    const newlyIntersecting = objectsInViewArea.filter(
-      (o) => !this.objectsPreviouslyInViewArea.includes(o),
+    // Set membership rather than Array.includes: this diff runs per player per
+    // snapshot over everything on their screen, and was quadratic in that.
+    // Set membership rather than Array.includes: this diff runs per player per
+    // snapshot over everything on their screen, and was quadratic in that.
+    const newlyIntersecting = [...inViewArea].filter(
+      (o) => !this.objectsInViewArea.has(o),
     );
 
-    const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
-      (o) => !objectsInViewArea.includes(o),
+    const noLongerIntersecting = [...this.objectsInViewArea].filter(
+      (o) => !inViewArea.has(o),
     );
 
-    this.objectsPreviouslyInViewArea = objectsInViewArea;
+    this.objectsInViewArea = inViewArea;
 
     if (noLongerIntersecting.length > 0) {
       this.queueCommandSend(
@@ -267,13 +264,15 @@ export class Player extends PlayerBase {
 
     this.queueCommandSend(new UpdateMinimap(this.getMinimapPlayers()));
 
+    const propertyUpdates: Array<PropertyUpdatesForObject> = [];
+    for (const object of this.objectsInViewArea) {
+      const update = object.getPropertyUpdatesForFrame();
+      if (update) {
+        propertyUpdates.push(update);
+      }
+    }
     this.queueCommandSend(
-      new PropertyUpdatesForObjects(
-        this.objectsPreviouslyInViewArea
-          .map((o) => o.getPropertyUpdatesForFrame())
-          .filter((u) => u) as Array<PropertyUpdatesForObject>,
-        performance.now() / 1000,
-      ),
+      new PropertyUpdatesForObjects(propertyUpdates, performance.now() / 1000),
     );
 
     // Tell the client how much of its own input is reflected in the snapshot it
@@ -310,11 +309,17 @@ export class Player extends PlayerBase {
   }
 
   public stepCommunications(deltaTime: number) {
-    const remoteCalls = this.objectsPreviouslyInViewArea
-      .map((g) => new RemoteCallsForObject(g.id, g.getRemoteCalls()))
-      .filter((c) => c.calls.length > 0);
+    // Runs at the physics rate, and on most ticks nothing has fired — so test
+    // first and only build the command when there is something to send.
+    let remoteCalls: Array<RemoteCallsForObject> | undefined;
+    for (const object of this.objectsInViewArea) {
+      const calls = object.getRemoteCalls();
+      if (calls.length > 0) {
+        (remoteCalls ??= []).push(new RemoteCallsForObject(object.id, calls));
+      }
+    }
 
-    if (remoteCalls.length > 0) {
+    if (remoteCalls) {
       this.queueCommandSend(new RemoteCallsForObjects(remoteCalls));
     }
 

@@ -1,5 +1,3 @@
-import { vec2 } from 'gl-matrix';
-
 // axis-aligned
 export abstract class BoundingBoxBase {
   constructor(
@@ -41,14 +39,6 @@ export abstract class BoundingBoxBase {
 
   public get yMax(): number {
     return this._yMax;
-  }
-
-  public get topLeft(): vec2 {
-    return vec2.fromValues(this._xMin, this._yMax);
-  }
-
-  public get size(): vec2 {
-    return vec2.fromValues(this._xMax - this._xMin, this._yMax - this._yMin);
   }
 
   public intersects(other: BoundingBoxBase): boolean {

@@ -1,6 +1,5 @@
 import { vec2 } from 'gl-matrix';
 import { BoundingBoxBase } from './bounding-box-base';
-import { ImmutableBoundingBox } from './immutable-bounding-box';
 
 export class BoundingBox extends BoundingBoxBase {
   public get xMin(): number {
@@ -51,9 +50,5 @@ export class BoundingBox extends BoundingBoxBase {
 
   public get size(): vec2 {
     return vec2.fromValues(this._xMax - this._xMin, this._yMax - this._yMin);
-  }
-
-  public cloneAsImmutable(): ImmutableBoundingBox {
-    return new ImmutableBoundingBox(this.xMin, this.xMax, this.yMin, this.yMax);
   }
 }

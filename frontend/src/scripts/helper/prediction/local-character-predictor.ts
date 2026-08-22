@@ -14,8 +14,11 @@ import {
 import { ClientCharacterWorld, PredictablePlanet } from './client-character-world';
 import { InputHistory } from './input-history';
 
-const stepMs = 1000 / 200; // match the server's 200 Hz fixed tick
-const stepSeconds = 1 / 200;
+// The server's fixed tick, read from the same place the server reads it — the
+// replay integrates over this dt, so a comment promising they match is not
+// enough.
+const stepSeconds = settings.targetPhysicsDeltaTimeInSeconds;
+const stepMs = stepSeconds * 1000;
 
 // The client's clock: the timestamp of the frame currently being rendered, set
 // once per frame by the game loop (requestAnimationFrame hands it to us
