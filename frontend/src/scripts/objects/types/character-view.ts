@@ -18,9 +18,8 @@ import {
 import { BeforeDestroyCommand } from '../../commands/types/before-destroy';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
-import { CircleInterpolator } from '../../helper/interpolators/circle-interpolator';
 import { LinearInterpolator } from '../../helper/interpolators/linear-interpolator';
-import { Pointer } from '../../helper/pointer';
+import { pointer } from '../../helper/pointer';
 import { CharacterShape } from '../../shapes/character-shape';
 import { SoundHandler, Sounds } from '../../sound-handler';
 import { VibrationHandler } from '../../vibration-handler';
@@ -30,9 +29,7 @@ import { ScreenShake } from '../../screen-shake';
 const muzzleFlashDecaySeconds = 0.12;
 const hitFlashDecaySeconds = 0.15;
 
-// A white-hot pop of light thrown at the spot a character dies, seen by everyone
-// who can see the body. No radius knob on a CircleLight, so the burst is sold by
-// a bright (HDR) colour with a fast-decaying intensity envelope.
+// No radius knob on CircleLight, so the death burst is sold by a bright (HDR) colour with a fast-decaying intensity.
 const deathBurstDecaySeconds = 0.42;
 const deathBurstMaxIntensity = 1.7;
 const deathBurstColor = vec3.fromValues(2.5, 2.3, 2.1);
@@ -62,9 +59,15 @@ export class CharacterView extends CharacterBase {
 
   public isMainCharacter = false;
 
-  private leftFootInterpolator: CircleInterpolator;
-  private rightFootInterpolator: CircleInterpolator;
-  private headInterpolator: CircleInterpolator;
+  private lfx = new LinearInterpolator(0);
+  private lfy = new LinearInterpolator(0);
+  private lfr = new LinearInterpolator(0);
+  private rfx = new LinearInterpolator(0);
+  private rfy = new LinearInterpolator(0);
+  private rfr = new LinearInterpolator(0);
+  private hdx = new LinearInterpolator(0);
+  private hdy = new LinearInterpolator(0);
+  private hdr = new LinearInterpolator(0);
 
   protected commandExecutors: CommandExecutors = {
     [RenderCommand.type]: this.draw.bind(this),
@@ -93,9 +96,18 @@ export class CharacterView extends CharacterBase {
     );
     this.deathBurst = new CircleLight(vec2.clone(this.head!.center), deathBurstColor, 0);
 
-    this.leftFootInterpolator = new CircleInterpolator(this.leftFoot!);
-    this.rightFootInterpolator = new CircleInterpolator(this.rightFoot!);
-    this.headInterpolator = new CircleInterpolator(this.head!);
+    const lf = this.leftFoot!;
+    this.lfx = new LinearInterpolator(lf.center[0]);
+    this.lfy = new LinearInterpolator(lf.center[1]);
+    this.lfr = new LinearInterpolator(lf.radius);
+    const rf = this.rightFoot!;
+    this.rfx = new LinearInterpolator(rf.center[0]);
+    this.rfy = new LinearInterpolator(rf.center[1]);
+    this.rfr = new LinearInterpolator(rf.radius);
+    const hd = this.head!;
+    this.hdx = new LinearInterpolator(hd.center[0]);
+    this.hdy = new LinearInterpolator(hd.center[1]);
+    this.hdr = new LinearInterpolator(hd.radius);
 
     this.nameElement.className = 'player-tag ' + this.team;
     this.nameElement.innerText = this.name;
@@ -151,13 +163,19 @@ export class CharacterView extends CharacterBase {
     rateOfChange,
   }: UpdatePropertyCommand) {
     if (propertyKey === 'head') {
-      this.headInterpolator.addFrame(propertyValue, rateOfChange);
+      this.hdx.addFrame(propertyValue.center[0], rateOfChange.center[0]);
+      this.hdy.addFrame(propertyValue.center[1], rateOfChange.center[1]);
+      this.hdr.addFrame(propertyValue.radius, rateOfChange.radius);
     }
     if (propertyKey === 'leftFoot') {
-      this.leftFootInterpolator.addFrame(propertyValue, rateOfChange);
+      this.lfx.addFrame(propertyValue.center[0], rateOfChange.center[0]);
+      this.lfy.addFrame(propertyValue.center[1], rateOfChange.center[1]);
+      this.lfr.addFrame(propertyValue.radius, rateOfChange.radius);
     }
     if (propertyKey === 'rightFoot') {
-      this.rightFootInterpolator.addFrame(propertyValue, rateOfChange);
+      this.rfx.addFrame(propertyValue.center[0], rateOfChange.center[0]);
+      this.rfy.addFrame(propertyValue.center[1], rateOfChange.center[1]);
+      this.rfr.addFrame(propertyValue.radius, rateOfChange.radius);
     }
     if (propertyKey === 'strength') {
       this.strengthInterpolator.addFrame(propertyValue, rateOfChange);
@@ -177,8 +195,6 @@ export class CharacterView extends CharacterBase {
 
       if (this.isMainCharacter) {
         VibrationHandler.vibrate(Math.min(200, damage * 4));
-        // Getting hit jolts the frame too, so taking fire has weight, not just
-        // dealing it.
         ScreenShake.add(clamp01(0.12 + (0.5 * damage) / settings.playerMaxStrength));
       }
     }
@@ -188,9 +204,7 @@ export class CharacterView extends CharacterBase {
     if (this.isMainCharacter) {
       VibrationHandler.vibrate(150);
     }
-    // Visible to everyone who can see the body: a white-hot flash plus a
-    // full-body whiteout, so a kill reads as a violent burst rather than the
-    // character quietly blinking out.
+    // Visible to everyone who can see the body: a white-hot flash plus a full-body whiteout.
     this.deathBurstIntensity = 1;
     this.hitFlashIntensity = 1;
   }
@@ -199,8 +213,7 @@ export class CharacterView extends CharacterBase {
     if (!this.isMainCharacter) {
       return;
     }
-    // Layer a meaty thud under the crisp confirmation tick; a charged hit lands
-    // lower and harder than a panic tap.
+    // Layer a meaty thud under the crisp confirmation tick; a charged hit lands lower and harder.
     SoundHandler.play(Sounds.hit, mix(0.35, 0.7, charge), mix(1.3, 0.95, charge));
     SoundHandler.play(Sounds.click, mix(0.4, 0.75, charge), mix(1.7, 1.1, charge));
     ScreenShake.add(mix(0.22, 0.5, charge));
@@ -212,9 +225,7 @@ export class CharacterView extends CharacterBase {
     if (!this.isMainCharacter) {
       return;
     }
-    // A heavy low thud for the kill with a brighter confirmation over the top,
-    // a hard frame jolt, a zoom-punch toward the action for weight, and a
-    // double-thump rumble.
+    // A heavy low thud for the kill with a brighter confirmation over the top, a hard frame jolt, a zoom-punch, and a double-thump rumble.
     SoundHandler.play(Sounds.hit, 1, mix(0.62, 0.5, charge));
     SoundHandler.play(Sounds.click, 0.9, mix(0.6, 0.45, charge));
     ScreenShake.add(mix(0.75, 1, charge));
@@ -231,9 +242,27 @@ export class CharacterView extends CharacterBase {
   }
 
   private step({ deltaTimeInSeconds }: StepCommand): void {
-    this.head! = this.headInterpolator.getValue(deltaTimeInSeconds);
-    this.leftFoot! = this.leftFootInterpolator.getValue(deltaTimeInSeconds);
-    this.rightFoot! = this.rightFootInterpolator.getValue(deltaTimeInSeconds);
+    this.head! = new Circle(
+      vec2.fromValues(
+        this.hdx.getValue(deltaTimeInSeconds),
+        this.hdy.getValue(deltaTimeInSeconds),
+      ),
+      this.hdr.getValue(deltaTimeInSeconds),
+    );
+    this.leftFoot! = new Circle(
+      vec2.fromValues(
+        this.lfx.getValue(deltaTimeInSeconds),
+        this.lfy.getValue(deltaTimeInSeconds),
+      ),
+      this.lfr.getValue(deltaTimeInSeconds),
+    );
+    this.rightFoot! = new Circle(
+      vec2.fromValues(
+        this.rfx.getValue(deltaTimeInSeconds),
+        this.rfy.getValue(deltaTimeInSeconds),
+      ),
+      this.rfr.getValue(deltaTimeInSeconds),
+    );
 
     this.strength = clamp(
       this.strengthInterpolator.getValue(deltaTimeInSeconds),
@@ -315,7 +344,7 @@ export class CharacterView extends CharacterBase {
   }
 
   private calculateGazeTarget(renderer: Renderer): vec2 {
-    const cursor = Pointer.getDisplayPosition();
+    const cursor = pointer.displayPosition;
     if (this.isMainCharacter && cursor) {
       return renderer.displayToWorldCoordinates(cursor);
     }

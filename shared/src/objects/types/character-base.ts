@@ -1,4 +1,4 @@
-import { Id } from '../../communication/id';
+import { Id } from '../../communication/communication';
 import { Circle } from '../../helper/circle';
 import { serializable } from '../../serialization/serializable';
 import { toArrayFromFields } from '../../serialization/serialized-fields';

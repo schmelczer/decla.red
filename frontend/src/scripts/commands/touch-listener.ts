@@ -2,7 +2,6 @@ import { vec2 } from 'gl-matrix';
 import {
   CommandGenerator,
   MoveActionCommand,
-  last,
   PrimaryActionCommand,
   LeapActionCommand,
   holdDurationToCharge,
@@ -18,8 +17,6 @@ import {
 export class TouchListener extends CommandGenerator {
   private static readonly deadZone = 8;
   private static readonly deltaScaling = 0.4;
-  // Min screen drag (px) from the fire button before a shot is aimed by the
-  // drag direction instead of firing straight ahead.
   private static readonly aimDeadZone = 18;
 
   private joystick: HTMLElement;
@@ -76,7 +73,6 @@ export class TouchListener extends CommandGenerator {
     target.addEventListener('touchcancel', this.touchCancelListener);
   }
 
-  // The contact that started this gesture, or undefined if it is not in `list`.
   private findGestureTouch(list: TouchList): Touch | undefined {
     if (this.gestureTouchId === null) {
       return undefined;
@@ -93,8 +89,8 @@ export class TouchListener extends CommandGenerator {
     event.preventDefault();
     if (this.isJoystickActive) {
       const center = vec2.fromValues(
-        last(event.changedTouches)!.clientX,
-        last(event.changedTouches)!.clientY,
+        event.changedTouches[event.changedTouches.length - 1].clientX,
+        event.changedTouches[event.changedTouches.length - 1].clientY,
       );
       this.sendCommandToSubscribers(
         new PrimaryActionCommand(
@@ -159,8 +155,6 @@ export class TouchListener extends CommandGenerator {
   private touchEndListener = (event: TouchEvent) => {
     event.preventDefault();
 
-    // Only the contact that owns the gesture ends it — not whichever finger
-    // happens to lift, and not "the screen is now empty".
     const touch = this.findGestureTouch(event.changedTouches);
     if (!touch) {
       return;
@@ -187,8 +181,7 @@ export class TouchListener extends CommandGenerator {
     }
   };
 
-  // Also reached from touchcancel: a system gesture, an incoming call or a
-  // palm rejection would otherwise leave the stick latched at full tilt.
+  // Also reached from touchcancel — otherwise a system gesture leaves the stick latched.
   private touchCancelListener = (event: TouchEvent) => {
     if (!this.findGestureTouch(event.changedTouches)) {
       return;
@@ -230,9 +223,6 @@ export class TouchListener extends CommandGenerator {
     ChargeIndicator.begin(this.fireButtonCenter[0], this.fireButtonCenter[1]);
   };
 
-  // Dragging from the fire button aims the shot: the drag vector sets the
-  // direction, decoupling aim from movement so a touch player can fire one way
-  // while walking another. A tap with no meaningful drag fires straight ahead.
   private fireButtonMoveListener = (event: TouchEvent) => {
     this.swallowTouch(event);
     if (this.fireDownAt === null || !this.fireButtonCenter) {
@@ -271,8 +261,7 @@ export class TouchListener extends CommandGenerator {
       return;
     }
 
-    // Screen drag → world aim direction (flip Y: screen +y is down). Below the
-    // dead-zone it's a tap, so fall back to firing along the facing direction.
+    // Screen drag → world aim direction (flip Y: screen +y is down).
     let direction = character.facingDirection;
     if (this.fireButtonCenter && this.fireAimScreen) {
       const dx = this.fireAimScreen[0] - this.fireButtonCenter[0];

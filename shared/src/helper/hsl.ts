@@ -1,7 +1,5 @@
 import { vec3 } from 'gl-matrix';
-import { rgb } from './rgb';
 
-// source: https://stackoverflow.com/questions/2353211/hsl-to-rgb-color-conversion
 export const hsl = (hue: number, saturation: number, lightness: number): vec3 => {
   hue /= 360;
   saturation /= 100;
@@ -31,5 +29,5 @@ export const hsl = (hue: number, saturation: number, lightness: number): vec3 =>
     b = hue2rgb(p, q, hue - 1 / 3);
   }
 
-  return rgb(r, g, b);
+  return vec3.fromValues(r, g, b);
 };

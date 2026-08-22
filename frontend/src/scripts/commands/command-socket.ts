@@ -32,16 +32,7 @@ export class CommandSocket extends CommandReceiver {
   public sendQueuedCommands() {
     const nowMs = predictorNowMs();
 
-    // Real input goes out on the frame it happens — that is the whole latency
-    // budget the player feels. An idle client still has to keep the server's
-    // input acknowledgement moving (a held key generates no fresh command), but
-    // that heartbeat is paced by the clock rather than by the frame rate.
-    //
-    // Sending once per rendered frame instead put every display above
-    // settings.maxInboundMessagesPerSecond permanently over the server's inbound
-    // allowance; once the burst was spent it silently discarded whole batches,
-    // and since movement commands are edge-triggered and never re-sent, a lost
-    // batch meant the direction change simply never happened.
+    // Real input goes out on the frame it happens — that is the latency budget the player feels. An idle client still keeps the server's input acknowledgement moving (a held key generates no fresh command), paced by the clock not the frame rate; sending every rendered frame would exceed settings.maxInboundMessagesPerSecond, and since movement commands are edge-triggered and never re-sent, a discarded batch would drop the direction change for good.
     if (
       this.commandQueue.length === 0 &&
       nowMs - this.lastSendMs < heartbeatIntervalMs - dueToleranceMs

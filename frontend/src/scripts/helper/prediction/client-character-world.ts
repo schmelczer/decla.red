@@ -9,8 +9,7 @@ import {
   resolveCircleMovement,
 } from 'shared';
 
-// What the predictor needs to know about a planet to collide and be pulled by
-// it. The client reads this off its PlanetViews.
+// What the predictor needs to know about a planet to collide and be pulled by it.
 export interface PredictablePlanet {
   id: Id;
   vertices: Array<vec2>;
@@ -20,9 +19,7 @@ export interface PredictablePlanet {
   rotationSpeed: number;
 }
 
-// A planet collision/gravity surface whose rotation can be advanced during
-// replay, so its outline turns in lockstep with the body the carry term moves —
-// exactly as the server steps the planet before the character each tick.
+// A planet surface whose rotation advances during replay, in lockstep with the body — exactly as the server steps the planet before the character each tick.
 class PlanetSurface implements GroundSurface {
   public readonly canCollide = true;
   public readonly isGround = true;
@@ -71,18 +68,12 @@ class PlanetSurface implements GroundSurface {
   }
 }
 
-// The planets-only collision world the local predictor runs against. It holds
-// persistent surfaces keyed by planet id (so a `currentPlanet` reference stays
-// valid across frames) and never dispatches collision reactions — damage,
-// scoring and the like are server-authoritative.
+// Planets-only collision world for the predictor. Persistent surfaces keyed by id (currentPlanet stays valid across frames); never dispatches collision reactions — those are server-authoritative.
 export class ClientCharacterWorld implements CharacterWorld {
   private surfaces = new Map<Id, PlanetSurface>();
   private ordered: Array<PlanetSurface> = [];
 
-  // Refresh from the current PlanetViews. Far planets contribute zero gravity
-  // (the falloff clamps to 0 past maxGravityDistance) and never collide, so the
-  // whole set can be handed to every query without a range filter. Ordered by
-  // id so the (rare) two-surface contact picks a stable surface.
+  // Far planets contribute zero gravity (the falloff clamps to 0 past maxGravityDistance) and never collide, so the whole set can be handed to every query without a range filter. Ordered by id so the (rare) two-surface contact picks a stable surface.
   public sync(planets: Array<PredictablePlanet>) {
     const seen = new Set<Id>();
     for (const planet of planets) {
@@ -104,10 +95,7 @@ export class ClientCharacterWorld implements CharacterWorld {
       .map((e) => e[1]);
   }
 
-  // Advance every planet's collision frame by one replay substep, so surfaces
-  // and the carried body rotate together. The surfaces are re-synced to the
-  // newest snapshot rotation each frame (see sync), so the replay only ever
-  // steps forward from there.
+  // Advance every planet's collision frame by one replay substep, so surfaces and the carried body rotate together. Surfaces are re-synced to the newest snapshot rotation each frame (see sync), so the replay only ever steps forward from there.
   public advance(deltaTimeInSeconds: number) {
     for (const surface of this.ordered) {
       surface.advance(deltaTimeInSeconds);

@@ -4,13 +4,12 @@ import { settings } from '../../settings';
 import { serializable } from '../../serialization/serializable';
 import { toArrayFromFields } from '../../serialization/serialized-fields';
 import { GameObject } from '../game-object';
-import { Id } from '../../communication/id';
+import { Id } from '../../communication/communication';
 import { CharacterTeam } from './character-base';
 
 @serializable
 export class PlanetBase extends GameObject {
-  // centre/radius are derived from vertices in the constructor, so they are not
-  // serialized — only the constructor parameters are.
+  // centre/radius are derived from vertices, so not serialized.
   private static readonly serializedFields = [
     'id',
     'vertices',
@@ -35,9 +34,8 @@ export class PlanetBase extends GameObject {
       this.vertices.length;
   }
 
-  // Which team controls this planet, with the neutral dead-band around 50%
-  // applied. Lives here so scoring (server) and every tint the player sees
-  // (client) read one rule rather than three copies of the same comparison.
+  // Single rule for the dead-band: scoring (server) and every tint (client)
+  // read this rather than duplicating the comparison.
   public get team(): CharacterTeam {
     return Math.abs(this.ownership - 0.5) < settings.planetControlThreshold
       ? CharacterTeam.neutral

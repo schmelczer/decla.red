@@ -3,11 +3,9 @@ import { CommandGenerator, PrimaryActionCommand, holdDurationToCharge } from 'sh
 import { Game } from '../game';
 import { ChargeIndicator } from '../charge-indicator';
 import { predictorNowMs } from '../helper/prediction/local-character-predictor';
-import { Pointer } from '../helper/pointer';
+import { pointer } from '../helper/pointer';
 
 export class MouseListener extends CommandGenerator {
-  // Timestamp (ms) of the primary press, or null when not held. On release the
-  // held duration is mapped to the charge scalar; a quick tap reads as ~0.
   private primaryDownAt: number | null = null;
 
   constructor(
@@ -19,25 +17,19 @@ export class MouseListener extends CommandGenerator {
     target.addEventListener('mousedown', this.mouseDownListener);
     target.addEventListener('mousemove', this.mouseMoveListener);
     target.addEventListener('contextmenu', this.contextMenuListener);
-    // Release is watched on the window, not the canvas: a charge released over
-    // the settings gear, the fullscreen icon, or outside the window otherwise
-    // never fired the shot and left the charge ring up until the next press.
+    // Release watched on the window, not the canvas — a release over UI or outside the window must still fire.
     window.addEventListener('mouseup', this.mouseUpListener);
     window.addEventListener('blur', this.cancelPrimary);
   }
 
-  // Only the screen position is stored; it is reprojected to world space each
-  // frame so the gaze stays correct even while the camera pans under a still
-  // cursor.
+  // Store screen position; reproject to world each frame so gaze stays correct while the camera pans.
   private mouseMoveListener = (event: MouseEvent) => {
-    Pointer.setDisplayPosition(event.clientX, event.clientY);
+    pointer.displayPosition = vec2.fromValues(event.clientX, event.clientY);
   };
 
   private mouseDownListener = (event: MouseEvent) => {
     if (event.button === 0) {
       this.primaryDownAt = performance.now();
-      // The ring follows the cursor and only fades in once this press has
-      // clearly become a hold.
       ChargeIndicator.begin(event.clientX, event.clientY, true);
     }
   };
@@ -59,8 +51,6 @@ export class MouseListener extends CommandGenerator {
     );
   };
 
-  // Losing the window mid-charge cannot produce a meaningful aim point, so drop
-  // the charge rather than leaving the indicator running.
   private cancelPrimary = () => {
     if (this.primaryDownAt !== null) {
       this.primaryDownAt = null;
@@ -68,7 +58,6 @@ export class MouseListener extends CommandGenerator {
     }
   };
 
-  // Suppress the browser context menu on the canvas; right-click has no action.
   private contextMenuListener = (event: MouseEvent) => {
     event.preventDefault();
   };

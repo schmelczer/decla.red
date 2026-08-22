@@ -37,51 +37,38 @@ import { PlayerContainer } from './player-container';
 import { PlayerBase } from './player-base';
 import { CharacterPhysical } from '../objects/character-physical';
 
-// How often the server pings each client to measure round-trip time.
 const pingIntervalSeconds = 1;
 
-// Aspect ratio is used to size the streamed view area; a zero, negative or
-// non-finite value collapses it and the player stops receiving the world.
 const minimumAspectRatio = 0.2;
 const maximumAspectRatio = 8;
 
-// How much unflushed data on the socket counts as "this client is not keeping
-// up". See sendQueuedCommandsToClient.
 const maximumBufferedBytes = settings.maxBufferedBytesPerClient;
 
 export class Player extends PlayerBase {
-  // default, until the clients sends its real value
   private aspectRatio: number = 16 / 9;
   private timeSinceLastMessage = 0;
-  // What this client has already been told about, in the order it was told.
-  // A Set because the per-snapshot diff below is membership-heavy; iteration
-  // order is insertion order, so the streamed object order is unchanged.
+  // A Set: the per-snapshot diff is membership-heavy, and insertion-order
+  // iteration keeps the streamed object order unchanged.
   private objectsInViewArea = new Set<GameObject>();
   private lastInputClientTimeMs = 0;
   private lastInputReceiptMs = 0;
   private lastLeapClientTimeMs = 0;
 
-  // Token this session was issued at join. On a drop it is what the held score
-  // is filed under, and what the returning client presents to reclaim it.
   public reconnectToken = '';
 
-  // Measured round-trip time to this client (ms) — drives projectile lag
-  // compensation as well as the server-side latency stats.
+  // Drives projectile lag compensation as well as the server-side latency stats.
   public rttMs = 0;
   private timeSinceLastPing = 0;
   private lastPingSentMs = 0;
-  // Nonce of the ping currently awaiting a reply, cleared once answered. Without
-  // it a Pong was just a bare event: any client could send a stream of them, or
-  // answer a ping it had sat on for a minute, and the RTT it produced feeds
-  // projectile lag compensation.
+  // Nonce of the ping awaiting a reply: prevents a client forging Pongs or
+  // answering a stale ping to corrupt the RTT that feeds lag compensation.
   private pendingPingNonce = 0;
   private nextPingNonce = 1;
 
-  // Nothing below trusts a field it was handed. Every one of these arrives
-  // straight from `deserialize`, which is a bare JSON.parse — and JSON carries
-  // Infinity happily as `1e999`. A single non-finite number reaching the
-  // simulation is unrecoverable: it spreads through the shared SDF and leaves a
-  // character that never dies and never respawns.
+  // Input below is untrusted: every command arrives from `deserialize`
+  // (a bare JSON.parse, which accepts Infinity as `1e999`). A single
+  // non-finite value reaching the simulation is unrecoverable — it spreads
+  // through the shared SDF and leaves a character that never dies or respawns.
   protected commandExecutors: CommandExecutors = {
     [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) => {
       this.aspectRatio = finiteInRange(
@@ -115,26 +102,22 @@ export class Player extends PlayerBase {
       if (!isFiniteNumber(c.clientTimeMs)) {
         return;
       }
-      // Record receipt (whether or not leap() accepts it): either way its effect
-      // on bodyVelocity is now reflected in the streamed launch momentum, so the
-      // predictor must stop replaying this leap.
+      // Record receipt whether or not leap() accepts it: the predictor must
+      // stop replaying this leap either way.
       this.lastLeapClientTimeMs = c.clientTimeMs;
       this.observeClientTime(c.clientTimeMs);
       this.character?.leap();
     },
-    // Closes every batch. Movement is only sent when it changes, so a held key
-    // used to freeze the acknowledged input time — and with it the window the
-    // client's predictor is allowed to replay. This advances the acknowledgement
-    // at the client's send rate regardless of whether the input changed.
+    // Advances the acknowledgement at the client's send rate regardless of
+    // whether input changed — otherwise a held key freezes the predictor's
+    // replay window.
     [ClientHeartbeatCommand.type]: (c: ClientHeartbeatCommand) =>
       this.observeClientTime(c.clientTimeMs),
   };
 
-  // The newest client-clock instant whose commands have all been applied, and
-  // the server-clock instant it arrived at. The client's predictor needs both:
-  // the first tells it which of its inputs are already reflected in the
-  // snapshot, the second how stale that answer was by the time the snapshot was
-  // taken (see InputAcknowledgement.ackAgeMs).
+  // Tracks both the newest applied client-clock instant and the server-clock
+  // instant it arrived. The predictor needs both: which inputs are already in
+  // the snapshot, and how stale that answer was (see InputAcknowledgement).
   private observeClientTime(clientTimeMs: number) {
     if (isFiniteNumber(clientTimeMs) && clientTimeMs > this.lastInputClientTimeMs) {
       this.lastInputClientTimeMs = clientTimeMs;
@@ -142,10 +125,8 @@ export class Player extends PlayerBase {
     }
   }
 
-  // How long a command spent reaching us, for projectile lag compensation.
-  // Deliberately derived from the measured RTT and NOT from the client's own
-  // timestamp, so a forged stamp cannot buy extra compensation — which is why it
-  // takes no argument. ProjectilePhysical.fastForward caps the result.
+  // Derived from the measured RTT, NOT the client's timestamp, so a forged
+  // stamp cannot buy extra lag compensation. fastForward caps the result.
   private get catchUpSeconds(): number {
     return Math.max(0, this.rttMs / 2 / 1000);
   }
@@ -161,16 +142,13 @@ export class Player extends PlayerBase {
     this.createCharacter();
     this.step(0);
 
-    // The client already echoes a Pong for every Ping (see game.ts). Only one
-    // ping is ever in flight, so RTT is simply now − send-time; no payload
-    // needed and no client change required.
+    // Only one ping is ever in flight, so RTT is simply now − send-time.
     this.socket.on(TransportEvents.Pong, this.onPong);
   }
 
-  // Only the outstanding ping counts, and only once: a stale, duplicated or
-  // invented reply is ignored. A client can still sit on the live ping to
-  // inflate its measured RTT, so the result is clamped — and the next ping
-  // retires the nonce, bounding the stall at one ping interval.
+  // Only the outstanding ping's nonce counts, once. A client can sit on the
+  // live ping to inflate measured RTT, so the result is clamped; the next ping
+  // retires the nonce, bounding any stall at one ping interval.
   private readonly onPong = (nonce: unknown) => {
     if (this.pendingPingNonce === 0 || nonce !== this.pendingPingNonce) {
       return;
@@ -182,9 +160,8 @@ export class Player extends PlayerBase {
     );
   };
 
-  // Fix 7a: the Pong listener outlives the round it belongs to unless it is
-  // taken off explicitly — the socket survives a restart, so a retired Player
-  // would stay reachable (and keep updating) through it.
+  // The Pong listener outlives the round: the socket survives a restart, so a
+  // retired Player would stay reachable through it unless removed explicitly.
   public detachFromSocket() {
     this.socket.off(TransportEvents.Pong, this.onPong);
   }
@@ -201,9 +178,8 @@ export class Player extends PlayerBase {
     this.winnerTeam = winnerTeam;
   }
 
-  // The corpse a projectile may still credit a kill to. Kept so a shot that was
-  // already in flight when we died is not thrown away: killCount is re-read at
-  // respawn instead of being snapshotted the instant the body died.
+  // Retained so an in-flight shot can still credit a kill to this corpse:
+  // killCount is re-read at respawn, not snapshotted when the body died.
   private dyingCharacter?: CharacterPhysical | null;
 
   public step(deltaTimeInSeconds: number) {
@@ -231,17 +207,14 @@ export class Player extends PlayerBase {
       this.objectContainer.findIntersecting(bb).map((o) => o.gameObject),
     );
 
-    // The owning character must always be in its own snapshot, regardless of the
-    // view-area query, so the client predictor never loses its authoritative
-    // anchor (the body can ride a fast spinner to the very edge of the box).
+    // The owning character must always be in its own snapshot so the client
+    // predictor never loses its authoritative anchor.
     if (this.character) {
       inViewArea.add(this.character);
     }
 
     // Set membership rather than Array.includes: this diff runs per player per
-    // snapshot over everything on their screen, and was quadratic in that.
-    // Set membership rather than Array.includes: this diff runs per player per
-    // snapshot over everything on their screen, and was quadratic in that.
+    // snapshot over everything on screen and was quadratic in that.
     const newlyIntersecting = [...inViewArea].filter(
       (o) => !this.objectsInViewArea.has(o),
     );
@@ -275,9 +248,8 @@ export class Player extends PlayerBase {
       new PropertyUpdatesForObjects(propertyUpdates, performance.now() / 1000),
     );
 
-    // Tell the client how much of its own input is reflected in the snapshot it
-    // just received, so its predictor can replay the rest. Only while alive —
-    // a dead player isn't predicting.
+    // Tells the client how much of its own input is reflected in the snapshot
+    // so its predictor can replay the rest. Only while alive.
     if (this.character) {
       this.queueCommandSend(
         new InputAcknowledgement(
@@ -292,8 +264,8 @@ export class Player extends PlayerBase {
     }
   }
 
-  // Every living player except this one, reported by absolute world position so
-  // the client can plot the whole circular arena on its minimap.
+  // Every living player except this one, by absolute world position for the
+  // minimap.
   private getMinimapPlayers(): Array<MinimapPlayer> {
     return this.playerContainer.players
       .filter((p) => p !== this && p.character?.isAlive)
@@ -309,8 +281,7 @@ export class Player extends PlayerBase {
   }
 
   public stepCommunications(deltaTime: number) {
-    // Runs at the physics rate, and on most ticks nothing has fired — so test
-    // first and only build the command when there is something to send.
+    // Test first and only build the command when there is something to send.
     let remoteCalls: Array<RemoteCallsForObject> | undefined;
     for (const object of this.objectsInViewArea) {
       const calls = object.getRemoteCalls();
@@ -338,11 +309,8 @@ export class Player extends PlayerBase {
     }
   }
 
-  // Bytes written to this client's socket but not yet flushed to the network.
-  // engine.io's own Socket exposes no such number — it lives on the underlying
-  // ws socket, and only the websocket transport has one — so reading
-  // `socket.conn.bufferedAmount` (as this did) always produced undefined and the
-  // backpressure check below never once ran.
+  // engine.io's Socket exposes no bufferedAmount — it lives on the underlying
+  // ws socket, and only the websocket transport has one.
   private get bufferedBytes(): number {
     const conn = this.socket.conn as
       | { transport?: { socket?: { bufferedAmount?: unknown } } }
@@ -356,27 +324,18 @@ export class Player extends PlayerBase {
       return;
     }
 
-    // A client that is not draining gets the cheap half of the snapshot shed:
-    // piling more state behind it only grows a backlog it will never catch up
-    // on, and the freshest property update is the only one that matters.
-    //
-    // Only the state that next tick regenerates in full may be dropped. Create
-    // and delete are one-shot: handleViewAreaUpdate has ALREADY advanced
-    // objectsPreviouslyInViewArea by the time this runs, so dropping them leaves
-    // this client permanently missing objects it was never told about and
-    // holding ghosts it was never told to remove. Announcements and the end-game
-    // card are one-shot for the same reason. They are small; they go out even
-    // while backed up.
+    // Only state next tick regenerates in full may be dropped. Create/delete
+    // are one-shot: handleViewAreaUpdate has ALREADY advanced
+    // objectsPreviouslyInViewArea, so dropping them leaves this client
+    // permanently missing objects and holding ghosts. They go out even backed up.
     if (this.bufferedBytes > maximumBufferedBytes) {
-      // Matched by command type rather than `instanceof`, the same way every
-      // other dispatch in the codebase does it — the identity of a class from a
+      // Matched by command type, not `instanceof`: a class identity from a
       // bundled shared module is not something to depend on.
       const sheddable: ReadonlyArray<string> = [
         PropertyUpdatesForObjects.type,
         UpdateMinimap.type,
-        // Only meaningful together with the pose it describes, and regenerated
-        // in full next tick — so it is shed with it rather than advancing the
-        // client's replay anchor past a snapshot it never received.
+        // Regenerated in full next tick — shed with the pose, never advance the
+        // replay anchor past a snapshot the client never received.
         InputAcknowledgement.type,
       ];
       this.commandsToBeSent = this.commandsToBeSent.filter(
@@ -391,7 +350,6 @@ export class Player extends PlayerBase {
     this.commandsToBeSent = [];
   }
 
-  /** Score to hold for this player if it reconnects inside the grace window. */
   public get scoreSnapshot(): { kills: number; deaths: number } {
     return {
       kills: Math.max(this.sumKills, this.character?.killCount ?? 0),

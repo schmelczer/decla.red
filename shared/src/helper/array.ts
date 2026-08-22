@@ -1,6 +1,5 @@
 declare global {
-  // `T` must stay to merge with the global `Array<T>` (otherwise TS2428), but it
-  // is unused by the x/y aliases below.
+  // `T` must stay to merge with the global `Array<T>` (otherwise TS2428).
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Array<T> {
     x: number;

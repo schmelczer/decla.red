@@ -43,10 +43,7 @@ module.exports = (env, argv) => ({
   },
   plugins: [
     new webpack.BannerPlugin({ banner: '#!/usr/bin/env node', raw: true }),
-    new CleanWebpackPlugin({
-      protectWebpackAssets: false,
-      cleanAfterEveryBuildPatterns: [],
-    }),
+    new CleanWebpackPlugin(),
   ],
   module: {
     rules: [

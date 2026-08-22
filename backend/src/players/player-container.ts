@@ -7,8 +7,8 @@ import { PlayerBase } from './player-base';
 import { ServerFullError } from './server-full-error';
 import { randomUUID } from 'node:crypto';
 
-// Score held for a player whose socket dropped, so a reconnect inside the grace
-// window resumes the match instead of starting from zero.
+// Score held for a dropped player so a reconnect inside the grace window
+// resumes the match instead of starting from zero.
 interface ReservedScore {
   team: CharacterTeam;
   kills: number;
@@ -69,8 +69,8 @@ export class PlayerContainer {
   }
 
   /**
-   * A fresh token for a joining player. Handed to the client immediately; it
-   * only becomes redeemable once the player actually drops (see reserveScore).
+   * A fresh token for a joining player; only redeemable once the player
+   * actually drops (see reserveScore).
    */
   public issueToken(): string {
     return randomUUID();
@@ -78,7 +78,7 @@ export class PlayerContainer {
 
   /**
    * Hold a dropped player's team and score against its token for the grace
-   * window, so a client whose transport blipped rejoins as itself.
+   * window, so a reconnecting client rejoins as itself.
    */
   public reserveScore(
     token: string,
@@ -128,16 +128,14 @@ export class PlayerContainer {
     return this._players.length >= this.playerMaxCount;
   }
 
-  // Measured round-trip times (ms) of the real connected players, for
-  // server-side latency stats. NPCs have no socket and are excluded.
+  // Real connected players only — NPCs have no socket and are excluded.
   public get connectedPlayerRttsMs(): Array<number> {
     return this._players.map((p) => p.rttMs);
   }
 
   public step(deltaTimeInSeconds: number) {
-    // Iterates the two backing arrays rather than the merged `players` getter:
-    // this runs once per 200 Hz physics substep, and the getter builds a new
-    // array every call.
+    // Iterate the backing arrays directly: this runs per 200 Hz substep and the
+    // `players` getter allocates a new array every call.
     this._players.forEach((p) => p.step(deltaTimeInSeconds));
     this._npcs.forEach((p) => p.step(deltaTimeInSeconds));
   }
@@ -173,8 +171,8 @@ export class PlayerContainer {
   public deletePlayer(player: Player) {
     const had = this._players.includes(player);
     this._players = this._players.filter((p) => p !== player);
-    // Only refill bots if this player was actually ours. A socket left over from
-    // a previous round reports its disconnect against the new container, and
+    // Only refill bots if this player was actually ours: a stale socket from a
+    // previous round reports its disconnect against the new container, and
     // topping up on that would over-fill the roster.
     if (had) {
       this.createNPCs();

@@ -58,9 +58,7 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
               float cr = cos(rotation);
               float sr = sin(rotation);
 
-              // Spin the whole planet: evaluate the SDF in the planet's own
-              // rotating frame so the polygon outline turns together with its
-              // terrain, instead of the terrain sliding over a fixed outline.
+              // Evaluate the SDF in the planet's own rotating frame so the outline turns with its terrain.
               vec2 targetCenterDelta = target - center;
               float targetDistance = length(targetCenterDelta);
               vec2 localTarget = center + vec2(
@@ -129,9 +127,7 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
   public randomOffset = 0;
   public rotation = 0;
 
-  // Circle about the rotation centre (the vertex centroid, which is what the
-  // shader spins around — see planetMinDistance above). The vertices never
-  // change after construction, so cache it once.
+  // Circle about the vertex centroid — the point the shader spins around (planetMinDistance above). Vertices are immutable after construction, so it is cached once.
   private readonly cullCenter: vec2;
   private readonly cullRadius: number;
 

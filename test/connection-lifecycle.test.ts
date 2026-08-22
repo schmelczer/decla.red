@@ -1,12 +1,9 @@
-// Drives the real GameServer through a fake socket.io to cover the connection
-// lifecycle: the join guard, refusal reasons, and reconnect. None of this is
-// reachable from a unit test of any single class, and it is where the audit
-// found the most severe defects.
+// Connection lifecycle: join guard, refusal reasons, reconnect — driven through a fake socket.io.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createRequire } from 'node:module';
 
 import { GameServer } from '../backend/src/game-server';
-import { defaultOptions } from '../backend/src/default-options';
+import { defaultOptions } from '../backend/src/options';
 
 const require = createRequire(import.meta.url);
 const shared = require('../shared/lib/main.js');
@@ -91,9 +88,6 @@ beforeEach(() => {
 });
 
 describe('join guard', () => {
-  // One socket used to be able to emit PlayerJoining as often as it liked, each
-  // pass spawning another Player and stacking another set of listeners, until it
-  // held every slot on the server.
   it('accepts exactly one join per connection', () => {
     const { server, attach } = startServer({ playerLimit: 4, npcCount: 1 });
     const socket = attach();
@@ -145,7 +139,6 @@ describe('hostile payloads', () => {
       attach().fire(TransportEvents.PlayerJoining, { name: ['CharacterBase'] });
     }
 
-    // The joins are accepted (the name is coerced) and no bot is stranded.
     expect(server.serverInfo.playerCount).toBe(4);
   });
 
@@ -154,7 +147,6 @@ describe('hostile payloads', () => {
     const socket = attach();
     socket.fire(TransportEvents.PlayerJoining, { name: 'sender' });
 
-    // Would previously be handed straight to JSON.parse on the physics thread.
     expect(() =>
       socket.fire(TransportEvents.PlayerToServer, 'x'.repeat(2 * 1024 * 1024)),
     ).not.toThrow();
@@ -162,8 +154,6 @@ describe('hostile payloads', () => {
 });
 
 describe('reconnect', () => {
-  // A transport blip used to end the match: the client tore itself down and the
-  // server deleted the character, with no way back to the same player.
   it('hands out a token on join and honours it on the way back', () => {
     const { server, attach } = startServer({ playerLimit: 4, npcCount: 0 });
 
@@ -181,7 +171,7 @@ describe('reconnect', () => {
     expect(server.serverInfo.playerCount).toBe(1);
     expect(second.disconnected).toBe(false);
     expect(second.lastPayloadFor(TransportEvents.JoinRejected)).toBeUndefined();
-    // A fresh token for the new session, so the old one cannot be replayed.
+    // Fresh token: the old one cannot be replayed.
     expect(second.lastPayloadFor(TransportEvents.PlayerJoined)).not.toBe(token);
   });
 
@@ -199,15 +189,6 @@ describe('reconnect', () => {
 });
 
 describe('inbound rate limiting', () => {
-  // The bucket exists to survive a flood, but a dropped batch is LOST input,
-  // not delayed input: movement is edge-triggered and nothing is ever re-sent,
-  // so a discarded batch means the direction change simply never happened. The
-  // ceiling used to be 120/s on the assumption of "one batch per frame", which
-  // any display above 120 Hz exceeds outright — after the burst was spent, a
-  // 144 Hz client had roughly one batch in six silently swallowed.
-  //
-  // Each message that gets past the limiter is unparseable and so logs exactly
-  // once, which counts admissions without reaching into the server.
   const admitted = (socket: { fire: (e: string, p: string) => void }, count: number) => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     for (let i = 0; i < count; i++) {
@@ -218,10 +199,6 @@ describe('inbound rate limiting', () => {
     return seen;
   };
 
-  // The allowance has to sit well clear of what a well-behaved client actually
-  // sends, or the limiter eats gameplay input instead of floods. It used to be
-  // 120/s against a client that sent once per rendered frame — a ratio below 1
-  // for anyone on a 144 Hz display.
   it('allows several times what a well-behaved client sends', () => {
     const clientMessagesPerSecond = 1 / settings.clientSendInterval;
 
@@ -238,7 +215,6 @@ describe('inbound rate limiting', () => {
     const socket = attach();
     socket.fire(TransportEvents.PlayerJoining, { name: 'player' });
 
-    // The paced heartbeat plus a generous allowance for discrete input events.
     const oneSecond = Math.ceil(1 / settings.clientSendInterval) + 100;
 
     expect(admitted(socket, oneSecond)).toBe(oneSecond);
@@ -256,10 +232,6 @@ describe('inbound rate limiting', () => {
 });
 
 describe('reconnect tokens', () => {
-  // They used to be minted from `Random` — the seeded Mulberry32 stream shared
-  // with world generation, NPC decisions and planet spin, the last of which is
-  // streamed to every client. That made them guessable, and made every draw
-  // after a join shift, so a seed no longer reproduced a match.
   const tokenFromFreshServer = () => {
     Random.seed = 1;
     const { attach } = startServer({ playerLimit: 4, npcCount: 0, seed: 1 });
@@ -272,12 +244,6 @@ describe('reconnect tokens', () => {
     expect(tokenFromFreshServer()).not.toBe(tokenFromFreshServer());
   });
 
-  // Shape, because that is what distinguishes the two sources: 122 random bits
-  // from the platform CSPRNG, rather than a counter and one 32-bit draw off the
-  // gameplay stream. Minting from `Random` also advanced the stream the world
-  // generator runs on, so the same seed stopped replaying the same match — but
-  // that is not assertable here: this harness seeds a different instance of the
-  // shared bundle than the server source resolves.
   it('mints them from the platform CSPRNG, not the gameplay stream', () => {
     const { attach } = startServer({ playerLimit: 4, npcCount: 0 });
     const socket = attach();
@@ -290,9 +256,6 @@ describe('reconnect tokens', () => {
 });
 
 describe('socket listeners', () => {
-  // The Player registers its own Pong listener, so nothing else knew to take it
-  // off. A socket outlives the round it joined, so the retired Player stayed
-  // reachable — and kept updating its RTT — through a listener nobody removed.
   it('takes every listener back off when the player drops', () => {
     const { attach } = startServer({ playerLimit: 4, npcCount: 0 });
     const socket = attach();

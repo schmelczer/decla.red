@@ -1,27 +1,15 @@
 import { clamp, settings } from 'shared';
 
-// Convergence rate of the playback cursor towards its target; a deviation
-// decays with a time constant of 1 / rateGain seconds.
 const rateGain = 2;
 
-// Playback speed stays within [0.75, 1.25]× so corrections are invisible.
 const maxRateAdjustment = 0.25;
 
-// Beyond this divergence (tab was in the background, server changed) chasing
-// the target is pointless: jump straight to it.
 const resyncSeconds = 0.3;
 
 /**
- * The playback clock for state streamed from the server.
- *
- * Snapshot timestamps estimate the server's clock: the newest received
- * timestamp plus the time elapsed since it arrived. Rendering happens
- * settings.interpolationDelaySeconds behind that estimate, so there is
- * normally a newer snapshot to interpolate towards and network jitter is
- * absorbed by the buffer instead of being shown.
- *
- * The cursor never jumps under normal operation: it runs at a gently adjusted
- * rate to stay on target and only snaps after a long divergence.
+ * Playback clock for streamed server state — renders interpolationDelaySeconds
+ * behind the server clock so a newer snapshot is usually available; the cursor
+ * adjusts its rate gently and only snaps after a long divergence.
  */
 class ServerTimeline {
   private cursor?: number;
@@ -29,12 +17,10 @@ class ServerTimeline {
   private sinceNewestSnapshot = 0;
   private _snapshotTime = 0;
 
-  /** Timestamp of the update batch currently being applied. */
   public get snapshotTime(): number {
     return this._snapshotTime;
   }
 
-  /** The point on the server's clock that should be rendered this frame. */
   public get renderTime(): number {
     return this.cursor ?? 0;
   }

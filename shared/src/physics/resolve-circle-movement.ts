@@ -3,17 +3,13 @@ import { PhysicsBody, Sdf } from './sdf';
 import { depenetrateCircle } from './depenetrate-circle';
 import { marchCircle } from './march-circle';
 
-// The position-resolution half of the backend's CirclePhysical.stepManually,
-// extracted so server and client integrate a body identically. The caller is
-// responsible for the broadphase (gathering `possibleIntersectors`, including
-// the swept-radius bump) because that depends on each side's spatial structure;
-// everything from depenetration onward lives here.
-//
-// `onHit` is threaded through to marchCircle so the backend can dispatch its
-// collision reactions at the same points as before (including the second,
-// post-bounce slide march); the client passes none. Velocity is reset to zero
-// at the end — the character re-applies all forces from zero every tick, so a
-// body that retained velocity would double-integrate and diverge.
+// Position-resolution half of CirclePhysical.stepManually, extracted so server
+// and client integrate a body identically. The caller owns the broadphase
+// (gathering `possibleIntersectors`, incl. the swept-radius bump); everything
+// from depenetration onward lives here. `onHit` is threaded to marchCircle so
+// the backend dispatches collision reactions at the same points; the client
+// passes none. Velocity is reset at the end — the character re-applies all
+// forces from zero every tick, so retained velocity would double-integrate and diverge.
 export const resolveCircleMovement = (
   body: PhysicsBody,
   deltaTimeInSeconds: number,

@@ -65,8 +65,6 @@ export class Game extends CommandReceiver {
   private keystoneArrow?: HTMLElement;
   private socketReceiver!: CommandSocket;
   private tutorial!: Tutorial;
-  // Issued by the server on join; presented on reconnect to reclaim this
-  // player's team and score instead of coming back as a blank slate.
   private reconnectToken?: string;
   private connectionBanner?: HTMLElement;
   private rejectionReason?: JoinRejectionReason;
@@ -91,8 +89,6 @@ export class Game extends CommandReceiver {
     this.socket?.close();
     serverTimeline.reset();
     localCharacterPredictor.reset();
-    // Clear any leftover shake/zoom so a kill at the end of one match can't bleed
-    // its camera impact into the next.
     ScreenShake.reset();
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
@@ -114,16 +110,12 @@ export class Game extends CommandReceiver {
       parser,
     } as any);
 
-    // In socket.io-client v4 reconnection events are emitted by the Manager
-    // (`socket.io`), not the Socket itself.
+    // In socket.io-client v4 reconnection events are emitted by the Manager (`socket.io`), not the Socket itself.
     this.socket.io.on('reconnect_attempt', () => {
       this.socket.io.opts.transports = ['polling', 'websocket'];
     });
 
-    // A transport drop is not the end of the match. Previously this tore the
-    // game down on the first `disconnect`, which stopped the render loop, which
-    // closed the socket — cancelling the reconnection the client is configured
-    // for before it could ever run, and dumping the player on the server list.
+    // A transport drop is not the end of the match — tearing the game down would cancel the reconnection the client is configured for.
     this.socket.on('disconnect', () => {
       if (this.isBetweenGames) {
         return;
@@ -135,15 +127,11 @@ export class Game extends CommandReceiver {
       if (this.isBetweenGames) {
         return;
       }
-      // A reconnect is a brand-new server-side connection that has never seen a
-      // join, so the join has to be re-sent or the client sits connected and
-      // invisible forever.
+      // A reconnect is a brand-new server-side connection that has never seen a join, so the join must be re-sent or the client sits connected and invisible forever.
       this.hideConnectionBanner();
       serverTimeline.reset();
       localCharacterPredictor.reset();
-      // ...and it is a brand-new server-side *player*, whose view-area
-      // bookkeeping starts empty. Anything the dropped session was told about
-      // will never be retracted, so the old world has to go here.
+      // A brand-new server-side player whose view-area bookkeeping starts empty: the dropped session's objects will never be retracted, so reset here.
       this.gameObjects.reset();
       this.socket.emit(TransportEvents.PlayerJoining, {
         ...this.playerDecision,
@@ -167,17 +155,13 @@ export class Game extends CommandReceiver {
       this.destroy();
     });
 
-    // Echo the nonce: the server only accepts a reply that matches the ping
-    // still outstanding, so a stale or duplicated Pong cannot move its RTT.
+    // Echo the nonce: the server only accepts a reply matching the ping still outstanding, so a stale or duplicated Pong cannot move its RTT.
     this.socket.on(TransportEvents.Ping, (nonce: unknown) => {
       this.socket.emit(TransportEvents.Pong, nonce);
     });
 
     this.socket.on(TransportEvents.ServerToPlayer, (serializedCommands: string) => {
-      // One malformed object must not take down the message pump. deserialize
-      // revives classes by name from the payload, so a hostile or corrupt field
-      // can throw inside JSON.parse's reviver — and every later batch would be
-      // lost with it.
+      // deserialize revives classes by name from the payload, so a hostile or corrupt field can throw inside JSON.parse's reviver — one malformed object must not take down the message pump or every later batch is lost with it.
       try {
         const commands: Array<Command> = deserialize(serializedCommands);
         commands.forEach((c) => {
@@ -193,8 +177,6 @@ export class Game extends CommandReceiver {
     });
 
     this.socketReceiver = new CommandSocket(this.socket);
-    // The tutorial listens to the same input streams as the socket, so its
-    // stages clear off the player's own commands without any server involvement.
     this.keyboardListener.clearSubscribers();
     this.keyboardListener.subscribe(this.socketReceiver);
     this.keyboardListener.subscribe(this.tutorial);
@@ -205,9 +187,7 @@ export class Game extends CommandReceiver {
     this.touchListener.subscribe(this.socketReceiver);
     this.touchListener.subscribe(this.tutorial);
 
-    // The join is emitted from the socket's `connect` handler above, which fires
-    // for the first connection and for every reconnection alike — so one code
-    // path covers both, and a reconnect can never be left unjoined.
+    // Join is emitted from the `connect` handler above, which fires for the first connection and every reconnection alike — so one code path covers both and a reconnect can never be left unjoined.
     this.isBetweenGames = false;
   }
 
@@ -278,15 +258,13 @@ export class Game extends CommandReceiver {
     this.socket.close();
     this.overlay.innerHTML = '';
     this.hideConnectionBanner();
-    // The HUD root lives on document.body, not the overlay, so it has to be torn
-    // down explicitly or it stays painted over the landing page.
+    // The HUD root lives on document.body, not the overlay, so it must be torn down explicitly or it stays painted over the landing page.
     FeedbackHud.reset();
     this.keyboardListener.destroy();
     this.mouseListener.destroy();
     this.touchListener.destroy();
   }
 
-  /** Why the player was sent back to the server list, if they were. */
   public get lastRejectionReason(): JoinRejectionReason | undefined {
     return this.rejectionReason;
   }
@@ -341,22 +319,14 @@ export class Game extends CommandReceiver {
     deltaTime: DOMHighResTimeStamp,
   ): boolean {
     this.resolveStarted();
-    // The client's one clock, for input stamps, the outgoing send cadence and
-    // the prediction replay window alike. It has to be the frame's timestamp
-    // rather than performance.now(): the two differ by however long the browser
-    // took to dispatch this callback, and that difference would land straight
-    // in the replay window and jitter the predicted body.
+    // Must use the frame's timestamp, not performance.now(): the dispatch delay would land in the prediction replay window and jitter the predicted body.
     setFrameTimeMs(currentTime);
     deltaTime /= 1000;
 
-    // Decay the camera impact effects on raw wall-clock time, before any of the
-    // end-game slow-motion scaling below. These only adjust the rendered view,
-    // never the simulation, so they stay decoupled from prediction and netcode.
+    // Camera impact decays on raw wall-clock time, before the end-game slow-motion scaling below — view-only, never the simulation, so it stays decoupled from prediction and netcode.
     ScreenShake.step(deltaTime);
 
-    // Stepped before the end-game time scaling on purpose: the slow motion is
-    // already baked into the snapshots the server sends, so the playback
-    // cursor itself must keep running on wall-clock time.
+    // Stepped before the end-game time scaling on purpose: the slow motion is already baked into the server's snapshots, so the playback cursor must keep running on wall-clock time.
     serverTimeline.step(deltaTime);
 
     let shouldChangeLayout = false;
@@ -395,7 +365,6 @@ export class Game extends CommandReceiver {
 
   private draw() {
     if (this.lastGameState) {
-      // The local player's team is read off the main character once it exists.
       this.scoreboard.update(this.lastGameState, this.gameObjects.player?.team);
     }
 
@@ -411,8 +380,6 @@ export class Game extends CommandReceiver {
     }
   }
 
-  // Points an off-screen chevron toward the keystone "Heart" planet, tinted by
-  // who currently holds it, so the match's focal objective is always findable.
   private handleKeystoneArrow() {
     if (!this.renderer) {
       return;

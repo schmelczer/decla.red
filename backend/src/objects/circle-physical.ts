@@ -14,7 +14,7 @@ import { PhysicalContainer } from '../physics/containers/physical-container';
 import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
 import { Physical } from '../physics/physicals/physical';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
-import { ReactToCollisionCommand } from '../commands/react-to-collision';
+import { ReactToCollisionCommand } from '../commands/commands';
 
 @serializesTo(Circle)
 export class CirclePhysical extends CommandReceiver implements Circle, DynamicPhysical {
@@ -35,8 +35,8 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
     private _radius: number,
     public owner: GameObject,
     private readonly container: PhysicalContainer,
-    // Public + readonly so a CirclePhysical structurally satisfies the shared
-    // PhysicsBody interface the movement simulation operates on.
+    // Public + readonly so CirclePhysical satisfies the shared PhysicsBody
+    // interface the movement simulation operates on.
     public readonly restitution = 0,
   ) {
     super();
@@ -89,14 +89,10 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
     applyForce(this, force, timeInSeconds);
   }
 
-  // Position-resolution for one tick. Delegates to the shared
-  // resolveCircleMovement so the server integrates a body with the exact same
-  // geometry the client predictor runs (shared/physics) — no parallel copy to
-  // keep in sync. The onHit callback dispatches the collision reactions at the
-  // same points the old inline move-circle did (both the initial march and the
-  // post-bounce slide). `possibleIntersectors`, when supplied, lets a caller
-  // that already broadphased (e.g. a projectile's gravity query) avoid a second
-  // container query; otherwise it is self-gathered from the swept bounding box.
+  // Delegates to the shared resolveCircleMovement so the server integrates with
+  // the exact same geometry the client predictor runs — no parallel copy to
+  // keep in sync. `possibleIntersectors` lets a caller that already broadphased
+  // avoid a second container query; otherwise it is self-gathered.
   public stepManually(
     deltaTimeInSeconds: number,
     possibleIntersectors?: Array<Physical>,
@@ -119,20 +115,17 @@ export class CirclePhysical extends CommandReceiver implements Circle, DynamicPh
       },
     );
 
-    // The body has moved; re-register it where it actually is.
     this.syncBoundingBox();
 
     return { hitObject: (hitObject as Physical | undefined)?.gameObject, velocity };
   }
 
-  // Query the container with the bounding box grown by this tick's travel, so a
-  // fast-moving body still sees what it is about to sweep into.
   private sweptBroadphase(deltaTimeInSeconds: number): Array<Physical> {
     const sweep = vec2.length(
       vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds),
     );
-    // Grow the query, not the object: inflating and deflating this.radius ran
-    // the setter (and so re-registered the body's extent) twice mid-tick.
+    // Grow the query box, not this.radius: mutating the radius would re-register
+    // the body's extent mid-tick via the setter.
     return this.container.findIntersecting(
       getBoundingBoxOfCircle(new Circle(this.center, this.radius + sweep)),
     );

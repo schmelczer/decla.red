@@ -18,8 +18,7 @@ import { PhysicalContainer } from '../physics/containers/physical-container';
 import { CharacterPhysical } from './character-physical';
 import { forceAtPosition } from '../physics/functions/force-at-position';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
-import { StepCommand } from '../commands/step';
-import { ReactToCollisionCommand } from '../commands/react-to-collision';
+import { StepCommand, ReactToCollisionCommand } from '../commands/commands';
 
 @serializesTo(ProjectileBase)
 export class ProjectilePhysical extends ProjectileBase implements DynamicPhysical {
@@ -44,8 +43,8 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
     private velocity: vec2,
     public readonly originator: CharacterPhysical,
     readonly container: PhysicalContainer,
-    // Normalised charge (0..1) of the shot that fired this, used by the victim
-    // to scale hit/kill feedback and the death fling.
+    // Normalised charge (0..1) of the shot that fired this; the victim scales
+    // hit/kill feedback and the death fling by it.
     public readonly charge: number = 0,
   ) {
     super(id(), center, radius, team, strength);
@@ -89,11 +88,9 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
   }
 
   /**
-   * Lag compensation. Runs the projectile forward by the time its command spent
-   * travelling to the server, so a shot lands where the shooter aimed rather
-   * than forcing them to lead by their own latency on top of the projectile's
-   * travel time. Capped by settings.maxProjectileCatchUpSeconds so a bad or
-   * forged timestamp cannot spawn a shot arbitrarily far downrange.
+   * Lag compensation: runs the projectile forward by the time its command spent
+   * travelling to the server. Capped by settings.maxProjectileCatchUpSeconds so
+   * a forged timestamp cannot spawn a shot arbitrarily far downrange.
    */
   public fastForward(seconds: number) {
     const step = settings.targetPhysicsDeltaTimeInSeconds;
@@ -106,9 +103,8 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
     }
   }
 
-  // The circle keeps its own box in sync as it moves, so this is a live view of
-  // it, not a snapshot — caching it saved nothing and mistyped a mutable box as
-  // immutable.
+  // Live view of the circle's box, not a snapshot — the circle keeps it in sync
+  // as it moves.
   public get boundingBox(): BoundingBoxBase {
     return this.object.boundingBox;
   }
@@ -155,9 +151,6 @@ export class ProjectilePhysical extends ProjectileBase implements DynamicPhysica
       return;
     }
 
-    // Curveball: the same planetary gravity that pulls on a free-falling
-    // character bends the shot, so slower (charged) shots arc and can be lobbed
-    // over a planet's horizon. Scale is tiny — near-surface gravity is huge.
     // This single broadphase is reused for the step below: the gravity radius
     // (maxGravityDistance) dwarfs one tick's travel, so the set is a superset of
     // the swept-collision box and the step needn't query the container again.

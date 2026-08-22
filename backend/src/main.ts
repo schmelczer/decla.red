@@ -6,7 +6,7 @@ import { applyArrayPlugins, Random, serverInformationEndpoint, settings } from '
 import minimist from 'minimist';
 import { glMatrix } from 'gl-matrix';
 import { GameServer } from './game-server';
-import { defaultOptions } from './default-options';
+import { defaultOptions } from './options';
 import parser from 'socket.io-msgpack-parser';
 
 glMatrix.setMatrixArrayType(Array);

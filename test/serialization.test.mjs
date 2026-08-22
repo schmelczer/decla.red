@@ -1,8 +1,4 @@
-// Round-trip tests for the custom wire serializer — the single most fragile,
-// highest-blast-radius mechanism in the codebase (every networked message goes
-// through it, and dispatch is keyed on class name). We exercise the BUILT shared
-// bundle (shared/lib/main.js) rather than the TS source, so the decorators are
-// already applied exactly as they ship and there is no transform/ESM ambiguity.
+// Round-trip tests for the wire serializer, exercising the BUILT shared bundle.
 import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
@@ -68,8 +64,7 @@ describe('serialization round-trip (built shared lib)', () => {
   });
 
   it('preserves per-item class identity across a mixed batch', () => {
-    // A clobbered name→constructor mapping (two classes sharing a name) would
-    // surface here as an item deserializing to the wrong class.
+    // A clobbered name→constructor mapping surfaces as the wrong class.
     const batch = [
       new ServerAnnouncement('a'),
       new MoveActionCommand([0, 1], 5),

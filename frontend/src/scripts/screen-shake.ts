@@ -1,84 +1,75 @@
-// Camera impact effects fed by combat hits, sampled by the camera at render
-// time. Kept as a process-wide singleton so any view can feed it without
-// threading a camera reference through the deserialized object graph. Both
-// effects touch only the *rendered* view (centre offset + view-area zoom), never
-// the followed position or the simulation clock — so they can't drift the camera
-// off the player, and they're completely decoupled from prediction/netcode.
-//
-// Two effects:
-//   - shake: a trauma model (Eiserloh) — the felt shake is trauma SQUARED so
-//     small taps stay subtle while a kill punches hard; it bleeds off linearly.
-//   - punch: a brief zoom-in on a kill that snaps back fast, for "weight".
-//
-// Honours prefers-reduced-motion: callers can fire freely and it simply no-ops
-// for players who have asked the OS to minimise motion.
-export abstract class ScreenShake {
-  private static trauma = 0;
-  private static punch = 0;
+let trauma = 0;
+let punch = 0;
 
-  // Peak translation, in world units, at full trauma. The visible world is
-  // ~3800 units wide, so this tops out at a few percent of the screen.
-  private static readonly maxTranslation = 150;
-  // Fraction the view zooms in at full punch (smaller view area = zoomed in).
-  private static readonly maxZoom = 0.07;
-  private static readonly traumaDecayPerSecond = 1.7;
-  // Snaps back quickly so the punch reads as a sharp bite, not a slow drift.
-  private static readonly punchDecayPerSecond = 6;
+const maxTranslation = 150;
+const maxZoom = 0.07;
+const traumaDecayPerSecond = 1.7;
+const punchDecayPerSecond = 6;
 
-  private static offsetXValue = 0;
-  private static offsetYValue = 0;
+let offsetXValue = 0;
+let offsetYValue = 0;
 
-  private static get reducedMotion(): boolean {
-    return (
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    );
-  }
-
-  public static add(trauma: number): void {
-    if (this.reducedMotion) {
-      return;
-    }
-    this.trauma = Math.min(1, this.trauma + trauma);
-  }
-
-  public static addPunch(amount: number): void {
-    if (this.reducedMotion) {
-      return;
-    }
-    this.punch = Math.min(1, this.punch + amount);
-  }
-
-  public static step(deltaTimeInSeconds: number): void {
-    this.trauma = Math.max(
-      0,
-      this.trauma - this.traumaDecayPerSecond * deltaTimeInSeconds,
-    );
-    this.punch = Math.max(0, this.punch - this.punchDecayPerSecond * deltaTimeInSeconds);
-    const shake = this.trauma * this.trauma;
-    this.offsetXValue = this.maxTranslation * shake * (Math.random() * 2 - 1);
-    this.offsetYValue = this.maxTranslation * shake * (Math.random() * 2 - 1);
-  }
-
-  public static get offsetX(): number {
-    return this.offsetXValue;
-  }
-
-  public static get offsetY(): number {
-    return this.offsetYValue;
-  }
-
-  // Multiplier for the view-area size: <1 zooms in. Squared so the punch bites
-  // sharply near its peak rather than ramping linearly.
-  public static get viewScale(): number {
-    return 1 - this.maxZoom * this.punch * this.punch;
-  }
-
-  public static reset(): void {
-    this.trauma = 0;
-    this.punch = 0;
-    this.offsetXValue = 0;
-    this.offsetYValue = 0;
-  }
+function reducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
 }
+
+export function addTrauma(t: number): void {
+  if (reducedMotion()) {
+    return;
+  }
+  trauma = Math.min(1, trauma + t);
+}
+
+export function addPunch(amount: number): void {
+  if (reducedMotion()) {
+    return;
+  }
+  punch = Math.min(1, punch + amount);
+}
+
+export function stepScreenShake(deltaTimeInSeconds: number): void {
+  trauma = Math.max(0, trauma - traumaDecayPerSecond * deltaTimeInSeconds);
+  punch = Math.max(0, punch - punchDecayPerSecond * deltaTimeInSeconds);
+  const shake = trauma * trauma;
+  offsetXValue = maxTranslation * shake * (Math.random() * 2 - 1);
+  offsetYValue = maxTranslation * shake * (Math.random() * 2 - 1);
+}
+
+function getOffsetX(): number {
+  return offsetXValue;
+}
+
+function getOffsetY(): number {
+  return offsetYValue;
+}
+
+function getViewScale(): number {
+  return 1 - maxZoom * punch * punch;
+}
+
+export function resetScreenShake(): void {
+  trauma = 0;
+  punch = 0;
+  offsetXValue = 0;
+  offsetYValue = 0;
+}
+
+export const ScreenShake = {
+  add: addTrauma,
+  addPunch,
+  step: stepScreenShake,
+  get offsetX() {
+    return getOffsetX();
+  },
+  get offsetY() {
+    return getOffsetY();
+  },
+  get viewScale() {
+    return getViewScale();
+  },
+  reset: resetScreenShake,
+};

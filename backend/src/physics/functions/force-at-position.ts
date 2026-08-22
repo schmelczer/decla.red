@@ -7,6 +7,6 @@ export const forceAtPosition = (position: vec2, objects: Array<Physical>) =>
     .filter((o) => o instanceof PlanetPhysical)
     .reduce(
       (sum: vec2, o: Physical) =>
-        vec2.add(sum, sum, (o as PlanetPhysical).getForce(position)),
+        vec2.add(sum, sum, (o as PlanetPhysical).gravityAt(position)),
       vec2.create(),
     );

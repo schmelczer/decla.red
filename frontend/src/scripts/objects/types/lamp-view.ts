@@ -1,6 +1,6 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { CircleLight } from 'sdf-2d';
-import { CommandExecutors, Id, LampBase, mixRgb, settings } from 'shared';
+import { clamp01, CommandExecutors, Id, LampBase, mix, settings } from 'shared';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
 
@@ -29,7 +29,12 @@ export class LampView extends LampBase {
 
   private step({ deltaTimeInSeconds }: StepCommand): void {
     const t = 1 - Math.exp(-deltaTimeInSeconds / settings.lampLerpSeconds);
-    this.light.color = mixRgb(this.light.color, this.targetColor, t);
+    const q = clamp01(t);
+    this.light.color = vec3.fromValues(
+      mix(this.light.color[0], this.targetColor[0], q),
+      mix(this.light.color[1], this.targetColor[1], q),
+      mix(this.light.color[2], this.targetColor[2], q),
+    );
     this.light.intensity += (this.targetLightness - this.light.intensity) * t;
   }
 

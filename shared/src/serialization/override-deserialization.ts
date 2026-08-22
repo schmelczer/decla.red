@@ -1,13 +1,8 @@
-import { DeserializableClass } from './deserializable-class';
-import { SerializableClass } from './serializable-class';
-import { serializableMapping } from './serializable-mapping';
+import { serializableMapping, SerializableClass } from './serializable-mapping';
 
 export const overrideDeserialization = (
   source: SerializableClass,
-  target: DeserializableClass,
+  target: SerializableClass,
 ) => {
-  serializableMapping.set(source.name, {
-    constructor: target,
-    overridden: true,
-  });
+  serializableMapping.set(source.name, target);
 };

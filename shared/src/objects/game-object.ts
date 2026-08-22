@@ -1,6 +1,6 @@
 import { Command } from '../commands/command';
 import { CommandReceiver } from '../commands/command-receiver';
-import { Id } from '../communication/id';
+import { Id } from '../communication/communication';
 import { serializable } from '../serialization/serializable';
 
 @serializable
@@ -15,11 +15,8 @@ export class RemoteCall {
   }
 }
 
-// Every object property streamed via UpdatePropertyCommand. A single union means
-// a typo or rename on the producing (server *-physical) or consuming (client
-// *-view) side is a compile error instead of a silently dropped update that
-// just stops a body interpolating. The wire format is unchanged — these remain
-// the same strings, only now compiler-checked at both ends.
+// Wire property keys — compiler-checked at both the producing (server) and
+// consuming (client) ends; wire strings are unchanged.
 export type SyncPropertyKey =
   | 'head'
   | 'leftFoot'
@@ -66,11 +63,8 @@ export abstract class GameObject extends CommandReceiver {
   private updateGeneration = -1;
   private cachedPropertyUpdates?: PropertyUpdatesForObject;
 
-  // The only methods a peer may invoke over the wire. processRemoteCalls
-  // dispatches by a raw string taken straight off the network, so without this
-  // gate a malformed or hostile packet could call ANY method on the object
-  // (toArray, resetRemoteCalls, even prototype methods). Keep in sync with the
-  // remoteCall() emitters on the *-physical classes.
+  // Security: processRemoteCalls dispatches by a raw string off the network.
+  // Keep this allow-list in sync with the remoteCall() emitters on *-physical.
   private static readonly allowedRemoteCalls: ReadonlySet<string> = new Set([
     'onShoot',
     'onLeap',
@@ -102,12 +96,14 @@ export abstract class GameObject extends CommandReceiver {
     });
   }
 
-  public getPropertyUpdates(): PropertyUpdatesForObject | void {}
+  public getPropertyUpdates(): PropertyUpdatesForObject | undefined {
+    return undefined;
+  }
 
   public getPropertyUpdatesForFrame(): PropertyUpdatesForObject | undefined {
     if (this.updateGeneration !== currentUpdateGeneration) {
       this.updateGeneration = currentUpdateGeneration;
-      this.cachedPropertyUpdates = this.getPropertyUpdates() ?? undefined;
+      this.cachedPropertyUpdates = this.getPropertyUpdates();
     }
     return this.cachedPropertyUpdates;
   }

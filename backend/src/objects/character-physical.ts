@@ -4,7 +4,6 @@ import {
   settings,
   MoveActionCommand,
   serializesTo,
-  last,
   Circle,
   CharacterBase,
   CharacterTeam,
@@ -38,12 +37,12 @@ import { ProjectilePhysical } from './projectile-physical';
 import { forceAtPosition } from '../physics/functions/force-at-position';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { PlanetPhysical } from './planet-physical';
-import { StepCommand } from '../commands/step';
-import { ReactToCollisionCommand } from '../commands/react-to-collision';
-import { GeneratePointsCommand } from '../commands/generate-points';
+import {
+  StepCommand,
+  ReactToCollisionCommand,
+  GeneratePointsCommand,
+} from '../commands/commands';
 
-// The three body circles, as a value — used to diff a tick's movement into the
-// rate of change the client interpolates on.
 interface BodyPose {
   head: Circle;
   leftFoot: Circle;
@@ -69,9 +68,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
 
   private killStreak = 0;
 
-  // CharacterMovementState, held directly rather than mirrored through an
-  // adapter: the shared simulation reads and writes these in place, so the
-  // character simply IS the state it is stepped as.
+  // Held in place: the shared simulation reads and writes these directly, so
+  // the character IS the state it is stepped as (client predictor agrees).
   public direction = 0;
   public currentPlanet: GroundSurface | undefined;
   public secondsSinceOnSurface = settings.planetDetachmentSeconds;
@@ -127,11 +125,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     container.addObject(this.rightFoot);
   }
 
-  // The container, presented as the collision/gravity world the shared movement
-  // queries.
   private readonly movementWorld: CharacterWorld = {
-    // Same set and order forceAtPosition used: planets in the force field, in
-    // container-traversal order (so the f64 gravity sum is unchanged).
+    // Same set and order forceAtPosition uses, so the f64 gravity sum matches.
     groundsNear: (center, radius) =>
       this.container
         .findIntersecting(getBoundingBoxOfCircle(new Circle(center, radius)))
@@ -176,15 +171,13 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     this.movementActions.push(c);
   }
 
-  // The world only ever hands back planets, so narrowing the shared
-  // GroundSurface is safe here.
+  // The world only ever hands back planets, so narrowing GroundSurface is safe.
   public get groundPlanet(): PlanetPhysical | undefined {
     return this.currentPlanet as PlanetPhysical | undefined;
   }
 
-  // The continuous movement state streamed to the owning client, so its
-  // predictor resumes this simulation instead of guessing at the parts of it
-  // the pose does not show. See CharacterMovementSnapshot.
+  // Continuous movement state streamed to the owning client so its predictor
+  // resumes this simulation instead of guessing. See CharacterMovementSnapshot.
   public get movementSnapshot(): CharacterMovementSnapshot {
     return new CharacterMovementSnapshot(
       this.direction,
@@ -242,7 +235,6 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       this.remoteCall('setHealth', this.health);
 
       if (this.health <= 0 && this.isAlive) {
-        // Throw the corpse along the killing shot, harder for charged hits.
         vec2.scaleAndAdd(
           this.bodyVelocity,
           this.bodyVelocity,
@@ -303,9 +295,6 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       c,
     );
     this.container.addObject(projectile);
-    // Lag compensation: advance the shot by the time the command spent reaching
-    // us, so the shooter does not have to lead by their own latency as well as
-    // by the projectile's travel time.
     projectile.fastForward(catchUpSeconds);
 
     if (c > 0) {
@@ -374,7 +363,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
 
       vec2.scale(direction, direction, 1 / this.movementActions.length);
 
-      this.lastMovementAction = last(this.movementActions)!;
+      const actions = this.movementActions;
+      this.lastMovementAction = actions[actions.length - 1]!;
       this.movementActions = [];
     }
 
@@ -401,9 +391,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     ]);
   }
 
-  // Rate of change of one body part over the tick, which the client's
-  // interpolator coasts on when a snapshot is late. `previous` is consumed as
-  // scratch so this allocates nothing beyond the Circle it returns.
+  // `previous` is consumed as scratch so this allocates nothing beyond the
+  // Circle it returns.
   private static rateOfChange(previous: Circle, current: Circle, deltaTime: number) {
     return new Circle(
       vec2.scale(
@@ -472,15 +461,10 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
 
     this.regenerateHealth(deltaTimeInSeconds);
 
-    // The planet tallies who is standing on it and resolves capture itself, so
-    // a contested rock can freeze instead of two squads silently cancelling.
     this.groundPlanet?.registerPresence(this);
 
-    // The whole walking model — gravity gather, movement force, on/off-planet
-    // branch, posture springs, body-momentum, and stepping the three parts —
-    // is the shared simulation the client predicts with, so the two can never
-    // drift. Server-only concerns (scoring, health, shooting, spawn/death,
-    // ownership) stay here around it.
+    // stepCharacterMovement is the shared simulation the client predicts with,
+    // so the two can never drift.
     const direction = this.averageAndResetMovementActions();
     stepCharacterMovement(this, this.movementWorld, direction, deltaTimeInSeconds);
 
@@ -502,10 +486,8 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
         grounded = true;
       }
     }
-    // Brake with the exact shared model the living body uses: stiff on contact
-    // so the corpse skids to rest, gentle in the air, plus the constant stop and
-    // the speed cap — so a flung corpse comes to a definite stop instead of
-    // sliding forever.
+    // Brake with the shared model the living body uses, so a flung corpse
+    // comes to a definite stop instead of sliding forever.
     decayMomentum(this.bodyVelocity, grounded, deltaTime);
   }
 

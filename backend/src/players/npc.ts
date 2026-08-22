@@ -7,7 +7,6 @@ import {
   MoveActionCommand,
   CharacterTeam,
   Id,
-  rotate90Deg,
 } from 'shared';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { PlayerContainer } from './player-container';
@@ -62,8 +61,6 @@ const npcTuning = {
   spreadPerDistance: 0.08,
   spreadAggressionFalloff: 1.3,
 
-  // Per-second chance to hop while grounded and on the move, so bots use the
-  // leap verb too instead of being grounded targets.
   leapChancePerSecond: 0.35,
 };
 
@@ -259,7 +256,7 @@ export class NPC extends PlayerBase {
       return undefined;
     }
 
-    const perpendicular = rotate90Deg(threat.direction);
+    const perpendicular = vec2.fromValues(-threat.direction[1], threat.direction[0]);
     const toMe = vec2.subtract(vec2.create(), this.center, threat.center);
     if (vec2.dot(perpendicular, toMe) < 0) {
       vec2.negate(perpendicular, perpendicular);

@@ -21,8 +21,6 @@ export class LampBase extends GameObject {
     super(id);
   }
 
-  // Overridden by LampView (which lerps toward the new colour/brightness); a
-  // no-op on the wire base.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public setLight(color: vec3, lightness: number) {}
 

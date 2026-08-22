@@ -1,5 +1,8 @@
-import { CommandExecutors } from './command-executors';
 import { Command } from './command';
+
+export type CommandExecutors = {
+  [type: string]: (command: any) => unknown;
+};
 
 export abstract class CommandReceiver {
   protected commandExecutors: CommandExecutors = {};

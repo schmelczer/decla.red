@@ -1,6 +1,4 @@
-// Regression net for the backend defects found in the audit. These drive the
-// real classes rather than re-implementing their logic, so they fail if the
-// behaviour regresses rather than if the code is merely reshaped.
+// Regression net for backend defects — drives the real classes.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createRequire } from 'node:module';
 
@@ -8,8 +6,7 @@ import { PhysicalContainer } from '../backend/src/physics/containers/physical-co
 import { BoundingBox } from '../backend/src/physics/bounding-boxes/bounding-box';
 import { ProjectilePhysical } from '../backend/src/objects/projectile-physical';
 import { CharacterPhysical } from '../backend/src/objects/character-physical';
-import { StepCommand } from '../backend/src/commands/step';
-import { GeneratePointsCommand } from '../backend/src/commands/generate-points';
+import { StepCommand, GeneratePointsCommand } from '../backend/src/commands/commands';
 
 const require = createRequire(import.meta.url);
 const shared = require('../shared/lib/main.js');
@@ -20,7 +17,6 @@ applyArrayPlugins();
 
 const step = settings.targetPhysicsDeltaTimeInSeconds;
 
-// Collects the points a stepped object asks the game to award.
 class PointsSpy {
   public blue = 0;
   public red = 0;
@@ -46,11 +42,6 @@ beforeEach(() => {
 });
 
 describe('projectile broadphase registration', () => {
-  // The bounding box is only rebuilt by the center/radius setters, but the
-  // geometry helpers write `center` in place — so a projectile stayed registered
-  // at its muzzle for its whole flight. View-area streaming is driven by that
-  // box, so shots fired off-screen were never sent, and shots in view vanished
-  // as soon as their muzzle scrolled away.
   it('follows the projectile instead of staying at the muzzle', () => {
     const container = new PhysicalContainer();
     container.initialize();
@@ -135,9 +126,6 @@ describe('scoring', () => {
     return character;
   };
 
-  // A disconnect and an NPC being retired on join both run through onDie(), and
-  // used to award the opposing team a full kill, so ordinary connection churn
-  // moved the match score with nobody playing.
   it('awards nothing for an administrative death', () => {
     const container = new PhysicalContainer();
     container.initialize();
@@ -166,8 +154,6 @@ describe('scoring', () => {
 });
 
 describe('charged shots', () => {
-  // Capping only the COST meant a max-charge request on a nearly empty pool paid
-  // a tap's price while still getting full-charge radius, speed and recoil.
   it('scales the shot by the strength actually paid, not the requested charge', () => {
     const container = new PhysicalContainer();
     container.initialize();
@@ -181,7 +167,6 @@ describe('charged shots', () => {
     );
     container.addObject(character);
 
-    // Drain the pool down to roughly a tap's worth.
     (character as unknown as { projectileStrength: number }).projectileStrength =
       settings.chargeShotStrengthMin;
 

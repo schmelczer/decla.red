@@ -1,9 +1,3 @@
-import { DeserializableClass } from './deserializable-class';
+export type SerializableClass = { new (...args: Array<any>): unknown; name: string };
 
-export const serializableMapping = new Map<
-  string,
-  {
-    constructor: DeserializableClass;
-    overridden: boolean;
-  }
->();
+export const serializableMapping = new Map<string, SerializableClass>();

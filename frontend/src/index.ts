@@ -20,8 +20,14 @@ import { handleFullScreen } from './scripts/helper/handle-full-screen';
 import { Game } from './scripts/game';
 import ResizeObserver from 'resize-observer-polyfill';
 import { OptionsHandler } from './scripts/options-handler';
-import { hide } from './scripts/helper/hide';
-import { show } from './scripts/helper/show';
+const hide = (e: HTMLElement, d?: boolean) => {
+  if (d) e.style.display = 'none';
+  else e.style.visibility = 'hidden';
+};
+const show = (e: HTMLElement, d?: boolean, v?: string) => {
+  if (d) e.style.display = v!;
+  else e.style.visibility = 'inherit';
+};
 import { SoundHandler, Sounds } from './scripts/sound-handler';
 import { VibrationHandler } from './scripts/vibration-handler';
 import { CharacterView } from './scripts/objects/types/character-view';
@@ -84,91 +90,86 @@ const applyServerContainerShadows = () => {
 };
 
 const main = async () => {
-  try {
-    let game: Game;
+  let game: Game;
 
-    const storedUserName = localStorage?.getItem('userName');
-    if (storedUserName) {
-      nameInput.value = JSON.parse(storedUserName);
+  const storedUserName = localStorage.getItem('userName');
+  if (storedUserName) {
+    nameInput.value = JSON.parse(storedUserName);
+  }
+
+  const firstClickListener = () => {
+    SoundHandler.initialize(
+      () => {
+        enableMusic.checked = true;
+        enableMusic.dispatchEvent(new Event('change'));
+      },
+      () => {
+        enableMusic.checked = false;
+        enableMusic.dispatchEvent(new Event('change'));
+      },
+    );
+    document.removeEventListener('click', firstClickListener);
+  };
+  document.addEventListener('click', firstClickListener);
+
+  if (!VibrationHandler.isVibrationEnabledHeuristics) {
+    hide(document.querySelector("label[for='enable-vibration']") as HTMLElement, true);
+  }
+
+  handleFullScreen(minimize, maximize);
+  toggleSettingsButton.addEventListener('click', toggleSettings);
+
+  new ResizeObserver(applyServerContainerShadows).observe(serverContainer);
+  serverContainer.addEventListener('scroll', applyServerContainerShadows);
+
+  OptionsHandler.initialize({
+    soundsEnabled: enableSounds,
+    vibrationEnabled: enableVibration,
+    musicEnabled: enableMusic,
+  });
+
+  logoutButton.addEventListener('click', () => {
+    game.destroy();
+    toggleSettings();
+  });
+  window.onpopstate = () => game.destroy();
+
+  for (;;) {
+    show(spinner);
+    hide(logoutButton, true);
+    show(landingUI, true, 'flex');
+
+    const background = new LandingPageBackground(canvas);
+    const joinHandler = new JoinFormHandler(joinGameForm, serverContainer);
+
+    await background.renderer;
+    hide(spinner);
+
+    const playerDecision = await joinHandler.getPlayerDecision();
+
+    localStorage.setItem('userName', JSON.stringify(playerDecision.name));
+
+    if (!history.state) {
+      history.pushState(true, '');
     }
 
-    const firstClickListener = () => {
-      SoundHandler.initialize(
-        () => {
-          enableMusic.checked = true;
-          enableMusic.dispatchEvent(new Event('change'));
-        },
-        () => {
-          enableMusic.checked = false;
-          enableMusic.dispatchEvent(new Event('change'));
-        },
-      );
-      document.removeEventListener('click', firstClickListener);
-    };
-    document.addEventListener('click', firstClickListener);
+    hide(landingUI, true);
+    show(spinner);
+    background.destroy();
+    game = new Game(playerDecision, canvas, overlay);
+    const gameOver = game.start();
+    await game.started;
+    hide(spinner);
+    show(logoutButton, true, 'block');
+    await gameOver;
 
-    if (!VibrationHandler.isVibrationEnabledHeuristics) {
-      hide(document.querySelector("label[for='enable-vibration']") as HTMLElement, true);
+    const reason = game.lastRejectionReason;
+    if (reason) {
+      joinNotice.innerText = Game.rejectionText(reason);
+      joinNotice.style.display = 'block';
+    } else {
+      joinNotice.style.display = 'none';
     }
-
-    handleFullScreen(minimize, maximize);
-    toggleSettingsButton.addEventListener('click', toggleSettings);
-
-    new ResizeObserver(applyServerContainerShadows).observe(serverContainer);
-    serverContainer.addEventListener('scroll', applyServerContainerShadows);
-
-    OptionsHandler.initialize({
-      soundsEnabled: enableSounds,
-      vibrationEnabled: enableVibration,
-      musicEnabled: enableMusic,
-    });
-
-    logoutButton.addEventListener('click', () => {
-      game.destroy();
-      toggleSettings();
-    });
-    window.onpopstate = () => game.destroy();
-
-    for (;;) {
-      show(spinner);
-      hide(logoutButton, true);
-      show(landingUI, true, 'flex');
-
-      const background = new LandingPageBackground(canvas);
-      const joinHandler = new JoinFormHandler(joinGameForm, serverContainer);
-
-      await background.renderer;
-      hide(spinner);
-
-      const playerDecision = await joinHandler.getPlayerDecision();
-
-      localStorage?.setItem('userName', JSON.stringify(playerDecision.name));
-
-      if (!history.state) {
-        history.pushState(true, '');
-      }
-
-      hide(landingUI, true);
-      show(spinner);
-      background.destroy();
-      game = new Game(playerDecision, canvas, overlay);
-      const gameOver = game.start();
-      await game.started;
-      hide(spinner);
-      show(logoutButton, true, 'block');
-      await gameOver;
-
-      const reason = game.lastRejectionReason;
-      if (reason) {
-        joinNotice.innerText = Game.rejectionText(reason);
-        joinNotice.style.display = 'block';
-      } else {
-        joinNotice.style.display = 'none';
-      }
-    }
-  } catch (e) {
-    console.error(e);
-    alert(e);
   }
 };
 

@@ -44,9 +44,7 @@ export const createWorld = (objectContainer: PhysicalContainer) => {
         ) {
           const planet =
             objects.length === 0
-              ? // The first, central giant is the keystone "Heart": a named,
-                // always-contested focal objective the whole match orbits.
-                new PlanetPhysical(
+              ? new PlanetPhysical(
                   PlanetBase.createPlanetVertices(
                     position,
                     Random.getRandomInRange(1600, 2400),
@@ -72,11 +70,8 @@ export const createWorld = (objectContainer: PhysicalContainer) => {
   console.info(`Generated ${objects.length} planets`);
   console.info(`Generated ${lights.length} light`);
 
-  // Associate each lamp with its NEAREST planet, so a planet can repaint "its"
-  // lamps to the owning team's colour when it flips. Lamps are already placed by
-  // proximity during world-gen, so the nearest planet is the one whose capture
-  // they should advertise. Distances use the planet SDF (negative inside), which
-  // is exactly the "closest planet" metric we want.
+  // Each lamp is associated with its nearest planet via the planet SDF
+  // (negative inside), so it advertises that planet's capture.
   const planets = objects.filter((o): o is PlanetPhysical => o instanceof PlanetPhysical);
   lights
     .filter((l): l is LampPhysical => l instanceof LampPhysical)

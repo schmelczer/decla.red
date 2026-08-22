@@ -1,4 +1,4 @@
-import { last, mix } from 'shared';
+import { mix } from 'shared';
 import { serverTimeline } from '../server-timeline';
 
 interface Frame {
@@ -7,25 +7,16 @@ interface Frame {
   velocity: number;
 }
 
-// How far past the newest snapshot the value may coast on its last known
-// velocity (network hiccup) before freezing in place.
 const maxCoastSeconds = 0.06;
 
-// When fresh snapshots arrive after a coast, they usually disagree with where
-// the coast ended up; the difference decays away with this time constant
-// instead of being shown as a jump.
 const blendSeconds = 0.12;
 
-// At 25 snapshots per second this spans over a second of state, far more than
-// rendering ever needs; it only bounds memory while the tab is hidden and
-// snapshots keep arriving without being consumed.
 const maxFrames = 32;
 
 /**
  * Replays a server-streamed scalar by interpolating between timestamped
- * snapshots at the shared timeline's render time, which trails the newest
- * snapshot. The streamed rate of change is only used to coast briefly when
- * the buffer runs dry.
+ * snapshots at the render time; coasts briefly on the streamed rate of change
+ * when the buffer runs dry.
  */
 export class LinearInterpolator {
   private frames: Array<Frame> = [];
@@ -39,7 +30,7 @@ export class LinearInterpolator {
 
   public addFrame(value: number, rateOfChange: number) {
     const time = serverTimeline.snapshotTime;
-    const newest = last(this.frames);
+    const newest = this.frames.length > 0 ? this.frames[this.frames.length - 1] : null;
     const wasCoasting = this.isCoasting;
 
     if (newest && time <= newest.time) {
@@ -56,8 +47,6 @@ export class LinearInterpolator {
     }
 
     if (wasCoasting) {
-      // Continue from where the coast left off and let the offset decay,
-      // instead of jumping onto the freshly revealed trajectory.
       this.blendOffset = this.lastValue - this.sample(serverTimeline.renderTime);
     }
   }

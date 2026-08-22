@@ -1,4 +1,4 @@
-import { vec2 } from 'gl-matrix';
+import { vec2, vec3 } from 'gl-matrix';
 import {
   CircleLight,
   FilteringOptions,
@@ -8,12 +8,9 @@ import {
   runAnimation,
   WrapOptions,
 } from 'sdf-2d';
-import { settings, rgb, PlanetBase, Random } from 'shared';
+import { settings, PlanetBase, Random } from 'shared';
 import { PlanetShape } from './shapes/planet-shape';
 
-// PlanetShape colours by mixing blue (0) -> red (1). The two backdrop planets
-// read as the two in-game teams; the red planet is pulled a little off the
-// pure-red end so it shows as a more muted, less saturated red.
 const bluePlanet = 0;
 const redPlanet = 0.85;
 
@@ -46,7 +43,7 @@ export class LandingPageBackground {
       {
         shadowTraceCount: 16,
         paletteSize: 1,
-        ambientLight: rgb(0, 0, 0),
+        ambientLight: vec3.fromValues(0, 0, 0),
         lightCutoffDistance: settings.lightCutoffDistance,
         textures: {
           noiseTexture: {
@@ -84,11 +81,6 @@ export class LandingPageBackground {
       redPlanet,
     );
 
-    // Fixed terrain phase (no longer animated -> no pulsing); the planet spins
-    // instead, the same way in-game planets do: PlanetShape's rotation uniform
-    // turns the whole body, terrain and outline together, in its own frame.
-    // Speeds sit in the game's per-planet range (~0.05-0.12 rad/s) and
-    // counter-rotate so the two planets don't drift in lockstep.
     topPlanet.randomOffset = Random.getRandom();
     topPlanet.rotation = (time / 1000) * 0.09;
 

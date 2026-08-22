@@ -3,7 +3,7 @@ import { settings } from '../../settings';
 import { serializable } from '../../serialization/serializable';
 import { toArrayFromFields } from '../../serialization/serialized-fields';
 import { GameObject } from '../game-object';
-import { Id } from '../../communication/id';
+import { Id } from '../../communication/communication';
 import { CharacterTeam } from './character-base';
 
 @serializable

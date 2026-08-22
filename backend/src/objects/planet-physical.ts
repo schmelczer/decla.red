@@ -17,9 +17,11 @@ import {
   CommandExecutors,
   CommandReceiver,
 } from 'shared';
-import { GeneratePointsCommand } from '../commands/generate-points';
-import { AnnounceCommand } from '../commands/announce';
-import { StepCommand } from '../commands/step';
+import {
+  GeneratePointsCommand,
+  AnnounceCommand,
+  StepCommand,
+} from '../commands/commands';
 
 import { ImmutableBoundingBox } from '../physics/bounding-boxes/immutable-bounding-box';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
@@ -31,16 +33,15 @@ import type { CharacterPhysical } from './character-physical';
 export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   public readonly canCollide = true;
   public readonly canMove = false;
-  // Marks this as standable ground for the shared movement simulation (a body
-  // landing on it latches it as currentPlanet). See shared GroundSurface.
+  // Marks this as standable ground for the shared movement simulation.
   public readonly isGround = true;
 
   public readonly sizePointMultiplier: number;
 
-  // Planets slowly spin. The angle is authoritative here and streamed to the
-  // client (see getPropertyUpdates), so the rendered outline and this collision
-  // polygon turn as one rigid body. cos/sin are memoised per angle because
-  // distance() is called many times per tick by the raymarcher and SDF sampling.
+  // Authoritative spin angle, streamed to the client so the rendered outline
+  // and this collision polygon turn as one. cos/sin are memoised: distance()
+  // is called many times per tick by the raymarcher and the angle rarely
+  // changes between those calls.
   private rotation = 0;
   private readonly rotationSpeed: number;
   private cachedRotation = Number.NaN;
@@ -55,7 +56,7 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
 
   // Characters standing on the planet this tick. Filled by registerPresence as
   // each grounded character steps, drained when the planet resolves capture in
-  // its own step(). Drives the head-count tug-of-war.
+  // its own step().
   private presentCharacters: Array<CharacterPhysical> = [];
   private isContested = false;
 
@@ -81,17 +82,13 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
       (0.05 + Random.getRandom() * 0.07) * (Random.getRandom() < 0.5 ? -1 : 1);
   }
 
-  // A grounded character announces itself each tick so the planet can resolve
-  // contested capture from the net head-count.
   public registerPresence(character: CharacterPhysical) {
     this.presentCharacters.push(character);
   }
 
   public distance(target: vec2): number {
-    // The one shared planet outline — the same function the client predictor
-    // collides against, which is what lets prediction reconcile. Only the
-    // cos/sin memo lives here, because distance() is called many times per tick
-    // by the raymarcher and the angle rarely changes between those calls.
+    // The shared planet outline — the same function the client predictor
+    // collides against, which is what lets prediction reconcile.
     this.syncRotationTrigonometry();
     return planetDistance(
       target,
@@ -110,8 +107,8 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
     }
   }
 
-  // Signed angular velocity in rad/s, exposed so a character standing on the
-  // planet can ride its spin (see carryWithRotatingPlanet in shared).
+  // Signed angular velocity in rad/s, exposed so a character can ride the
+  // planet's spin (see carryWithRotatingPlanet in shared).
   public get angularVelocity(): number {
     return this.rotationSpeed;
   }
@@ -145,9 +142,6 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
     this.presentCharacters = [];
   }
 
-  // One capture step per tick driven by the net team head-count, so grouping up
-  // pays off and an equal standoff freezes the planet (contested) instead of
-  // both sides silently cancelling with no feedback.
   private resolveCapture(deltaTime: number) {
     let blue = 0;
     let red = 0;
@@ -168,14 +162,11 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
         deltaTime * lead,
       );
     } else if (!occupied) {
-      // Empty planets drift back to neutral; the keystone drifts much slower so
-      // it lingers as a live flashpoint.
       this.takeControl(
         CharacterTeam.neutral,
         this.isKeystone ? deltaTime / settings.keystoneLoseControlScale : deltaTime,
       );
     }
-    // occupied tie -> frozen tug-of-war: no ownership change, ring pulses.
 
     const contested = occupied && net === 0;
     if (contested !== this.isContested) {
@@ -184,7 +175,6 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
     }
   }
 
-  // hysteresis
   private get flipTeam(): CharacterTeam {
     const control = this.ownership - 0.5;
     const enter = settings.planetControlThreshold + settings.planetFlipHysteresis;
@@ -290,11 +280,6 @@ export class PlanetPhysical extends PlanetBase implements StaticPhysical {
   // GroundSurface gravity, shared with the client predictor.
   public gravityAt(position: vec2): vec2 {
     return planetGravity(this.center, this.radius, position);
-  }
-
-  // forceAtPosition's name for the same thing.
-  public getForce(position: vec2): vec2 {
-    return this.gravityAt(position);
   }
 
   public get gameObject(): this {

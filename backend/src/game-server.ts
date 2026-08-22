@@ -18,28 +18,18 @@ import {
   beginPropertyUpdateGeneration,
 } from 'shared';
 import { createWorld } from './create-world';
-import { DeltaTimeCalculator } from './helper/delta-time-calculator';
 import { Options } from './options';
 import { PlayerContainer } from './players/player-container';
 import { ServerFullError } from './players/server-full-error';
 import { Player } from './players/player';
-import { StepCommand } from './commands/step';
-import { GeneratePointsCommand } from './commands/generate-points';
-import { AnnounceCommand } from './commands/announce';
+import { StepCommand, GeneratePointsCommand, AnnounceCommand } from './commands/commands';
 
 const gameStateSubscribedRoom = 'gameStateSubscribedRoom';
-
-interface JoinedSocket {
-  player: Player;
-  onPlayerToServer: (json: string) => void;
-  onDisconnect: () => void;
-}
 
 export class GameServer extends CommandReceiver {
   private objects!: PhysicalContainer;
   private players!: PlayerContainer;
-  private deltaTimes!: Array<number>;
-  private deltaTimeCalculator!: DeltaTimeCalculator;
+  private lastPhysicsBase: [number, number] = process.hrtime();
 
   private bluePoints = 0;
   private redPoints = 0;
@@ -47,6 +37,7 @@ export class GameServer extends CommandReceiver {
 
   private isInEndGame = false;
   private timeScaling = 1;
+  private statReportMs = Date.now();
 
   private initialize() {
     const previousPlayers = this.players;
@@ -59,8 +50,7 @@ export class GameServer extends CommandReceiver {
       this.options.playerLimit,
       this.options.npcCount,
     );
-    this.deltaTimeCalculator = new DeltaTimeCalculator();
-    this.deltaTimes = [];
+    this.lastPhysicsBase = process.hrtime();
     this.bluePoints = 0;
     this.redPoints = 0;
     this.matchPointAnnounced = {};
@@ -95,7 +85,7 @@ export class GameServer extends CommandReceiver {
     });
   }
 
-  private readonly joinedSockets = new Map<Socket, JoinedSocket>();
+  private readonly joinedSockets = new Map<Socket, Player>();
 
   private handleJoin(socket: Socket, playerInfo: PlayerInformation) {
     if (this.joinedSockets.has(socket)) {
@@ -104,9 +94,6 @@ export class GameServer extends CommandReceiver {
     }
 
     if (this.isInEndGame) {
-      // The round is already over and the world is about to be rebuilt; joining
-      // now drops the player into an arena running in slow motion with no
-      // end-of-round card.
       socket.emit(TransportEvents.JoinRejected, JoinRejectionReason.RoundEnding);
       return;
     }
@@ -133,16 +120,13 @@ export class GameServer extends CommandReceiver {
 
     const onPlayerToServer = (json: string) => {
       try {
-        if (typeof json !== 'string' || json.length > settings.maxInboundMessageBytes) {
+        if (json.length > settings.maxInboundMessageBytes) {
           return;
         }
         if (!this.allowInboundMessage(socket)) {
           return;
         }
         const commands: Array<Command> = deserialize(json);
-        if (!Array.isArray(commands)) {
-          return;
-        }
         commands.forEach((c) => player.handleCommand(c));
       } catch (e) {
         console.error('Error while processing command', e);
@@ -150,18 +134,14 @@ export class GameServer extends CommandReceiver {
     };
 
     const onDisconnect = () => {
-      const record = this.joinedSockets.get(socket);
+      const p = this.joinedSockets.get(socket);
       this.joinedSockets.delete(socket);
-      // The bucket is keyed by the Socket object, so leaving the entry behind
-      // pins the socket for the rest of the round.
       this.inboundBudget.delete(socket);
-      if (!record) {
+      if (!p) {
         return;
       }
-      record.player.detachFromSocket();
+      p.detachFromSocket();
       const { kills, deaths } = player.scoreSnapshot;
-      // Hold the score briefly so a client whose transport blipped can rejoin as
-      // itself rather than as a blank slate.
       this.players.reserveScore(
         player.reconnectToken,
         player.team,
@@ -176,7 +156,7 @@ export class GameServer extends CommandReceiver {
 
     socket.on(TransportEvents.PlayerToServer, onPlayerToServer);
     socket.on('disconnect', onDisconnect);
-    this.joinedSockets.set(socket, { player, onPlayerToServer, onDisconnect });
+    this.joinedSockets.set(socket, player);
 
     player.reconnectToken = this.players.issueToken();
     socket.emit(TransportEvents.PlayerJoined, player.reconnectToken);
@@ -184,8 +164,6 @@ export class GameServer extends CommandReceiver {
     this.sendServerStateUpdate();
   }
 
-  // Cheap per-socket token bucket, sized well above what a legitimate client
-  // produces so it only ever trips on a flood.
   private readonly inboundBudget = new Map<Socket, { tokens: number; lastMs: number }>();
   private droppedInboundMessages = 0;
   private allowInboundMessage(socket: Socket): boolean {
@@ -210,13 +188,10 @@ export class GameServer extends CommandReceiver {
     return true;
   }
 
-  // Detach the per-join listeners of every socket still attached to the round
-  // that is ending, so a client that survives the restart can join the new one.
   private releaseJoinedSockets() {
-    for (const [socket, record] of this.joinedSockets) {
-      socket.off(TransportEvents.PlayerToServer, record.onPlayerToServer);
-      socket.off('disconnect', record.onDisconnect);
-      record.player.detachFromSocket();
+    for (const [socket, player] of this.joinedSockets) {
+      socket.removeAllListeners();
+      player.detachFromSocket();
     }
     this.joinedSockets.clear();
     this.inboundBudget.clear();
@@ -226,7 +201,10 @@ export class GameServer extends CommandReceiver {
   public sendServerStateUpdate() {
     this.io
       .to(gameStateSubscribedRoom)
-      .emit(TransportEvents.ServerInfoUpdate, [this.players.count, this.gameProgress]);
+      .emit(TransportEvents.ServerInfoUpdate, [
+        this.players.count,
+        (Math.max(this.bluePoints, this.redPoints) / this.options.scoreLimit) * 100,
+      ]);
   }
 
   public start() {
@@ -269,21 +247,32 @@ export class GameServer extends CommandReceiver {
     const endTitleLength = 6;
     this.players.endGame(winningTeam);
     this.players.queueCommandForEachClient(new GameEndCommand());
-    // Rebuild the world for the next round once the end card has been shown.
     setTimeout(() => this.initialize(), endTitleLength * 1000 * 1.1);
   }
 
   private timeSinceLastPointUpdate = 0;
   private physicsAccumulator = 0;
-  // Frames since the last stats report where physics ran over budget (more
-  // substeps than the cap). Surfaced by handleStats as a saturation signal.
   private saturatedFrames = 0;
 
   private handlePhysics() {
-    const delta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds({ setAsBase: true });
-    this.deltaTimes.push(delta);
+    const now = process.hrtime(this.lastPhysicsBase);
+    const delta = now[0] + now[1] / 1e9;
+    this.lastPhysicsBase = process.hrtime();
 
-    this.handleStats();
+    if (Date.now() - this.statReportMs > 30000) {
+      this.statReportMs = Date.now();
+      const mem = `${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`;
+      console.info(`Memory: ${mem}, Players: ${this.players.count}`);
+
+      if (this.droppedInboundMessages > 0) {
+        console.warn(`Rate limited ${this.droppedInboundMessages} inbound msg(s)`);
+        this.droppedInboundMessages = 0;
+      }
+      if (this.saturatedFrames > 0) {
+        console.warn(`Physics saturated on ${this.saturatedFrames} frame(s)`);
+        this.saturatedFrames = 0;
+      }
+    }
 
     if ((this.timeSinceLastServerStateUpdate += delta) > 4) {
       this.timeSinceLastServerStateUpdate = 0;
@@ -299,18 +288,11 @@ export class GameServer extends CommandReceiver {
 
     const fixedDelta = settings.targetPhysicsDeltaTimeInSeconds;
     const maxSubstepsPerFrame = 5;
-    // Cap on retained physics backlog when saturated, so a long stall can't
-    // accumulate an unrecoverable catch-up.
     const maxBacklogSeconds = 0.25;
 
     this.physicsAccumulator += delta;
     let substeps = Math.floor(this.physicsAccumulator / fixedDelta);
     if (substeps > maxSubstepsPerFrame) {
-      // Saturated: run the cap's worth of substeps but KEEP the remaining
-      // backlog (clamped) instead of zeroing it. Dropping it silently slowed
-      // simulated time for everyone — and diverged client prediction, whose
-      // wall-clock keeps running. Clamping bounds the catch-up so a transient
-      // spike recovers without a death spiral.
       this.saturatedFrames++;
       this.physicsAccumulator = Math.min(
         this.physicsAccumulator - maxSubstepsPerFrame * fixedDelta,
@@ -335,7 +317,8 @@ export class GameServer extends CommandReceiver {
     this.players.stepCommunication(delta);
     this.objects.resetRemoteCalls();
 
-    const physicsDelta = this.deltaTimeCalculator.getNextDeltaTimeInSeconds();
+    const elapsed = process.hrtime(now);
+    const physicsDelta = elapsed[0] + elapsed[1] / 1e9;
 
     setTimeout(
       this.handlePhysics.bind(this),
@@ -343,62 +326,13 @@ export class GameServer extends CommandReceiver {
     );
   }
 
-  private handleStats() {
-    const framesBetweenDeltaTimeCalculation = 10000;
-
-    if (this.deltaTimes.length > framesBetweenDeltaTimeCalculation) {
-      this.deltaTimes.sort((a, b) => a - b);
-      console.info(
-        `Median physics time: ${(
-          this.deltaTimes[Math.floor(framesBetweenDeltaTimeCalculation / 2)] * 1000
-        ).toFixed(2)} ms`,
-      );
-      console.info(
-        'Tail times: ',
-        this.deltaTimes.slice(-20).map((v) => `${(v * 1000).toFixed(2)} ms`),
-      );
-      console.info(
-        `Memory used: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
-      );
-
-      const rtts = this.players.connectedPlayerRttsMs.filter((r) => r > 0);
-      if (rtts.length > 0) {
-        rtts.sort((a, b) => a - b);
-        console.info(
-          `Player RTT median ${rtts[Math.floor(rtts.length / 2)].toFixed(0)} ms ` +
-            `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
-        );
-      }
-
-      if (this.droppedInboundMessages > 0) {
-        console.warn(
-          `Rate limited ${this.droppedInboundMessages} inbound message(s) since last report — ` +
-            'client input was discarded',
-        );
-        this.droppedInboundMessages = 0;
-      }
-
-      if (this.saturatedFrames > 0) {
-        console.warn(
-          `Physics saturated on ${this.saturatedFrames} frame(s) since last report — shedding backlog`,
-        );
-        this.saturatedFrames = 0;
-      }
-
-      this.deltaTimes = [];
-    }
-  }
-
-  private get gameProgress(): number {
-    return (Math.max(this.bluePoints, this.redPoints) / this.options.scoreLimit) * 100;
-  }
-
   public get serverInfo(): ServerInformation {
     return {
       serverName: this.options.name,
       playerCount: this.players.count,
       playerLimit: this.options.playerLimit,
-      gameStatePercent: this.gameProgress,
+      gameStatePercent:
+        (Math.max(this.bluePoints, this.redPoints) / this.options.scoreLimit) * 100,
     };
   }
 }

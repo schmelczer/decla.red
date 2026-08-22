@@ -11,7 +11,7 @@ import {
 } from 'shared';
 import { PhysicalContainer } from '../physics/containers/physical-container';
 import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
-import { isCircleIntersecting } from '../physics/functions/is-circle-intersecting';
+import { evaluateSdf } from 'shared';
 import { CharacterPhysical } from '../objects/character-physical';
 import { PlanetPhysical } from '../objects/planet-physical';
 import { PlayerContainer } from './player-container';
@@ -37,11 +37,9 @@ export abstract class PlayerBase extends CommandReceiver {
 
   protected createCharacter() {
     this.character = new CharacterPhysical(
-      // Coerced, not just truncated. `.slice()` also exists on arrays, so a
-      // name that is an array passed straight through, was serialized into
-      // CreateObjects, and was revived as a class on every peer that received
-      // it — throwing inside the deserializer's reviver and killing that
-      // client's whole message batch.
+      // Coerce, don't just truncate: input is untrusted (from deserialize), and
+      // arrays have `.slice()` too — a non-string name would throw inside the
+      // reviver and kill the recipient's whole message batch.
       sanitizeName(this.playerInfo.name, maximumNameLength),
       this.sumKills,
       this.sumDeaths,
@@ -56,12 +54,8 @@ export abstract class PlayerBase extends CommandReceiver {
   public abstract step(deltaTimeInSeconds: number): void;
 
   /**
-   * The death/respawn lifecycle both a connected player and an NPC go through:
-   * bank the score off a body that just died, hold the corpse for the respawn
-   * timeout, then build a new one. Returns whether there is a living character
-   * to act with this tick — returned as the character itself, so a subclass can
-   * `const character = this.stepLifecycle(dt); if (!character) return;` and go
-   * on to use it without re-narrowing.
+   * Shared death/respawn cycle. Returns the living character to act with this
+   * tick (or undefined), so a subclass can use it directly without re-narrowing.
    */
   protected stepLifecycle(deltaTimeInSeconds: number): CharacterPhysical | undefined {
     if (this.character) {
@@ -87,8 +81,7 @@ export abstract class PlayerBase extends CommandReceiver {
     return undefined;
   }
 
-  // Hooks for what a subclass wants to do with the body it just lost, and just
-  // before a new one is built. Both are no-ops by default.
+  // Override hooks (no-ops by default).
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected onCharacterDied(character: CharacterPhysical) {}
   protected onBeforeRespawn() {}
@@ -120,8 +113,6 @@ export abstract class PlayerBase extends CommandReceiver {
     return vec2.clone(Random.choose(safe.length ? safe : candidates)!.center);
   }
 
-  // Seed a reconnecting player with the score it held before the drop, so a
-  // network blip costs you your character but not your match.
   public restoreScore(kills: number, deaths: number) {
     this.sumKills = kills;
     this.sumDeaths = deaths;
@@ -141,7 +132,10 @@ export abstract class PlayerBase extends CommandReceiver {
       const playerBoundingBox = getBoundingBoxOfCircle(playerBoundingCircle);
       const possibleIntersectors =
         this.objectContainer.findIntersecting(playerBoundingBox);
-      if (!isCircleIntersecting(playerBoundingCircle, possibleIntersectors)) {
+      if (
+        evaluateSdf(playerBoundingCircle.center, possibleIntersectors) >=
+        playerBoundingCircle.radius
+      ) {
         return playerPosition;
       }
 

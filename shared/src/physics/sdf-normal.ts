@@ -2,10 +2,8 @@ import { vec2 } from 'gl-matrix';
 import { Sdf } from './sdf';
 import { evaluateSdf } from './evaluate-sdf';
 
-// Reused probe point. sdfNormal is called on every depenetration pass and every
-// raymarch hit, so allocating four sample vectors per call was a meaningful
-// share of the physics step's garbage. evaluateSdf reads the probe and returns
-// before the next vec2.set, so one is enough.
+// Reused probe point — sdfNormal is called on every depenetration pass and
+// raymarch hit.
 const probe = vec2.create();
 
 const sampleAt = (x: number, y: number, objects: Array<Sdf>): number => {
@@ -13,10 +11,9 @@ const sampleAt = (x: number, y: number, objects: Array<Sdf>): number => {
   return evaluateSdf(probe, objects);
 };
 
-// Central-difference gradient of the combined SDF. Can be zero where the
-// samples cancel out (e.g. on the medial axis of a shape) — callers must
-// handle that case. Uses indexed access so it never depends on the vec2 .x/.y
-// prototype plugin (identical numerically: .x === [0]).
+// Central-difference gradient. Can be zero where samples cancel (e.g. on the
+// medial axis) — callers must handle that. Indexed access keeps it independent
+// of the vec2 .x/.y prototype plugin.
 export const sdfNormal = (target: vec2, objects: Array<Sdf>): vec2 => {
   const dx =
     sampleAt(target[0] + 0.01, target[1], objects) -

@@ -1,19 +1,15 @@
 import { OptionsHandler } from './options-handler';
 
-export abstract class VibrationHandler {
-  // Accepts either a single duration or an on/off pattern (e.g. a double-thump
-  // [40, 30, 90] for a kill).
-  public static vibrate(pattern: number | number[]): void {
-    if (OptionsHandler.options.vibrationEnabled && this.isVibrationEnabled) {
+export const VibrationHandler = {
+  vibrate(pattern: number | number[]) {
+    if (OptionsHandler.options.vibrationEnabled && 'vibrate' in navigator) {
       navigator.vibrate(pattern);
     }
-  }
-
-  public static get isVibrationEnabled(): boolean {
+  },
+  get isVibrationEnabled() {
     return 'vibrate' in navigator;
-  }
-
-  public static get isVibrationEnabledHeuristics(): boolean {
-    return this.isVibrationEnabled && 'ontouchstart' in window;
-  }
-}
+  },
+  get isVibrationEnabledHeuristics() {
+    return 'vibrate' in navigator && 'ontouchstart' in window;
+  },
+};

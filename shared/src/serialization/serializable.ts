@@ -1,17 +1,14 @@
-import { mangledTypeKey } from './mangled-type-key';
-import { SerializableClass } from './serializable-class';
-import { serializableMapping } from './serializable-mapping';
+import { SerializableClass, serializableMapping } from './serializable-mapping';
+
+const MANGLE = '__serializable_type';
 
 export const serializable = (type: SerializableClass): any => {
-  if (!serializableMapping.get(type.name)) {
-    serializableMapping.set(type.name, {
-      constructor: type,
-      overridden: false,
-    });
+  if (!serializableMapping.has(type.name)) {
+    serializableMapping.set(type.name, type);
   }
 
-  Object.defineProperty(type, mangledTypeKey, { value: type.name });
-  Object.defineProperty(type.prototype, mangledTypeKey, { value: type.name });
+  Object.defineProperty(type, MANGLE, { value: type.name });
+  Object.defineProperty(type.prototype, MANGLE, { value: type.name });
 
   return type;
 };

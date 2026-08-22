@@ -16,10 +16,7 @@ export class JoinFormHandler {
   private resolvePlayerDecision!: (d: PlayerDecision) => void;
   private pollServersTimer: any;
   private keyUpListener = (e: KeyboardEvent) => {
-    // KeyboardEvent.key for Return is 'Enter' (capital E); the old lowercase
-    // comparison never matched, so pressing Enter silently did nothing.
-    // requestSubmit() (unlike submit()) fires the form's onsubmit handler and
-    // runs HTML5 validation, so Enter behaves exactly like clicking Join.
+    // requestSubmit() (not submit()) fires onsubmit and runs HTML5 validation, so Enter matches clicking Join.
     if (e.key === 'Enter' && !this.joinButton.disabled) {
       this.form.requestSubmit();
     }
@@ -79,9 +76,7 @@ export class JoinFormHandler {
       let response: Response | undefined;
       try {
         response = await fetch(url + serverInformationEndpoint, { signal });
-      } catch {
-        // it's okay
-      }
+      } catch {}
 
       if (response?.ok) {
         const content: ServerInformation = await response.json();

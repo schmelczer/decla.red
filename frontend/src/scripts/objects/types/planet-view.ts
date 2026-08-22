@@ -17,10 +17,8 @@ import { PlanetShape } from '../../shapes/planet-shape';
 
 const fallingPointLifetimeMs = 2000;
 
-// Global budget for simultaneously-lit capture flares, so a clustered wave of
-// captures can never white out the SDF exposure — excess flips still pulse the
-// ring and toast, they just skip the extra light. The acquire/release pair keeps
-// the count in one place instead of being hand-maintained at every call site.
+// Global budget for simultaneously-lit capture flares, so a clustered wave can't
+// white out the SDF exposure; excess flips still pulse the ring/toast but skip the light.
 abstract class FlareBudget {
   private static active = 0;
 
@@ -40,9 +38,7 @@ abstract class FlareBudget {
 export class PlanetView extends PlanetBase {
   private shape: PlanetShape;
   private ownershipProgress: HTMLElement;
-  // Rotation is owned by the backend (it drives the collision polygon too) and
-  // streamed in; the interpolator replays the angle on the shared snapshot
-  // timeline, in sync with the characters standing on the surface.
+  // Rotation is owned by the backend and streamed in; the interpolator replays it on the snapshot timeline, in sync with characters on the surface.
   private readonly rotationInterpolator = new LinearInterpolator(0);
 
   private flareLight?: CircleLight;
@@ -70,13 +66,9 @@ export class PlanetView extends PlanetBase {
   }
 
   private rotationSpeed = 0;
-  // Newest streamed rotation VALUE — the server-current angle at the latest
-  // snapshot — as opposed to renderedRotation, which the interpolator holds
-  // ~interpolationDelaySeconds in the PAST for drawing. The predictor seeds the
-  // local body from the same snapshot's pose, so it must collide against the
-  // planet at THIS (newest) phase and advance forward from it; using the drawn
-  // lagged angle biases the body off the surface by omega*delay*radius and
-  // wobbles it whenever the spin or the interpolator's rate cursor varies.
+  // Newest streamed rotation (server-current at the latest snapshot), NOT the lagged
+  // rendered one. The predictor seeds the body from the same snapshot's pose, so it
+  // must collide at THIS phase — using the drawn (lagged) angle biases the body off the surface.
   private latestRotation = 0;
   public get predictionRotation(): number {
     return this.latestRotation;
@@ -165,9 +157,7 @@ export class PlanetView extends PlanetBase {
       const screenPosition = renderer.worldToDisplayCoordinates(this.center);
 
       this.ownershipProgress.style.transform = `translateX(${screenPosition.x}px) translateY(${screenPosition.y}px) translateX(-50%) translateY(-50%)`;
-      // Re-parsing a conic-gradient for every planet on screen every layout
-      // frame is not free, and ownership moves far more slowly than the ring
-      // can show.
+      // Re-parsing a conic-gradient per planet per layout frame is not free; ownership moves slower than the ring shows.
       const gradient = this.getGradient();
       if (gradient !== this.lastGradient) {
         this.lastGradient = gradient;

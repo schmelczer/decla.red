@@ -48,10 +48,8 @@ export const finiteVec2 = (value: unknown, maxMagnitude: number): vec2 | undefin
 };
 
 /**
- * A display name that is safe to store and re-serialize. Anything that is not a
- * string is coerced, because a non-string survives `.slice()` — an array name
- * round-trips through the serializer and is revived as a class on every peer
- * that receives it, throwing inside the deserializer's reviver.
+ * Coerces non-strings: a non-string survives `.slice()` and round-trips through
+ * the serializer revived as a class on every peer, throwing in the reviver.
  */
 export const sanitizeName = (value: unknown, maxLength: number): string => {
   const text = typeof value === 'string' ? value : String(value ?? '');
