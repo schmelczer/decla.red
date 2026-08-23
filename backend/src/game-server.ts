@@ -1,6 +1,7 @@
 import { PhysicalContainer } from './physics/containers/physical-container';
 import { Server, Socket } from 'socket.io';
 import { randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import {
   TransportEvents,
   deserialize,
@@ -26,6 +27,23 @@ import { Player } from './players/player';
 import { StepCommand, GeneratePointsCommand, AnnounceCommand } from './commands/commands';
 
 const gameStateSubscribedRoom = 'gameStateSubscribedRoom';
+
+// The payload is whatever the client sent: `socket.emit('PlayerJoining')` with
+// no argument arrives as undefined. socket.io dispatches listeners inside a
+// `process.nextTick` with no try/catch of its own, so a dereference of an
+// unchecked payload here would surface as an uncaught exception and take the
+// whole match down with the process.
+const asPlayerInformation = (payload: unknown): PlayerInformation | undefined => {
+  if (!payload || typeof payload !== 'object') {
+    return undefined;
+  }
+  const { name, reconnectToken } = payload as Record<string, unknown>;
+  return {
+    // Coerced and length-capped downstream, in PlayerBase.createCharacter.
+    name: name as string,
+    reconnectToken: typeof reconnectToken === 'string' ? reconnectToken : undefined,
+  };
+};
 
 export class GameServer extends CommandReceiver {
   private objects!: PhysicalContainer;
@@ -75,12 +93,27 @@ export class GameServer extends CommandReceiver {
 
     this.initialize();
 
+    // Both listeners are metered: they exist before any join, so the limiter
+    // inside onPlayerToServer cannot see them, and each one costs a reply or an
+    // allocation an unauthenticated client could otherwise ask for at line rate.
     io.on('connection', (socket: Socket) => {
-      socket.on(TransportEvents.PlayerJoining, (playerInfo: PlayerInformation) =>
-        this.handleJoin(socket, playerInfo),
-      );
+      socket.on(TransportEvents.PlayerJoining, (payload: unknown) => {
+        if (!this.allowInboundMessage(socket)) {
+          return;
+        }
+        try {
+          this.handleJoin(socket, payload);
+        } catch (e) {
+          console.error('Failed to handle a join request', e);
+          socket.emit(TransportEvents.JoinRejected, JoinRejectionReason.InvalidRequest);
+          socket.disconnect();
+        }
+      });
 
       socket.on(TransportEvents.SubscribeForServerInfoUpdates, () => {
+        if (!this.allowInboundMessage(socket)) {
+          return;
+        }
         socket.join(gameStateSubscribedRoom);
       });
     });
@@ -91,7 +124,13 @@ export class GameServer extends CommandReceiver {
     { player: Player; release: () => void }
   >();
 
-  private handleJoin(socket: Socket, playerInfo: PlayerInformation) {
+  private handleJoin(socket: Socket, payload: unknown) {
+    const playerInfo = asPlayerInformation(payload);
+    if (!playerInfo) {
+      socket.emit(TransportEvents.JoinRejected, JoinRejectionReason.InvalidRequest);
+      return;
+    }
+
     if (this.joinedSockets.has(socket)) {
       socket.emit(TransportEvents.JoinRejected, JoinRejectionReason.AlreadyJoined);
       return;
@@ -164,17 +203,22 @@ export class GameServer extends CommandReceiver {
     this.sendServerStateUpdate();
   }
 
-  private readonly inboundBudget = new Map<Socket, { tokens: number; lastMs: number }>();
+  // A WeakMap, not a Map: sockets that never join are metered too, and they
+  // have no join-scoped teardown to remove their entry.
+  private inboundBudget = new WeakMap<Socket, { tokens: number; lastMs: number }>();
   private droppedInboundMessages = 0;
   private allowInboundMessage(socket: Socket): boolean {
-    const nowMs = Date.now();
+    // performance.now(), never Date.now(): a backwards wall-clock step (an NTP
+    // correction, a VM resync) would make the refill negative and lock the
+    // client out of sending input for as long as the step was.
+    const nowMs = performance.now();
     const burst = settings.maxInboundMessageBurst;
     const perSecond = settings.maxInboundMessagesPerSecond;
 
     const budget = this.inboundBudget.get(socket) ?? { tokens: burst, lastMs: nowMs };
     budget.tokens = Math.min(
       burst,
-      budget.tokens + ((nowMs - budget.lastMs) / 1000) * perSecond,
+      budget.tokens + (Math.max(0, nowMs - budget.lastMs) / 1000) * perSecond,
     );
     budget.lastMs = nowMs;
     this.inboundBudget.set(socket, budget);
@@ -219,7 +263,7 @@ export class GameServer extends CommandReceiver {
   private releaseJoinedSockets() {
     this.joinedSockets.forEach(({ release }) => release());
     this.joinedSockets.clear();
-    this.inboundBudget.clear();
+    this.inboundBudget = new WeakMap();
   }
 
   private timeSinceLastServerStateUpdate = 0;
@@ -288,6 +332,15 @@ export class GameServer extends CommandReceiver {
       this.statReportMs = Date.now();
       const mem = `${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`;
       console.info(`Memory: ${mem}, Players: ${this.players.count}`);
+
+      const rtts = this.players.connectedPlayerRttsMs.filter((r) => r > 0);
+      if (rtts.length > 0) {
+        rtts.sort((a, b) => a - b);
+        console.info(
+          `RTT median ${rtts[Math.floor(rtts.length / 2)].toFixed(0)} ms ` +
+            `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
+        );
+      }
 
       if (this.droppedInboundMessages > 0) {
         console.warn(`Rate limited ${this.droppedInboundMessages} inbound msg(s)`);

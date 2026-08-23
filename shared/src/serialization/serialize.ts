@@ -1,4 +1,4 @@
-const MANGLE = '__serializable_type';
+import { MANGLE } from './serializable-mapping';
 
 export const serialize = (object: any): string => {
   return JSON.stringify(object, (_, value) => {

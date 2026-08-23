@@ -142,6 +142,25 @@ describe('hostile payloads', () => {
     expect(server.serverInfo.playerCount).toBe(4);
   });
 
+  // socket.io dispatches listeners with no try/catch of its own, so anything
+  // thrown out of a connection-scoped handler is an uncaught exception: the
+  // process exits and every player in the match is dropped with it.
+  it.each([
+    ['no payload at all', undefined],
+    ['null', null],
+    ['a string', 'not-an-object'],
+    ['a number', 7],
+  ])('refuses a join payload that is %s instead of throwing', (_label, payload) => {
+    const { server, attach } = startServer({ playerLimit: 4, npcCount: 0 });
+    const socket = attach();
+
+    expect(() => socket.fire(TransportEvents.PlayerJoining, payload)).not.toThrow();
+    expect(socket.lastPayloadFor(TransportEvents.JoinRejected)).toBe(
+      JoinRejectionReason.InvalidRequest,
+    );
+    expect(server.serverInfo.playerCount).toBe(0);
+  });
+
   it('ignores an oversized command batch instead of parsing it', () => {
     const { attach } = startServer({ playerLimit: 4, npcCount: 0 });
     const socket = attach();
@@ -228,6 +247,43 @@ describe('inbound rate limiting', () => {
     const flood = settings.maxInboundMessageBurst * 4;
 
     expect(admitted(socket, flood)).toBeLessThan(flood);
+  });
+});
+
+describe('pre-join rate limiting', () => {
+  // These listeners exist before any join, so the limiter inside
+  // onPlayerToServer never sees them: unmetered, each one is a reply or an
+  // allocation an unauthenticated client can ask for at line rate.
+  it('clamps a flood of joins on an already-joined connection', () => {
+    const { attach } = startServer({ playerLimit: 4, npcCount: 0 });
+    const socket = attach();
+    socket.fire(TransportEvents.PlayerJoining, { name: 'flooder' });
+
+    const flood = settings.maxInboundMessageBurst * 4;
+    for (let i = 0; i < flood; i++) {
+      socket.fire(TransportEvents.PlayerJoining, { name: 'flooder' });
+    }
+
+    const rejections = socket.sent.filter(
+      (m) => m.event === TransportEvents.JoinRejected,
+    );
+    expect(rejections.length).toBeLessThan(flood);
+  });
+
+  it('clamps a flood of server-info subscriptions', () => {
+    const { attach } = startServer({ playerLimit: 4, npcCount: 0 });
+    const socket = attach();
+    let joins = 0;
+    socket.join = () => {
+      joins++;
+    };
+
+    const flood = settings.maxInboundMessageBurst * 4;
+    for (let i = 0; i < flood; i++) {
+      socket.fire(TransportEvents.SubscribeForServerInfoUpdates);
+    }
+
+    expect(joins).toBeLessThan(flood);
   });
 });
 

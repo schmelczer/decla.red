@@ -17,21 +17,21 @@ function reducedMotion(): boolean {
   );
 }
 
-export function addTrauma(t: number): void {
+function addTrauma(t: number): void {
   if (reducedMotion()) {
     return;
   }
   trauma = Math.min(1, trauma + t);
 }
 
-export function addPunch(amount: number): void {
+function addPunch(amount: number): void {
   if (reducedMotion()) {
     return;
   }
   punch = Math.min(1, punch + amount);
 }
 
-export function stepScreenShake(deltaTimeInSeconds: number): void {
+function stepScreenShake(deltaTimeInSeconds: number): void {
   trauma = Math.max(0, trauma - traumaDecayPerSecond * deltaTimeInSeconds);
   punch = Math.max(0, punch - punchDecayPerSecond * deltaTimeInSeconds);
   const shake = trauma * trauma;
@@ -39,37 +39,27 @@ export function stepScreenShake(deltaTimeInSeconds: number): void {
   offsetYValue = maxTranslation * shake * (Math.random() * 2 - 1);
 }
 
-function getOffsetX(): number {
-  return offsetXValue;
-}
-
-function getOffsetY(): number {
-  return offsetYValue;
-}
-
-function getViewScale(): number {
-  return 1 - maxZoom * punch * punch;
-}
-
-export function resetScreenShake(): void {
+function resetScreenShake(): void {
   trauma = 0;
   punch = 0;
   offsetXValue = 0;
   offsetYValue = 0;
 }
 
+// The one public surface. The functions above stay module-private so each
+// operation has exactly one name.
 export const ScreenShake = {
   add: addTrauma,
   addPunch,
   step: stepScreenShake,
   get offsetX() {
-    return getOffsetX();
+    return offsetXValue;
   },
   get offsetY() {
-    return getOffsetY();
+    return offsetYValue;
   },
   get viewScale() {
-    return getViewScale();
+    return 1 - maxZoom * punch * punch;
   },
   reset: resetScreenShake,
 };

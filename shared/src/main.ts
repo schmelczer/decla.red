@@ -25,6 +25,7 @@ export * from './helper/charge';
 export * from './helper/calculate-view-area';
 export * from './helper/circle';
 export * from './helper/mix';
+export * from './helper/mix-rgb';
 export * from './helper/random';
 export * from './communication/communication';
 export * from './objects/game-object';

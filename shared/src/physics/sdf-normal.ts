@@ -3,8 +3,10 @@ import { Sdf } from './sdf';
 import { evaluateSdf } from './evaluate-sdf';
 
 // Reused probe point — sdfNormal is called on every depenetration pass and
-// raymarch hit.
-const probe = vec2.create();
+// raymarch hit. A plain array literal for the same reason as planet-sdf's
+// scratch: it is allocated before setMatrixArrayType(Array) runs, and the
+// gradient must be computed at f64 like the rest of the simulation.
+const probe: vec2 = [0, 0];
 
 const sampleAt = (x: number, y: number, objects: Array<Sdf>): number => {
   vec2.set(probe, x, y);

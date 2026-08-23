@@ -10,13 +10,12 @@ import {
 } from 'shared';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
-import { LinearInterpolator } from '../../helper/interpolators/linear-interpolator';
+import { Vec2Interpolator } from '../../helper/interpolators/vec2-interpolator';
 
 export class ProjectileView extends ProjectileBase {
   private light: CircleLight;
 
-  private centerX = new LinearInterpolator(0);
-  private centerY = new LinearInterpolator(0);
+  private centerInterpolator: Vec2Interpolator;
 
   protected commandExecutors: CommandExecutors = {
     [RenderCommand.type]: this.draw.bind(this),
@@ -37,22 +36,17 @@ export class ProjectileView extends ProjectileBase {
       settings.paletteDim[settings.colorIndices[team]],
       0,
     );
-    this.centerX = new LinearInterpolator(center[0]);
-    this.centerY = new LinearInterpolator(center[1]);
+    this.centerInterpolator = new Vec2Interpolator(center);
   }
 
   private updateProperty({ propertyValue, rateOfChange }: UpdatePropertyCommand): void {
-    this.centerX.addFrame(propertyValue[0], rateOfChange[0]);
-    this.centerY.addFrame(propertyValue[1], rateOfChange[1]);
+    this.centerInterpolator.addFrame(propertyValue, rateOfChange);
   }
 
   private handleStep({ deltaTimeInSeconds }: StepCommand): void {
     this.step(deltaTimeInSeconds);
 
-    this.center = vec2.fromValues(
-      this.centerX.getValue(deltaTimeInSeconds),
-      this.centerY.getValue(deltaTimeInSeconds),
-    );
+    this.center = this.centerInterpolator.getValue(deltaTimeInSeconds);
     this.light.center = this.center;
     this.light.intensity = Math.min(
       0.1,

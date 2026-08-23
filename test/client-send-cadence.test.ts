@@ -12,9 +12,17 @@ const { applyArrayPlugins, settings, MoveActionCommand, ClientHeartbeatCommand }
 
 applyArrayPlugins();
 
-const drive = (frameRate: number, seconds: number, onFrame?: (socket: any) => void) => {
+const drive = (
+  frameRate: number,
+  seconds: number,
+  onFrame?: (socket: any) => void,
+  connected = true,
+) => {
   const batches: Array<string> = [];
-  const socket = { emit: (_event: string, payload: string) => batches.push(payload) };
+  const socket = {
+    connected,
+    emit: (_event: string, payload: string) => batches.push(payload),
+  };
   const commandSocket = new CommandSocket(socket as never);
 
   const frames = Math.round(frameRate * seconds);
@@ -63,5 +71,20 @@ describe('client send cadence', () => {
 
     expect(batches.length).toBeGreaterThan(0);
     expect(batches.every((b) => b.includes(ClientHeartbeatCommand.name))).toBe(true);
+  });
+
+  // socket.io-client buffers emits made while disconnected in an uncapped
+  // sendBuffer and flushes them on reconnect, ahead of the re-join — so every
+  // one of them is both a leak and wasted bandwidth.
+  it('sends nothing at all while the transport is down', () => {
+    const batches = drive(
+      60,
+      30,
+      (commandSocket) =>
+        commandSocket.handleCommand(new MoveActionCommand(vec2.fromValues(1, 0), 0)),
+      false,
+    );
+
+    expect(batches).toHaveLength(0);
   });
 });

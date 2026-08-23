@@ -1,10 +1,9 @@
-import { vec2, vec3 } from 'gl-matrix';
+import { vec2 } from 'gl-matrix';
 import {
   calculateViewArea,
-  clamp01,
   CommandExecutors,
   CommandReceiver,
-  mix,
+  mixRgb,
   settings,
 } from 'shared';
 import { RenderCommand } from '../../commands/types/render';
@@ -60,16 +59,9 @@ export class Camera extends CommandReceiver {
     const viewArea = calculateViewArea(shakenCenter, canvasAspectRatio, scale * scale);
     renderer.setViewArea(viewArea.topLeft, viewArea.size);
 
+    const [near, far] = settings.backgroundGradient;
     renderer.setRuntimeSettings({
-      ambientLight: (() => {
-        const q = clamp01(vec2.length(this.center) / settings.worldRadius);
-        const [a, b] = settings.backgroundGradient;
-        return vec3.fromValues(
-          mix(a[0], b[0], q),
-          mix(a[1], b[1], q),
-          mix(a[2], b[2], q),
-        );
-      })(),
+      ambientLight: mixRgb(near, far, vec2.length(this.center) / settings.worldRadius),
     });
   }
 }

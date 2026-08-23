@@ -56,12 +56,12 @@ export class Player extends PlayerBase {
 
   public reconnectToken = '';
 
-  // Drives projectile lag compensation as well as the server-side latency stats.
+  // Server-side latency stat, reported in GameServer's periodic log.
   public rttMs = 0;
   private timeSinceLastPing = 0;
   private lastPingSentMs = 0;
   // Nonce of the ping awaiting a reply: prevents a client forging Pongs or
-  // answering a stale ping to corrupt the RTT that feeds lag compensation.
+  // answering a stale ping to corrupt the measured RTT.
   private pendingPingNonce = 0;
   private nextPingNonce = 1;
 
@@ -136,9 +136,10 @@ export class Player extends PlayerBase {
     this.socket.on(TransportEvents.Pong, this.onPong);
   }
 
-  // Only the outstanding ping's nonce counts, once. A client can sit on the
-  // live ping to inflate measured RTT, so the result is clamped; the next ping
-  // retires the nonce, bounding any stall at one ping interval.
+  // Only the outstanding ping's nonce counts, once: a client cannot forge a
+  // Pong or answer a stale ping to skew the stat. Sitting on the live ping to
+  // inflate the measurement is bounded by the clamp, and the next ping retires
+  // the nonce, so any stall costs at most one ping interval.
   private readonly onPong = (nonce: unknown) => {
     if (this.pendingPingNonce === 0 || nonce !== this.pendingPingNonce) {
       return;

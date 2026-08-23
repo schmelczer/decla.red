@@ -2,4 +2,4 @@
 
 exports[`shared character simulation determinism > matches the pinned reference pose (changes only with intentional physics edits) 1`] = `"{"head":[76.14,123.412],"leftFoot":[83.214,105.036],"rightFoot":[79.974,123.01],"bodyVelocity":[0,0]}"`;
 
-exports[`shared character simulation determinism > matches the pinned reference pose on a spinning planet 1`] = `"{"head":[320.9,-33.986],"leftFoot":[248.603,-50.839],"rightFoot":[281.287,-71.994],"direction":-0.314,"onSurface":true,"secondsSinceOnSurface":0}"`;
+exports[`shared character simulation determinism > matches the pinned reference pose on a spinning planet 1`] = `"{"head":[320.826,-34],"leftFoot":[248.634,-50.688],"rightFoot":[281.09,-72.183],"direction":-0.314,"onSurface":true,"secondsSinceOnSurface":0}"`;

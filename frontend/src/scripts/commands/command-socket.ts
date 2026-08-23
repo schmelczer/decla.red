@@ -30,6 +30,17 @@ export class CommandSocket extends CommandReceiver {
   }
 
   public sendQueuedCommands() {
+    // Nothing goes out while the transport is down. socket.io-client would
+    // otherwise buffer every emit in an uncapped sendBuffer and flush it on
+    // reconnect BEFORE the `connect` handler re-sends PlayerJoining — the
+    // server has no PlayerToServer listener attached yet and drops the lot.
+    // The local queue is dropped with it: these are timestamped inputs, and
+    // replaying a minute-old shot after the gap would be worse than losing it.
+    if (!this.socket.connected) {
+      this.commandQueue = [];
+      return;
+    }
+
     const nowMs = predictorNowMs();
 
     // Real input goes out on the frame it happens — that is the latency budget the player feels. An idle client still keeps the server's input acknowledgement moving (a held key generates no fresh command), paced by the clock not the frame rate; sending every rendered frame would exceed settings.maxInboundMessagesPerSecond, and since movement commands are edge-triggered and never re-sent, a discarded batch would drop the direction change for good.

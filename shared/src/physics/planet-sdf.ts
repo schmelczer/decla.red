@@ -18,13 +18,17 @@ export const toPlanetLocalFrame = (
 
 // Innermost leaf — module-level scratch to avoid per-call allocation. Nothing
 // re-enters planetDistance and none of these outlive the call.
-const localPoint = vec2.create();
-const targetFromDelta = vec2.create();
-const toFromDelta = vec2.create();
-const closestOnEdge = vec2.create();
-// Stays a vec2 (Float32Array) because rounding to f32 is part of the outline
-// the server and the client both have to agree on.
-const edgeSample = vec2.create();
+//
+// Plain array literals, NOT vec2.create(): imports are evaluated before either
+// entry point reaches its glMatrix.setMatrixArrayType(Array) call, so
+// vec2.create() here would hand back Float32Array and quietly run the one
+// outline the server and the client must agree on at f32 while every other
+// vector in the simulation is f64.
+const localPoint: vec2 = [0, 0];
+const targetFromDelta: vec2 = [0, 0];
+const toFromDelta: vec2 = [0, 0];
+const closestOnEdge: vec2 = [0, 0];
+const edgeSample: vec2 = [0, 0];
 
 // The one and only planet outline: the authoritative server and the client
 // predictor both collide against it, which is what lets prediction reconcile.

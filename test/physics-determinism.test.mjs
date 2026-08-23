@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
+// Numerics match production because test/setup.mjs has already applied
+// glMatrix.setMatrixArrayType(Array) — without it this would pin f32.
 const shared = require('../shared/lib/main.js');
 const { vec2 } = require('../shared/node_modules/gl-matrix');
 
@@ -58,7 +60,13 @@ const makeSpinningPlanetWorld = () => {
     angularVelocity: 0.09,
     advance: (dt) => (rotation += surface.angularVelocity * dt),
     distance: (target) =>
-      planetDistance(target, vertices, base.center, Math.cos(rotation), Math.sin(rotation)),
+      planetDistance(
+        target,
+        vertices,
+        base.center,
+        Math.cos(rotation),
+        Math.sin(rotation),
+      ),
     gravityAt: (target) => planetGravity(base.center, base.radius, target),
   };
   const grounds = [surface];
@@ -89,8 +97,7 @@ const runPlanetSimulation = () => {
 
   for (let i = 0; i < 900; i++) {
     // Fall in, then walk right, then left.
-    const input =
-      i < 200 ? vec2.create() : vec2.fromValues(i < 600 ? 1 : -1, 0);
+    const input = i < 200 ? vec2.create() : vec2.fromValues(i < 600 ? 1 : -1, 0);
     tickPlanetDetachment(state, stepSeconds);
     stepCharacterMovement(state, world, input, stepSeconds);
     surface.advance(stepSeconds);

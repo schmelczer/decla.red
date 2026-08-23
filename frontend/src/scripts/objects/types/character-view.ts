@@ -18,6 +18,7 @@ import {
 import { BeforeDestroyCommand } from '../../commands/types/before-destroy';
 import { RenderCommand } from '../../commands/types/render';
 import { StepCommand } from '../../commands/types/step';
+import { CircleInterpolator } from '../../helper/interpolators/circle-interpolator';
 import { LinearInterpolator } from '../../helper/interpolators/linear-interpolator';
 import { pointer } from '../../helper/pointer';
 import { CharacterShape } from '../../shapes/character-shape';
@@ -59,15 +60,9 @@ export class CharacterView extends CharacterBase {
 
   public isMainCharacter = false;
 
-  private lfx = new LinearInterpolator(0);
-  private lfy = new LinearInterpolator(0);
-  private lfr = new LinearInterpolator(0);
-  private rfx = new LinearInterpolator(0);
-  private rfy = new LinearInterpolator(0);
-  private rfr = new LinearInterpolator(0);
-  private hdx = new LinearInterpolator(0);
-  private hdy = new LinearInterpolator(0);
-  private hdr = new LinearInterpolator(0);
+  private headInterpolator: CircleInterpolator;
+  private leftFootInterpolator: CircleInterpolator;
+  private rightFootInterpolator: CircleInterpolator;
 
   protected commandExecutors: CommandExecutors = {
     [RenderCommand.type]: this.draw.bind(this),
@@ -96,18 +91,9 @@ export class CharacterView extends CharacterBase {
     );
     this.deathBurst = new CircleLight(vec2.clone(this.head!.center), deathBurstColor, 0);
 
-    const lf = this.leftFoot!;
-    this.lfx = new LinearInterpolator(lf.center[0]);
-    this.lfy = new LinearInterpolator(lf.center[1]);
-    this.lfr = new LinearInterpolator(lf.radius);
-    const rf = this.rightFoot!;
-    this.rfx = new LinearInterpolator(rf.center[0]);
-    this.rfy = new LinearInterpolator(rf.center[1]);
-    this.rfr = new LinearInterpolator(rf.radius);
-    const hd = this.head!;
-    this.hdx = new LinearInterpolator(hd.center[0]);
-    this.hdy = new LinearInterpolator(hd.center[1]);
-    this.hdr = new LinearInterpolator(hd.radius);
+    this.headInterpolator = new CircleInterpolator(this.head!);
+    this.leftFootInterpolator = new CircleInterpolator(this.leftFoot!);
+    this.rightFootInterpolator = new CircleInterpolator(this.rightFoot!);
 
     this.nameElement.className = 'player-tag ' + this.team;
     this.nameElement.innerText = this.name;
@@ -163,19 +149,13 @@ export class CharacterView extends CharacterBase {
     rateOfChange,
   }: UpdatePropertyCommand) {
     if (propertyKey === 'head') {
-      this.hdx.addFrame(propertyValue.center[0], rateOfChange.center[0]);
-      this.hdy.addFrame(propertyValue.center[1], rateOfChange.center[1]);
-      this.hdr.addFrame(propertyValue.radius, rateOfChange.radius);
+      this.headInterpolator.addFrame(propertyValue, rateOfChange);
     }
     if (propertyKey === 'leftFoot') {
-      this.lfx.addFrame(propertyValue.center[0], rateOfChange.center[0]);
-      this.lfy.addFrame(propertyValue.center[1], rateOfChange.center[1]);
-      this.lfr.addFrame(propertyValue.radius, rateOfChange.radius);
+      this.leftFootInterpolator.addFrame(propertyValue, rateOfChange);
     }
     if (propertyKey === 'rightFoot') {
-      this.rfx.addFrame(propertyValue.center[0], rateOfChange.center[0]);
-      this.rfy.addFrame(propertyValue.center[1], rateOfChange.center[1]);
-      this.rfr.addFrame(propertyValue.radius, rateOfChange.radius);
+      this.rightFootInterpolator.addFrame(propertyValue, rateOfChange);
     }
     if (propertyKey === 'strength') {
       this.strengthInterpolator.addFrame(propertyValue, rateOfChange);
@@ -242,27 +222,9 @@ export class CharacterView extends CharacterBase {
   }
 
   private step({ deltaTimeInSeconds }: StepCommand): void {
-    this.head! = new Circle(
-      vec2.fromValues(
-        this.hdx.getValue(deltaTimeInSeconds),
-        this.hdy.getValue(deltaTimeInSeconds),
-      ),
-      this.hdr.getValue(deltaTimeInSeconds),
-    );
-    this.leftFoot! = new Circle(
-      vec2.fromValues(
-        this.lfx.getValue(deltaTimeInSeconds),
-        this.lfy.getValue(deltaTimeInSeconds),
-      ),
-      this.lfr.getValue(deltaTimeInSeconds),
-    );
-    this.rightFoot! = new Circle(
-      vec2.fromValues(
-        this.rfx.getValue(deltaTimeInSeconds),
-        this.rfy.getValue(deltaTimeInSeconds),
-      ),
-      this.rfr.getValue(deltaTimeInSeconds),
-    );
+    this.head! = this.headInterpolator.getValue(deltaTimeInSeconds);
+    this.leftFoot! = this.leftFootInterpolator.getValue(deltaTimeInSeconds);
+    this.rightFoot! = this.rightFootInterpolator.getValue(deltaTimeInSeconds);
 
     this.strength = clamp(
       this.strengthInterpolator.getValue(deltaTimeInSeconds),

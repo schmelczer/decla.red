@@ -46,6 +46,10 @@ import { Minimap } from './minimap';
 import { ScreenShake } from './screen-shake';
 import { FeedbackHud } from './feedback-hud';
 
+// Ten attempts at the configured backoff is on the order of a minute of
+// retrying before the client gives up and returns to the landing page.
+const maximumReconnectionAttempts = 10;
+
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
   public renderer?: Renderer;
@@ -106,6 +110,10 @@ export class Game extends CommandReceiver {
 
     this.socket = io(this.playerDecision.server, {
       reconnectionDelayMax: 10000,
+      // Must be finite. The default is Infinity, and with it the manager never
+      // gives up, so `reconnect_failed` below never fires and a client whose
+      // server is gone sits on a frozen world behind the banner forever.
+      reconnectionAttempts: maximumReconnectionAttempts,
       transports: ['websocket'],
       forceNew: true,
       parser,
@@ -138,6 +146,14 @@ export class Game extends CommandReceiver {
         ...this.playerDecision,
         reconnectToken: this.reconnectToken,
       });
+      // A reconnect gets a brand-new server-side Player, back on the default
+      // aspect ratio; the camera only reports a ratio when it changes, so
+      // without this re-send it would stay wrong for the rest of the match.
+      if (this.lastAspectRatio !== undefined) {
+        this.socketReceiver.handleCommand(
+          new SetAspectRatioActionCommand(this.lastAspectRatio),
+        );
+      }
     });
 
     this.socket.io.on('reconnect_failed', () => {
@@ -303,7 +319,9 @@ export class Game extends CommandReceiver {
     return this.renderer?.displayToWorldCoordinates(p) ?? vec2.create();
   }
 
+  private lastAspectRatio?: number;
   public aspectRatioChanged(aspectRatio: number) {
+    this.lastAspectRatio = aspectRatio;
     this.socketReceiver.handleCommand(new SetAspectRatioActionCommand(aspectRatio));
   }
 

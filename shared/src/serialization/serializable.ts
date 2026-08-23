@@ -1,6 +1,4 @@
-import { SerializableClass, serializableMapping } from './serializable-mapping';
-
-const MANGLE = '__serializable_type';
+import { MANGLE, SerializableClass, serializableMapping } from './serializable-mapping';
 
 export const serializable = (type: SerializableClass): any => {
   if (!serializableMapping.has(type.name)) {

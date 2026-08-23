@@ -49,9 +49,16 @@ export const marchCircle = (
       )!;
 
       if (ignoreCollision) {
-        // Pass through, but still report the contact so repeated marches keep progressing.
+        // Pass through, but still report the contact so repeated marches keep
+        // progressing. The normal comes along: `hitSurface: true` is the
+        // contract callers read it under, and one without it would be a
+        // TypeError in whichever caller first enables pass-through.
         vec2.scaleAndAdd(body.center, body.center, direction, deltaLength);
-        return { hitSurface: true, hitObject: intersecting };
+        return {
+          hitSurface: true,
+          normal: sdfNormal(rayEnd, [intersecting]),
+          hitObject: intersecting,
+        };
       }
 
       onHit?.(intersecting);

@@ -121,6 +121,12 @@ export abstract class PlayerBase extends CommandReceiver {
   protected findEmptyPositionForPlayer(preferredCenter: vec2): vec2 {
     let rotation = 0;
     let radius = 0;
+    // preferredCenter is a planet centre, the single worst place to give up on:
+    // depenetrateCircle only runs four passes, and a body left that deep inside
+    // the rock registers a zero-distance hit every march and never moves again.
+    // So the roomiest point the spiral saw is kept as the fallback instead.
+    let roomiestPosition = vec2.clone(preferredCenter);
+    let roomiestClearance = -Infinity;
     for (let attempt = 0; attempt < 512; attempt++) {
       const playerPosition = vec2.fromValues(
         radius * Math.cos(rotation) + preferredCenter.x,
@@ -132,18 +138,20 @@ export abstract class PlayerBase extends CommandReceiver {
       const playerBoundingBox = getBoundingBoxOfCircle(playerBoundingCircle);
       const possibleIntersectors =
         this.objectContainer.findIntersecting(playerBoundingBox);
-      if (
-        evaluateSdf(playerBoundingCircle.center, possibleIntersectors) >=
-        playerBoundingCircle.radius
-      ) {
+      const clearance = evaluateSdf(playerBoundingCircle.center, possibleIntersectors);
+      if (clearance >= playerBoundingCircle.radius) {
         return playerPosition;
+      }
+      if (clearance > roomiestClearance) {
+        roomiestClearance = clearance;
+        roomiestPosition = playerPosition;
       }
 
       rotation += Math.PI / 8;
       radius += 30;
     }
 
-    return vec2.clone(preferredCenter);
+    return roomiestPosition;
   }
 
   public destroy() {

@@ -341,6 +341,10 @@ export const stepCharacterMovement = (
 
   applyBodyMomentum(state);
 
+  // Only the feet latch. The grounded branch above projects gravity onto the
+  // foot contact normals and leap() launches off them, so latching on a head
+  // contact would ground the body against normals no part of it is touching —
+  // a head-first tumble would read as standing.
   latchGround(state, world.stepBody(state.leftFoot, deltaTimeInSeconds));
   latchGround(state, world.stepBody(state.rightFoot, deltaTimeInSeconds));
   world.stepBody(state.head, deltaTimeInSeconds);

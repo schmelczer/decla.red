@@ -4,9 +4,9 @@ import { pointer } from './helper/pointer';
 let element: HTMLElement | undefined;
 let heldSince = 0;
 let raf = 0;
-let _followPointer = false;
+let isFollowingPointer = false;
 
-export function beginChargeIndicator(x: number, y: number, followPointer = false) {
+function beginChargeIndicator(x: number, y: number, followPointer = false) {
   endChargeIndicator();
 
   const el = document.createElement('div');
@@ -17,11 +17,11 @@ export function beginChargeIndicator(x: number, y: number, followPointer = false
 
   element = el;
   heldSince = performance.now();
-  _followPointer = followPointer;
+  isFollowingPointer = followPointer;
   raf = requestAnimationFrame(updateChargeIndicator);
 }
 
-export function endChargeIndicator() {
+function endChargeIndicator() {
   if (element) {
     cancelAnimationFrame(raf);
     element.parentElement?.removeChild(element);
@@ -41,7 +41,7 @@ function updateChargeIndicator() {
   }deg, rgba(255, 255, 255, 0.15) 0deg)`;
   element.classList.toggle('full', charge >= 1);
 
-  if (_followPointer) {
+  if (isFollowingPointer) {
     const cursor = pointer.displayPosition;
     if (cursor) {
       element.style.left = `${cursor.x}px`;
@@ -52,6 +52,7 @@ function updateChargeIndicator() {
   raf = requestAnimationFrame(updateChargeIndicator);
 }
 
+// The one public surface; the functions above stay module-private.
 export const ChargeIndicator = {
   begin: beginChargeIndicator,
   end: endChargeIndicator,

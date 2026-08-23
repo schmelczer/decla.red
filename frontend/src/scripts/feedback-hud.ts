@@ -33,7 +33,7 @@ function addTransient(el: HTMLElement, lifetimeMs: number) {
   setTimeout(() => el.parentElement?.removeChild(el), lifetimeMs);
 }
 
-export function hitMarker(charge = 0) {
+function hitMarker(charge = 0) {
   const { x, y } = focusPoint();
   const marker = document.createElement('div');
   marker.className =
@@ -43,7 +43,7 @@ export function hitMarker(charge = 0) {
   addTransient(marker, 250);
 }
 
-export function killConfirmed(victimName?: string, streak = 1, charge = 0) {
+function killConfirmed(victimName?: string, streak = 1, charge = 0) {
   const { killfeed: kf } = ensureRoot();
   const charged = charge >= settings.chargedHitThreshold;
 
@@ -74,7 +74,7 @@ export function killConfirmed(victimName?: string, streak = 1, charge = 0) {
   }
 }
 
-export function showElimination(): void {
+function showElimination(): void {
   if (elimination) {
     return;
   }
@@ -88,12 +88,12 @@ export function showElimination(): void {
   elimination = el;
 }
 
-export function hideElimination(): void {
+function hideElimination(): void {
   elimination?.parentElement?.removeChild(elimination);
   elimination = undefined;
 }
 
-export function resetFeedbackHud(): void {
+function resetFeedbackHud(): void {
   hideElimination();
   root?.parentElement?.removeChild(root);
   root = undefined;
@@ -119,6 +119,7 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
+// The one public surface; the functions above stay module-private.
 export const FeedbackHud = {
   hitMarker,
   killConfirmed,
