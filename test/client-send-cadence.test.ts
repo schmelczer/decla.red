@@ -1,4 +1,3 @@
-// Client outbound send cadence vs. server inbound allowance.
 import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
@@ -8,9 +7,7 @@ import { setFrameTimeMs } from '../frontend/src/scripts/helper/prediction/local-
 const require = createRequire(import.meta.url);
 const shared = require('../shared/lib/main.js');
 const { vec2 } = require('../shared/node_modules/gl-matrix');
-const { applyArrayPlugins, settings, MoveActionCommand, ClientHeartbeatCommand } = shared;
-
-applyArrayPlugins();
+const { settings, MoveActionCommand, ClientHeartbeatCommand } = shared;
 
 const drive = (
   frameRate: number,
@@ -57,7 +54,7 @@ describe('client send cadence', () => {
     let sentOn = -1;
     const batches = drive(144, 0.1, (commandSocket) => {
       if (sentOn === -1) {
-        commandSocket.handleCommand(new MoveActionCommand(vec2.fromValues(1, 0), 0));
+        commandSocket.queue(new MoveActionCommand(vec2.fromValues(1, 0), 0));
         sentOn = 0;
       }
     });
@@ -73,15 +70,12 @@ describe('client send cadence', () => {
     expect(batches.every((b) => b.includes(ClientHeartbeatCommand.name))).toBe(true);
   });
 
-  // socket.io-client buffers emits made while disconnected in an uncapped
-  // sendBuffer and flushes them on reconnect, ahead of the re-join — so every
-  // one of them is both a leak and wasted bandwidth.
   it('sends nothing at all while the transport is down', () => {
     const batches = drive(
       60,
       30,
       (commandSocket) =>
-        commandSocket.handleCommand(new MoveActionCommand(vec2.fromValues(1, 0), 0)),
+        commandSocket.queue(new MoveActionCommand(vec2.fromValues(1, 0), 0)),
       false,
     );
 

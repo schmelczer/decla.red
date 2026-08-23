@@ -1,138 +1,72 @@
 import { vec2 } from 'gl-matrix';
-import {
-  applyForce,
-  Circle,
-  CommandExecutors,
-  CommandReceiver,
-  GameObject,
-  resolveCircleMovement,
-  serializesTo,
-} from 'shared';
-import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
-import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
-import { PhysicalContainer } from '../physics/containers/physical-container';
-import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
-import { Physical } from '../physics/physicals/physical';
-import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
-import { ReactToCollisionCommand } from '../commands/commands';
+import { applyForce, Circle, GameObject, resolveCircleMovement } from 'shared';
+import { BoundingBox } from '../physics/bounding-box';
+import { PhysicalContainer } from '../physics/physical-container';
+import { Physical } from '../physics/physical';
 
-@serializesTo(Circle)
-export class CirclePhysical extends CommandReceiver implements Circle, DynamicPhysical {
-  readonly canCollide = true;
-  readonly canMove = true;
-
+export class CirclePhysical extends Circle implements Physical {
+  public readonly canCollide = true;
   public velocity = vec2.create();
   public lastNormal = vec2.fromValues(0, 1);
 
-  private _boundingBox: BoundingBox;
-
-  protected commandExecutors: CommandExecutors = {
-    [ReactToCollisionCommand.type]: this.onCollision.bind(this),
-  };
+  private readonly box = new BoundingBox();
 
   constructor(
-    private _center: vec2,
-    private _radius: number,
-    public owner: GameObject,
+    center: vec2,
+    radius: number,
+    public readonly owner: Physical,
     private readonly container: PhysicalContainer,
-    // Public + readonly so CirclePhysical satisfies the shared PhysicsBody
-    // interface the movement simulation operates on.
     public readonly restitution = 0,
   ) {
-    super();
-    this._boundingBox = new BoundingBox();
-    this.syncBoundingBox();
+    super(center, radius);
   }
 
-  public get boundingBox(): BoundingBoxBase {
-    return this._boundingBox;
-  }
-
-  public get center(): vec2 {
-    return this._center;
-  }
-
-  public set center(value: vec2) {
-    this._center = value;
-    this.syncBoundingBox();
-  }
-
-  public onCollision(c: ReactToCollisionCommand) {
-    this.owner.handleCommand(c);
+  public get boundingBox(): BoundingBox {
+    this.box.xMin = this.center[0] - this.radius;
+    this.box.xMax = this.center[0] + this.radius;
+    this.box.yMin = this.center[1] - this.radius;
+    this.box.yMax = this.center[1] + this.radius;
+    return this.box;
   }
 
   public get gameObject(): GameObject {
-    return this.owner;
+    return this.owner.gameObject;
   }
 
-  public get radius(): number {
-    return this._radius;
-  }
-
-  public set radius(value: number) {
-    this._radius = value;
-    this.syncBoundingBox();
-  }
-
-  public distance(target: vec2): number {
-    return vec2.distance(target, this.center) - this.radius;
-  }
-
-  public syncBoundingBox() {
-    this._boundingBox.xMin = this.center.x - this._radius;
-    this._boundingBox.xMax = this.center.x + this._radius;
-    this._boundingBox.yMin = this.center.y - this._radius;
-    this._boundingBox.yMax = this.center.y + this._radius;
+  public onCollision(other: GameObject) {
+    this.owner.onCollision?.(other);
   }
 
   public applyForce(force: vec2, timeInSeconds: number) {
     applyForce(this, force, timeInSeconds);
   }
 
-  // Delegates to the shared resolveCircleMovement so the server integrates with
-  // the exact same geometry the client predictor runs — no parallel copy to
-  // keep in sync. `possibleIntersectors` lets a caller that already broadphased
-  // avoid a second container query; otherwise it is self-gathered.
   public stepManually(
     deltaTimeInSeconds: number,
     possibleIntersectors?: Array<Physical>,
-  ): {
-    hitObject: GameObject | undefined;
-    velocity: vec2;
-  } {
+  ): GameObject | undefined {
     const intersecting = (
       possibleIntersectors ?? this.sweptBroadphase(deltaTimeInSeconds)
     ).filter((b) => b.gameObject !== this.gameObject && b.canCollide);
 
-    const { hitObject, velocity } = resolveCircleMovement(
+    const hit = resolveCircleMovement(
       this,
       deltaTimeInSeconds,
       intersecting,
       (intersected) => {
         const physical = intersected as Physical;
-        physical.handleCommand(new ReactToCollisionCommand(this.gameObject));
-        this.handleCommand(new ReactToCollisionCommand(physical.gameObject));
+        physical.onCollision?.(this.gameObject);
+        this.onCollision(physical.gameObject);
       },
-    );
+    ) as Physical | undefined;
 
-    this.syncBoundingBox();
-
-    return { hitObject: (hitObject as Physical | undefined)?.gameObject, velocity };
+    return hit?.gameObject;
   }
 
   private sweptBroadphase(deltaTimeInSeconds: number): Array<Physical> {
-    const sweep = vec2.length(
-      vec2.scale(vec2.create(), this.velocity, deltaTimeInSeconds),
-    );
-    // Grow the query box, not this.radius: mutating the radius would re-register
-    // the body's extent mid-tick via the setter.
+    const sweep = vec2.length(this.velocity) * deltaTimeInSeconds;
     return this.container.findIntersecting(
-      getBoundingBoxOfCircle(new Circle(this.center, this.radius + sweep)),
+      BoundingBox.ofCircle(this.center, this.radius + sweep),
     );
-  }
-
-  public toArray(): Array<any> {
-    const { center, radius } = this;
-    return [center, radius];
   }
 }

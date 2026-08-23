@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { settings } from '../main';
+import { settings } from '../settings';
 
 export const calculateViewArea = (
   center: vec2,

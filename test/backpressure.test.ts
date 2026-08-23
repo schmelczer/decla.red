@@ -1,15 +1,13 @@
-// Slow-client backpressure: what a Player sheds when its socket stops draining.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createRequire } from 'node:module';
 
-import { PhysicalContainer } from '../backend/src/physics/containers/physical-container';
+import { PhysicalContainer } from '../backend/src/physics/physical-container';
 import { PlayerContainer } from '../backend/src/players/player-container';
 import { createWorld } from '../backend/src/create-world';
 
 const require = createRequire(import.meta.url);
 const shared = require('../shared/lib/main.js');
 const {
-  applyArrayPlugins,
   Random,
   settings,
   TransportEvents,
@@ -21,9 +19,6 @@ const {
   ServerAnnouncement,
 } = shared;
 
-applyArrayPlugins();
-
-// Shaped like engine.io: the byte count lives on the ws socket under the transport.
 class FakeSocket {
   public readonly sent: Array<{ event: string; payload: unknown }> = [];
   public readonly conn = { transport: { socket: { bufferedAmount: 0 } } };
@@ -48,9 +43,8 @@ class FakeSocket {
 
 const makePlayer = () => {
   Random.seed = 3;
-  const objects = new PhysicalContainer();
+  const objects = new PhysicalContainer({ addPoints() {}, announce() {} });
   createWorld(objects);
-  objects.initialize();
   const players = new PlayerContainer(objects, 4, 0);
   const socket = new FakeSocket();
   const player = players.createPlayer({ name: 'player' }, socket as never);

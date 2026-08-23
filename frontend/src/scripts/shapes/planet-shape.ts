@@ -2,7 +2,7 @@ import { mat2d, vec2, vec3, vec4 } from 'gl-matrix';
 import { PolygonFactory, DrawableDescriptor, Drawable } from 'sdf-2d';
 import { settings } from 'shared';
 
-export const colorToString = (v: vec3 | vec4): string =>
+const colorToString = (v: vec3 | vec4): string =>
   `vec4(${v[0]}, ${v[1]}, ${v[2]}, ${v.length > 3 ? v[3] : 1})`;
 
 export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
@@ -58,7 +58,6 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
               float cr = cos(rotation);
               float sr = sin(rotation);
 
-              // Evaluate the SDF in the planet's own rotating frame so the outline turns with its terrain.
               vec2 targetCenterDelta = target - center;
               float targetDistance = length(targetCenterDelta);
               vec2 localTarget = center + vec2(
@@ -127,7 +126,6 @@ export class PlanetShape extends PolygonFactory(settings.planetEdgeCount, 0) {
   public randomOffset = 0;
   public rotation = 0;
 
-  // Circle about the vertex centroid — the point the shader spins around (planetMinDistance above). Vertices are immutable after construction, so it is cached once.
   private readonly cullCenter: vec2;
   private readonly cullRadius: number;
 

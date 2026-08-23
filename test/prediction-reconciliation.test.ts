@@ -1,4 +1,3 @@
-// Reconciliation guard for the client predictor: acknowledged pose, deterministic replay, replay-window behaviour.
 import { describe, it, expect } from 'vitest';
 import {
   LocalCharacterPredictor,
@@ -95,7 +94,6 @@ describe('local prediction reconciliation', () => {
     predictor.setAlive(false);
 
     setFrameTimeMs(5200);
-    // Regression: a dead body must not be predicted/moved.
     expect(predictor.update([], 1 / 60)).toBe(false);
   });
 
@@ -157,7 +155,6 @@ describe('local prediction reconciliation', () => {
   });
 
   it('replays the streamed facing direction, not one guessed from the pose', () => {
-    // Head trails 35 units behind: atan2 gives ~0.57 rad, server direction is 0.
     const walkingPose = () => ({
       head: { center: [-35, 37], radius: HEAD_RADIUS },
       leftFoot: { center: [-33, -18], radius: FEET_RADIUS },

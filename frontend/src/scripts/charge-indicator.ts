@@ -1,4 +1,4 @@
-import { holdDurationToCharge } from 'shared';
+import { chargeHeldSince } from 'shared';
 import { pointer } from './helper/pointer';
 
 let element: HTMLElement | undefined;
@@ -24,7 +24,7 @@ function beginChargeIndicator(x: number, y: number, followPointer = false) {
 function endChargeIndicator() {
   if (element) {
     cancelAnimationFrame(raf);
-    element.parentElement?.removeChild(element);
+    element.remove();
     element = undefined;
   }
 }
@@ -34,7 +34,7 @@ function updateChargeIndicator() {
     return;
   }
 
-  const charge = holdDurationToCharge((performance.now() - heldSince) / 1000);
+  const charge = chargeHeldSince(heldSince);
   element.style.opacity = charge < 0.12 ? '0' : '1';
   element.style.background = `conic-gradient(rgba(255, 255, 255, 0.85) ${
     charge * 360
@@ -44,15 +44,14 @@ function updateChargeIndicator() {
   if (isFollowingPointer) {
     const cursor = pointer.displayPosition;
     if (cursor) {
-      element.style.left = `${cursor.x}px`;
-      element.style.top = `${cursor.y}px`;
+      element.style.left = `${cursor[0]}px`;
+      element.style.top = `${cursor[1]}px`;
     }
   }
 
   raf = requestAnimationFrame(updateChargeIndicator);
 }
 
-// The one public surface; the functions above stay module-private.
 export const ChargeIndicator = {
   begin: beginChargeIndicator,
   end: endChargeIndicator,

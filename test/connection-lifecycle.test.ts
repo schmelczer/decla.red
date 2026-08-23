@@ -1,4 +1,3 @@
-// Connection lifecycle: join guard, refusal reasons, reconnect — driven through a fake socket.io.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createRequire } from 'node:module';
 
@@ -7,10 +6,7 @@ import { defaultOptions } from '../backend/src/options';
 
 const require = createRequire(import.meta.url);
 const shared = require('../shared/lib/main.js');
-const { applyArrayPlugins, Random, TransportEvents, JoinRejectionReason, settings } =
-  shared;
-
-applyArrayPlugins();
+const { Random, TransportEvents, JoinRejectionReason, settings } = shared;
 
 class FakeSocket {
   public readonly sent: Array<{ event: string; payload: unknown }> = [];
@@ -40,7 +36,6 @@ class FakeSocket {
     this.disconnected = true;
   }
 
-  /** Number of listeners the server has attached for an event. */
   public listenerCount(event: string): number {
     return (this.handlers.get(event) ?? []).length;
   }
@@ -142,9 +137,6 @@ describe('hostile payloads', () => {
     expect(server.serverInfo.playerCount).toBe(4);
   });
 
-  // socket.io dispatches listeners with no try/catch of its own, so anything
-  // thrown out of a connection-scoped handler is an uncaught exception: the
-  // process exits and every player in the match is dropped with it.
   it.each([
     ['no payload at all', undefined],
     ['null', null],
@@ -190,7 +182,6 @@ describe('reconnect', () => {
     expect(server.serverInfo.playerCount).toBe(1);
     expect(second.disconnected).toBe(false);
     expect(second.lastPayloadFor(TransportEvents.JoinRejected)).toBeUndefined();
-    // Fresh token: the old one cannot be replayed.
     expect(second.lastPayloadFor(TransportEvents.PlayerJoined)).not.toBe(token);
   });
 
@@ -251,9 +242,6 @@ describe('inbound rate limiting', () => {
 });
 
 describe('pre-join rate limiting', () => {
-  // These listeners exist before any join, so the limiter inside
-  // onPlayerToServer never sees them: unmetered, each one is a reply or an
-  // allocation an unauthenticated client can ask for at line rate.
   it('clamps a flood of joins on an already-joined connection', () => {
     const { attach } = startServer({ playerLimit: 4, npcCount: 0 });
     const socket = attach();
@@ -312,7 +300,6 @@ describe('reconnect tokens', () => {
 });
 
 describe('reconnect while the dropped socket is still live', () => {
-  // engine.io needs ~45 s to notice a transport drop; the client is back in ~1 s.
   it('retires the ghost so the returning player keeps its slot, team and score', () => {
     const { server, attach } = startServer({ playerLimit: 1, npcCount: 0 });
 
@@ -321,7 +308,6 @@ describe('reconnect while the dropped socket is still live', () => {
     const token = first.lastPayloadFor(TransportEvents.PlayerJoined) as string;
     expect(server.serverInfo.playerCount).toBe(1);
 
-    // No 'disconnect' fired: the server still holds the dead socket's player.
     const second = attach();
     second.fire(TransportEvents.PlayerJoining, { name: 'flaky', reconnectToken: token });
 

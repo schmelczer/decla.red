@@ -22,7 +22,7 @@ function ensureRoot(): { root: HTMLElement; killfeed: HTMLElement } {
 function focusPoint(): { x: number; y: number } {
   const cursor = pointer.displayPosition;
   if (cursor) {
-    return { x: cursor.x, y: cursor.y };
+    return { x: cursor[0], y: cursor[1] };
   }
   return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 }
@@ -30,7 +30,7 @@ function focusPoint(): { x: number; y: number } {
 function addTransient(el: HTMLElement, lifetimeMs: number) {
   const { root: r } = ensureRoot();
   r.appendChild(el);
-  setTimeout(() => el.parentElement?.removeChild(el), lifetimeMs);
+  setTimeout(() => el.remove(), lifetimeMs);
 }
 
 function hitMarker(charge = 0) {
@@ -55,7 +55,7 @@ function killConfirmed(victimName?: string, streak = 1, charge = 0) {
   entry.className = 'kill-entry';
   entry.innerHTML = `Eliminated <b>${escapeHtml(victimName ?? 'enemy')}</b>`;
   kf.insertBefore(entry, kf.firstChild);
-  setTimeout(() => entry.parentElement?.removeChild(entry), 4500);
+  setTimeout(() => entry.remove(), 4500);
 
   const { x, y } = focusPoint();
   const popup = document.createElement('div');
@@ -89,13 +89,13 @@ function showElimination(): void {
 }
 
 function hideElimination(): void {
-  elimination?.parentElement?.removeChild(elimination);
+  elimination?.remove();
   elimination = undefined;
 }
 
 function resetFeedbackHud(): void {
   hideElimination();
-  root?.parentElement?.removeChild(root);
+  root?.remove();
   root = undefined;
   killfeed = undefined;
 }
@@ -119,7 +119,6 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-// The one public surface; the functions above stay module-private.
 export const FeedbackHud = {
   hitMarker,
   killConfirmed,

@@ -1,7 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { LinearInterpolator } from './linear-interpolator';
 
-// Indexed access, not .x/.y, so it never depends on the vec2 prototype plugin.
 export class Vec2Interpolator {
   private x: LinearInterpolator;
   private y: LinearInterpolator;

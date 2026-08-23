@@ -1,11 +1,7 @@
 import { vec2 } from 'gl-matrix';
 
-// Minimal signed-distance collider. Backend Physicals and the client's planet
-// surfaces both satisfy this.
 export interface Sdf {
   readonly canCollide: boolean;
-  // Planets set this so a body landing on one can latch it as ground; replaces
-  // the server's `instanceof PlanetPhysical` with a structural flag both share.
   readonly isGround?: boolean;
   distance(target: vec2): number;
 }

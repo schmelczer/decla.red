@@ -1,4 +1,5 @@
-import { Id, RemoteCall } from '../../main';
+import { Id } from '../../communication/communication';
+import { RemoteCall } from '../../objects/game-object';
 import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 

@@ -1,17 +1,10 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { Id, serializable } from '../../main';
-import { toArrayFromFields } from '../../serialization/serialized-fields';
+import { Id } from '../../communication/communication';
+import { serializable } from '../../serialization/serializable';
 import { GameObject } from '../game-object';
 
 @serializable
 export class LampBase extends GameObject {
-  private static readonly serializedFields = [
-    'id',
-    'center',
-    'color',
-    'lightness',
-  ] as const;
-
   constructor(
     id: Id,
     public center: vec2,
@@ -21,10 +14,9 @@ export class LampBase extends GameObject {
     super(id);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public setLight(color: vec3, lightness: number) {}
+  public setLight(_color: vec3, _lightness: number) {}
 
   public toArray(): Array<any> {
-    return toArrayFromFields(this, LampBase.serializedFields);
+    return [this.id, this.center, this.color, this.lightness];
   }
 }

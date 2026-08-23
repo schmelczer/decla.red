@@ -1,9 +1,9 @@
 import { vec2 } from 'gl-matrix';
+import { clamp } from './clamp';
 
 export const isFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 
-/** A finite number within [min, max], or `fallback` if the input is unusable. */
 export const finiteInRange = (
   value: unknown,
   min: number,
@@ -13,15 +13,9 @@ export const finiteInRange = (
   if (!isFiniteNumber(value)) {
     return fallback;
   }
-  return Math.min(max, Math.max(min, value));
+  return clamp(value, min, max);
 };
 
-/**
- * A finite 2-vector whose magnitude is within `maxMagnitude`, or `undefined` if
- * the input is not a usable pair of finite numbers. Callers should treat
- * `undefined` as "drop this command" rather than substituting a default, so a
- * malformed action is ignored instead of being silently reinterpreted.
- */
 export const finiteVec2 = (value: unknown, maxMagnitude: number): vec2 | undefined => {
   if (!value || typeof value !== 'object') {
     return undefined;
@@ -47,10 +41,6 @@ export const finiteVec2 = (value: unknown, maxMagnitude: number): vec2 | undefin
   return result;
 };
 
-/**
- * Coerces non-strings: a non-string survives `.slice()` and round-trips through
- * the serializer revived as a class on every peer, throwing in the reviver.
- */
 export const sanitizeName = (value: unknown, maxLength: number): string => {
   const text = typeof value === 'string' ? value : String(value ?? '');
   return text.slice(0, maxLength);

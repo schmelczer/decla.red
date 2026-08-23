@@ -1,9 +1,9 @@
 export abstract class Command {
   public static get type(): string {
-    return (this as any).name;
+    return this.name;
   }
 
   public get type(): string {
-    return (this as any).constructor.name;
+    return this.constructor.name;
   }
 }

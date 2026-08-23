@@ -1,4 +1,3 @@
-import { PhysicalContainer } from './physics/containers/physical-container';
 import { Server, Socket } from 'socket.io';
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
@@ -13,39 +12,33 @@ import {
   GameEndCommand,
   GameStartCommand,
   Command,
-  CommandReceiver,
-  CommandExecutors,
   ServerAnnouncement,
   JoinRejectionReason,
-  beginPropertyUpdateGeneration,
+  GameObject,
+  PropertyUpdatesForObject,
 } from 'shared';
+import { PhysicalContainer } from './physics/physical-container';
 import { createWorld } from './create-world';
 import { Options } from './options';
+import { GameEvents } from './game-events';
 import { CarriedScore, PlayerContainer } from './players/player-container';
-import { ServerFullError } from './players/server-full-error';
 import { Player } from './players/player';
-import { StepCommand, GeneratePointsCommand, AnnounceCommand } from './commands/commands';
 
 const gameStateSubscribedRoom = 'gameStateSubscribedRoom';
+const endTitleSeconds = 6;
 
-// The payload is whatever the client sent: `socket.emit('PlayerJoining')` with
-// no argument arrives as undefined. socket.io dispatches listeners inside a
-// `process.nextTick` with no try/catch of its own, so a dereference of an
-// unchecked payload here would surface as an uncaught exception and take the
-// whole match down with the process.
 const asPlayerInformation = (payload: unknown): PlayerInformation | undefined => {
   if (!payload || typeof payload !== 'object') {
     return undefined;
   }
   const { name, reconnectToken } = payload as Record<string, unknown>;
   return {
-    // Coerced and length-capped downstream, in PlayerBase.createCharacter.
     name: name as string,
     reconnectToken: typeof reconnectToken === 'string' ? reconnectToken : undefined,
   };
 };
 
-export class GameServer extends CommandReceiver {
+export class GameServer implements GameEvents {
   private objects!: PhysicalContainer;
   private players!: PlayerContainer;
   private lastPhysicsBase = process.hrtime.bigint();
@@ -57,45 +50,24 @@ export class GameServer extends CommandReceiver {
   private isInEndGame = false;
   private timeScaling = 1;
   private statReportMs = Date.now();
+  private timeSinceLastServerStateUpdate = 0;
+  private timeSinceLastPointUpdate = 0;
+  private physicsAccumulator = 0;
+  private saturatedFrames = 0;
+  private droppedInboundMessages = 0;
 
-  private initialize() {
-    const previousPlayers = this.players;
-    this.releaseJoinedSockets();
-    this.objects = new PhysicalContainer();
-    createWorld(this.objects);
-    this.objects.initialize();
-    this.players = new PlayerContainer(
-      this.objects,
-      this.options.playerLimit,
-      this.options.npcCount,
-    );
-    this.lastPhysicsBase = process.hrtime.bigint();
-    this.bluePoints = 0;
-    this.redPoints = 0;
-    this.matchPointAnnounced = {};
-    this.isInEndGame = false;
-    this.timeScaling = 1;
-    previousPlayers?.queueCommandForEachClient(new GameStartCommand());
-    previousPlayers?.sendQueuedCommands();
-  }
-
-  protected commandExecutors: CommandExecutors = {
-    [GeneratePointsCommand.type]: this.addPoints.bind(this),
-    [AnnounceCommand.type]: ({ text }: AnnounceCommand) =>
-      this.players.queueCommandForEachClient(new ServerAnnouncement(text)),
-  };
+  private readonly joinedSockets = new Map<
+    Socket,
+    { player: Player; release: () => void }
+  >();
+  private inboundBudget = new WeakMap<Socket, { tokens: number; lastMs: number }>();
 
   constructor(
     private readonly io: Server,
     private options: Options,
   ) {
-    super();
-
     this.initialize();
 
-    // Both listeners are metered: they exist before any join, so the limiter
-    // inside onPlayerToServer cannot see them, and each one costs a reply or an
-    // allocation an unauthenticated client could otherwise ask for at line rate.
     io.on('connection', (socket: Socket) => {
       socket.on(TransportEvents.PlayerJoining, (payload: unknown) => {
         if (!this.allowInboundMessage(socket)) {
@@ -111,18 +83,35 @@ export class GameServer extends CommandReceiver {
       });
 
       socket.on(TransportEvents.SubscribeForServerInfoUpdates, () => {
-        if (!this.allowInboundMessage(socket)) {
-          return;
+        if (this.allowInboundMessage(socket)) {
+          socket.join(gameStateSubscribedRoom);
         }
-        socket.join(gameStateSubscribedRoom);
       });
     });
   }
 
-  private readonly joinedSockets = new Map<
-    Socket,
-    { player: Player; release: () => void }
-  >();
+  private initialize() {
+    const previousPlayers = this.players;
+    this.joinedSockets.forEach(({ release }) => release());
+    this.joinedSockets.clear();
+    this.inboundBudget = new WeakMap();
+
+    this.objects = new PhysicalContainer(this);
+    createWorld(this.objects);
+    this.players = new PlayerContainer(
+      this.objects,
+      this.options.playerLimit,
+      this.options.npcCount,
+    );
+    this.lastPhysicsBase = process.hrtime.bigint();
+    this.bluePoints = 0;
+    this.redPoints = 0;
+    this.matchPointAnnounced = {};
+    this.isInEndGame = false;
+    this.timeScaling = 1;
+    previousPlayers?.queueCommandForEachClient(new GameStartCommand());
+    previousPlayers?.sendQueuedCommands();
+  }
 
   private handleJoin(socket: Socket, payload: unknown) {
     const playerInfo = asPlayerInformation(payload);
@@ -141,9 +130,6 @@ export class GameServer extends CommandReceiver {
       return;
     }
 
-    // A reconnect arrives seconds after the drop, long before engine.io times
-    // the dead socket out. Retire that ghost first so its slot, team and score
-    // go back to the returning client.
     const carried = this.retireGhost(playerInfo.reconnectToken);
 
     if (this.players.isFull) {
@@ -151,20 +137,7 @@ export class GameServer extends CommandReceiver {
       return;
     }
 
-    let player: Player;
-    try {
-      player = this.players.createPlayer(playerInfo, socket, carried);
-    } catch (e) {
-      console.error('Failed to register joining player', e);
-      socket.emit(
-        TransportEvents.JoinRejected,
-        e instanceof ServerFullError
-          ? JoinRejectionReason.ServerFull
-          : JoinRejectionReason.InvalidRequest,
-      );
-      socket.disconnect();
-      return;
-    }
+    const player = this.players.createPlayer(playerInfo, socket, carried);
 
     const onPlayerToServer = (json: string) => {
       try {
@@ -203,14 +176,8 @@ export class GameServer extends CommandReceiver {
     this.sendServerStateUpdate();
   }
 
-  // A WeakMap, not a Map: sockets that never join are metered too, and they
-  // have no join-scoped teardown to remove their entry.
-  private inboundBudget = new WeakMap<Socket, { tokens: number; lastMs: number }>();
-  private droppedInboundMessages = 0;
   private allowInboundMessage(socket: Socket): boolean {
-    // performance.now(), never Date.now(): a backwards wall-clock step (an NTP
-    // correction, a VM resync) would make the refill negative and lock the
-    // client out of sending input for as long as the step was.
+    // performance.now(), not Date.now(): a backwards wall-clock step would lock the client out.
     const nowMs = performance.now();
     const burst = settings.maxInboundMessageBurst;
     const perSecond = settings.maxInboundMessagesPerSecond;
@@ -238,7 +205,7 @@ export class GameServer extends CommandReceiver {
     }
     for (const [socket, { player }] of this.joinedSockets) {
       if (player.reconnectToken === token) {
-        const carried = { team: player.team, ...player.scoreSnapshot };
+        const carried = { team: player.team, ...player.score };
         this.removeJoined(socket);
         return carried;
       }
@@ -253,26 +220,17 @@ export class GameServer extends CommandReceiver {
     }
     this.joinedSockets.delete(socket);
     this.inboundBudget.delete(socket);
-    // Only the listeners this join added: socket.io keeps its own internal
-    // 'error' guard and the connection-scoped PlayerJoining handler here.
     joined.release();
     joined.player.destroy();
     this.players.deletePlayer(joined.player);
   }
 
-  private releaseJoinedSockets() {
-    this.joinedSockets.forEach(({ release }) => release());
-    this.joinedSockets.clear();
-    this.inboundBudget = new WeakMap();
-  }
-
-  private timeSinceLastServerStateUpdate = 0;
   public sendServerStateUpdate() {
     this.io
       .to(gameStateSubscribedRoom)
       .emit(TransportEvents.ServerInfoUpdate, [
         this.players.count,
-        (Math.max(this.bluePoints, this.redPoints) / this.options.scoreLimit) * 100,
+        this.serverInfo.gameStatePercent,
       ]);
   }
 
@@ -280,7 +238,7 @@ export class GameServer extends CommandReceiver {
     this.handlePhysics();
   }
 
-  private addPoints({ blue, red }: GeneratePointsCommand) {
+  public addPoints(blue: number, red: number) {
     if (this.isInEndGame) {
       return;
     }
@@ -297,31 +255,49 @@ export class GameServer extends CommandReceiver {
     }
   }
 
+  public announce(text: string) {
+    this.players.queueCommandForEachClient(new ServerAnnouncement(text));
+  }
+
   private announceMatchPointOnce(team: CharacterTeam, points: number) {
     if (
       !this.matchPointAnnounced[team] &&
       points >= this.options.scoreLimit * settings.matchPointScoreRatio
     ) {
       this.matchPointAnnounced[team] = true;
-      this.players.queueCommandForEachClient(
-        new ServerAnnouncement(
-          `Match point — team <span class="${team}">${team}</span>!`,
-        ),
-      );
+      this.announce(`Match point — team <span class="${team}">${team}</span>!`);
     }
   }
 
   private endGame(winningTeam: CharacterTeam) {
     this.isInEndGame = true;
-    const endTitleLength = 6;
     this.players.endGame(winningTeam);
     this.players.queueCommandForEachClient(new GameEndCommand());
-    setTimeout(() => this.initialize(), endTitleLength * 1000 * 1.1);
+    setTimeout(() => this.initialize(), endTitleSeconds * 1000 * 1.1);
   }
 
-  private timeSinceLastPointUpdate = 0;
-  private physicsAccumulator = 0;
-  private saturatedFrames = 0;
+  private reportStats() {
+    const mem = `${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`;
+    console.info(`Memory: ${mem}, Players: ${this.players.count}`);
+
+    const rtts = this.players.connectedPlayerRttsMs.filter((r) => r > 0);
+    if (rtts.length > 0) {
+      rtts.sort((a, b) => a - b);
+      console.info(
+        `RTT median ${rtts[Math.floor(rtts.length / 2)].toFixed(0)} ms ` +
+          `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
+      );
+    }
+
+    if (this.droppedInboundMessages > 0) {
+      console.warn(`Rate limited ${this.droppedInboundMessages} inbound msg(s)`);
+      this.droppedInboundMessages = 0;
+    }
+    if (this.saturatedFrames > 0) {
+      console.warn(`Physics saturated on ${this.saturatedFrames} frame(s)`);
+      this.saturatedFrames = 0;
+    }
+  }
 
   private handlePhysics() {
     const frameStart = process.hrtime.bigint();
@@ -330,26 +306,7 @@ export class GameServer extends CommandReceiver {
 
     if (Date.now() - this.statReportMs > 30000) {
       this.statReportMs = Date.now();
-      const mem = `${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`;
-      console.info(`Memory: ${mem}, Players: ${this.players.count}`);
-
-      const rtts = this.players.connectedPlayerRttsMs.filter((r) => r > 0);
-      if (rtts.length > 0) {
-        rtts.sort((a, b) => a - b);
-        console.info(
-          `RTT median ${rtts[Math.floor(rtts.length / 2)].toFixed(0)} ms ` +
-            `(min ${rtts[0].toFixed(0)}, max ${rtts[rtts.length - 1].toFixed(0)}, n=${rtts.length})`,
-        );
-      }
-
-      if (this.droppedInboundMessages > 0) {
-        console.warn(`Rate limited ${this.droppedInboundMessages} inbound msg(s)`);
-        this.droppedInboundMessages = 0;
-      }
-      if (this.saturatedFrames > 0) {
-        console.warn(`Physics saturated on ${this.saturatedFrames} frame(s)`);
-        this.saturatedFrames = 0;
-      }
+      this.reportStats();
     }
 
     if ((this.timeSinceLastServerStateUpdate += delta) > 4) {
@@ -387,17 +344,21 @@ export class GameServer extends CommandReceiver {
         this.timeScaling *= Math.pow(settings.endGameDeltaScaling, fixedDelta);
         scaledDelta /= this.timeScaling;
       }
-      this.objects.handleCommand(new StepCommand(scaledDelta, this));
+      this.objects.step(scaledDelta);
       this.players.step(scaledDelta);
     }
 
-    beginPropertyUpdateGeneration();
-    this.players.stepCommunication(delta);
+    const propertyUpdates = new Map<GameObject, PropertyUpdatesForObject | undefined>();
+    this.players.stepCommunication(delta, (object) => {
+      if (!propertyUpdates.has(object)) {
+        propertyUpdates.set(object, object.getPropertyUpdates());
+      }
+      return propertyUpdates.get(object);
+    });
     this.objects.resetRemoteCalls();
 
     const elapsed = Number(process.hrtime.bigint() - frameStart) / 1e9;
-
-    setTimeout(this.handlePhysics.bind(this), Math.max(0, fixedDelta - elapsed) * 1000);
+    setTimeout(() => this.handlePhysics(), Math.max(0, fixedDelta - elapsed) * 1000);
   }
 
   public get serverInfo(): ServerInformation {

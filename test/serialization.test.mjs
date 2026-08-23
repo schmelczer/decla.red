@@ -1,4 +1,3 @@
-// Round-trip tests for the wire serializer, exercising the BUILT shared bundle.
 import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
@@ -13,12 +12,10 @@ const {
   MoveActionCommand,
   UpdatePropertyCommand,
   PropertyUpdatesForObject,
-  // networked entity bases — their toArray() must mirror their constructor order
   CharacterBase,
   PlanetBase,
   ProjectileBase,
   LampBase,
-  // geometry — single source of truth shared by server & client prediction
   headRadius,
   feetRadius,
   boundRadius,
@@ -37,7 +34,6 @@ describe('serialization round-trip (built shared lib)', () => {
   it('round-trips a Circle and rounds floats to 3 decimals', () => {
     const out = deserialize(serialize(new Circle([12.34567, -7.1], 5.43219)));
     expect(out).toBeInstanceOf(Circle);
-    // serialize.ts rounds every float via toFixed(3)
     expect(out.center[0]).toBeCloseTo(12.346, 6);
     expect(out.center[1]).toBeCloseTo(-7.1, 6);
     expect(out.radius).toBeCloseTo(5.432, 6);
@@ -64,7 +60,6 @@ describe('serialization round-trip (built shared lib)', () => {
   });
 
   it('preserves per-item class identity across a mixed batch', () => {
-    // A clobbered name→constructor mapping surfaces as the wrong class.
     const batch = [
       new ServerAnnouncement('a'),
       new MoveActionCommand([0, 1], 5),
@@ -127,14 +122,25 @@ describe('networked entity round-trips (toArray ↔ constructor contract)', () =
 
   it('round-trips a PlanetBase (derived centre/radius recomputed from vertices)', () => {
     const out = deserialize(
-      serialize(new PlanetBase(10, [[0, 0], [100, 0], [50, 100]], 0.7, true)),
+      serialize(
+        new PlanetBase(
+          10,
+          [
+            [0, 0],
+            [100, 0],
+            [50, 100],
+          ],
+          0.7,
+          true,
+        ),
+      ),
     );
     expect(out).toBeInstanceOf(PlanetBase);
     expect(out.id).toBe(10);
     expect(out.vertices).toHaveLength(3);
     expect(out.ownership).toBeCloseTo(0.7, 5);
     expect(out.isKeystone).toBe(true);
-    expect(out.center[0]).toBeCloseTo(50, 5); // recomputed by the constructor
+    expect(out.center[0]).toBeCloseTo(50, 5);
   });
 });
 
@@ -142,7 +148,7 @@ describe('shared character geometry — single source of truth', () => {
   it('matches the known body layout', () => {
     expect(headRadius).toBe(50);
     expect(feetRadius).toBe(20);
-    expect(boundRadius).toBe((headRadius + feetRadius * 2) * 2); // 180
+    expect(boundRadius).toBe((headRadius + feetRadius * 2) * 2);
   });
 
   it('posture offsets are measured from the centre of mass (they sum to ~0)', () => {

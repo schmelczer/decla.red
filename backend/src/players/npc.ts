@@ -1,23 +1,15 @@
 import { vec2 } from 'gl-matrix';
-import {
-  PlayerInformation,
-  settings,
-  Circle,
-  Random,
-  MoveActionCommand,
-  CharacterTeam,
-  Id,
-} from 'shared';
-import { PhysicalContainer } from '../physics/containers/physical-container';
+import { PlayerInformation, settings, Random, CharacterTeam, Id } from 'shared';
+import { PhysicalContainer } from '../physics/physical-container';
+import { BoundingBox } from '../physics/bounding-box';
 import { PlayerContainer } from './player-container';
 import { PlayerBase } from './player-base';
-import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
 import { CharacterPhysical } from '../objects/character-physical';
-import { PlanetPhysical } from '../objects/planet-physical';
+import { PlanetPhysical, planetsIn } from '../objects/planet-physical';
 import { ProjectilePhysical } from '../objects/projectile-physical';
-import { Physical } from '../physics/physicals/physical';
+import { Physical } from '../physics/physical';
 
-const npcTuning = {
+const tuning = {
   planIntervalSeconds: 1,
   shootIntervalSeconds: 1.5,
   reactionIntervalSeconds: 1 / 10,
@@ -40,7 +32,6 @@ const npcTuning = {
 
   dodgeThreatRange: 450,
   dodgeApproachDot: 0.6,
-
   dodgeBaseChance: 0.25,
   dodgeAggressionChance: 0.35,
   dodgeCommitSeconds: 0.35,
@@ -64,27 +55,33 @@ const npcTuning = {
   leapChancePerSecond: 0.35,
 };
 
+interface Enemy {
+  character: CharacterPhysical;
+  distance: number;
+}
+
 export class NPC extends PlayerBase {
   private direction = vec2.fromValues(Random.getRandom() - 0.5, Random.getRandom() - 0.5);
-  private timeSinceLastPlan = 10000;
-  private timeSinceLastShoot = 10000;
-  private isWandering = false;
+  private movement = vec2.create();
+  private timeSinceLastPlan = Infinity;
+  private timeSinceLastShoot = Infinity;
+  private timeSinceObserve = Infinity;
   private timeSinceLastWanderingConsideration = 0;
+  private isWandering = false;
   private isComingBack = false;
 
   private readonly aggression = Random.getRandomInRange(
-    npcTuning.aggressionMin,
-    npcTuning.aggressionMax,
+    tuning.aggressionMin,
+    tuning.aggressionMax,
   );
 
-  private aimTargetId: Id = null;
+  private aimTargetId: Id | null = null;
   private readonly aimTargetLastPosition = vec2.create();
 
   private readonly dodgeDirection = vec2.create();
   private dodgeCommitRemaining = 0;
   private dodgeCooldownRemaining = 0;
 
-  private timeSinceObserve = npcTuning.reactionIntervalSeconds;
   private nearObjects: Array<Physical> = [];
 
   constructor(
@@ -95,7 +92,6 @@ export class NPC extends PlayerBase {
   ) {
     super(playerInfo, playerContainer, objectContainer, team);
     this.createCharacter();
-    this.step(0);
   }
 
   public step(deltaTimeInSeconds: number) {
@@ -106,44 +102,40 @@ export class NPC extends PlayerBase {
 
     if (
       (this.timeSinceLastWanderingConsideration += deltaTimeInSeconds) >
-      npcTuning.wanderReconsiderSeconds
+      tuning.wanderReconsiderSeconds
     ) {
       this.timeSinceLastWanderingConsideration = 0;
-      this.isWandering = Random.getRandom() < npcTuning.wanderProbability;
+      this.isWandering = Random.getRandom() < tuning.wanderProbability;
     }
 
-    if ((this.timeSinceLastPlan += deltaTimeInSeconds) > npcTuning.planIntervalSeconds) {
+    if ((this.timeSinceLastPlan += deltaTimeInSeconds) > tuning.planIntervalSeconds) {
       this.timeSinceLastPlan = 0;
       this.plan();
     }
 
-    if (
-      (this.timeSinceObserve += deltaTimeInSeconds) > npcTuning.reactionIntervalSeconds
-    ) {
-      this.timeSinceObserve = 0;
-      this.nearObjects = this.observe(npcTuning.reactionObserveRadius);
-    }
-
     this.dodgeCommitRemaining -= deltaTimeInSeconds;
     this.dodgeCooldownRemaining -= deltaTimeInSeconds;
-    const movement = this.decideMovement(this.nearObjects);
-    character.handleMovementAction(new MoveActionCommand(movement));
+
+    if ((this.timeSinceObserve += deltaTimeInSeconds) > tuning.reactionIntervalSeconds) {
+      this.timeSinceObserve = 0;
+      this.nearObjects = this.observe(tuning.reactionObserveRadius);
+      this.movement = this.decideMovement(character, this.nearObjects);
+      character.setMoveDirection(this.movement);
+    }
 
     if (
       !this.isComingBack &&
       character.groundPlanet &&
-      vec2.length(movement) > 0 &&
+      vec2.length(this.movement) > 0 &&
       Random.getRandom() <
-        npcTuning.leapChancePerSecond * this.aggression * deltaTimeInSeconds
+        tuning.leapChancePerSecond * this.aggression * deltaTimeInSeconds
     ) {
       character.leap();
     }
 
-    if (
-      (this.timeSinceLastShoot += deltaTimeInSeconds) > npcTuning.shootIntervalSeconds
-    ) {
+    if ((this.timeSinceLastShoot += deltaTimeInSeconds) > tuning.shootIntervalSeconds) {
       this.timeSinceLastShoot = 0;
-      this.tryShoot(this.nearObjects);
+      this.tryShoot(character, this.nearObjects);
     }
   }
 
@@ -159,20 +151,18 @@ export class NPC extends PlayerBase {
     }
     this.isComingBack = false;
 
-    const nearObjects = this.observe(npcTuning.planScanRadius);
-    const enemies = this.enemiesByDistance(nearObjects);
-
-    const nearest = enemies[0];
+    const nearObjects = this.observe(tuning.planScanRadius);
+    const nearest = this.enemiesByDistance(nearObjects)[0];
     if (nearest) {
       const fleeRange =
-        npcTuning.fleeBaseRange * (npcTuning.fleeAggressionFalloff - this.aggression);
+        tuning.fleeBaseRange * (tuning.fleeAggressionFalloff - this.aggression);
       if (nearest.distance < fleeRange) {
         vec2.subtract(this.direction, this.center, nearest.character.center);
         return;
       }
 
       const chaseRange =
-        npcTuning.chaseBaseRange + npcTuning.chaseAggressionRange * this.aggression;
+        tuning.chaseBaseRange + tuning.chaseAggressionRange * this.aggression;
       if (nearest.distance < chaseRange) {
         vec2.subtract(this.direction, nearest.character.center, this.center);
         return;
@@ -182,7 +172,7 @@ export class NPC extends PlayerBase {
     if (!this.isWandering) {
       const planet = this.capturablePlanetsByDistance(nearObjects)[0];
       if (planet) {
-        vec2.subtract(this.direction, planet.planet.center, this.center);
+        vec2.subtract(this.direction, planet.center, this.center);
         return;
       }
     }
@@ -191,11 +181,14 @@ export class NPC extends PlayerBase {
       this.direction,
       this.direction,
       vec2.create(),
-      Random.getRandomInRange(-npcTuning.wanderTurn, npcTuning.wanderTurn),
+      Random.getRandomInRange(-tuning.wanderTurn, tuning.wanderTurn),
     );
   }
 
-  private decideMovement(nearObjects: Array<Physical>): vec2 {
+  private decideMovement(
+    character: CharacterPhysical,
+    nearObjects: Array<Physical>,
+  ): vec2 {
     if (this.dodgeCommitRemaining > 0) {
       return vec2.clone(this.dodgeDirection);
     }
@@ -204,23 +197,20 @@ export class NPC extends PlayerBase {
       if (dodge) {
         if (
           Random.getRandom() <
-          npcTuning.dodgeBaseChance + npcTuning.dodgeAggressionChance * this.aggression
+          tuning.dodgeBaseChance + tuning.dodgeAggressionChance * this.aggression
         ) {
           vec2.copy(this.dodgeDirection, dodge);
-          this.dodgeCommitRemaining = npcTuning.dodgeCommitSeconds;
+          this.dodgeCommitRemaining = tuning.dodgeCommitSeconds;
           return vec2.clone(this.dodgeDirection);
         }
-        this.dodgeCooldownRemaining = npcTuning.dodgeCooldownSeconds;
+        this.dodgeCooldownRemaining = tuning.dodgeCooldownSeconds;
       }
     }
 
-    const planet = this.character!.groundPlanet;
+    const planet = character.groundPlanet;
     if (planet && planet.team !== this.team) {
       const enemies = this.enemiesByDistance(nearObjects);
-      if (
-        enemies.length === 0 ||
-        enemies[0].distance > npcTuning.captureHoldEnemyDistance
-      ) {
+      if (enemies.length === 0 || enemies[0].distance > tuning.captureHoldEnemyDistance) {
         return vec2.create();
       }
     }
@@ -239,12 +229,12 @@ export class NPC extends PlayerBase {
       }
       const toMe = vec2.subtract(vec2.create(), this.center, p.center);
       const distance = vec2.length(toMe);
-      if (distance > npcTuning.dodgeThreatRange || distance === 0) {
+      if (distance > tuning.dodgeThreatRange || distance === 0) {
         continue;
       }
       vec2.normalize(toMe, toMe);
       if (
-        vec2.dot(p.direction, toMe) > npcTuning.dodgeApproachDot &&
+        vec2.dot(p.direction, toMe) > tuning.dodgeApproachDot &&
         distance < threatDistance
       ) {
         threatDistance = distance;
@@ -261,14 +251,11 @@ export class NPC extends PlayerBase {
     if (vec2.dot(perpendicular, toMe) < 0) {
       vec2.negate(perpendicular, perpendicular);
     }
-    vec2.normalize(perpendicular, perpendicular);
-
-    return perpendicular;
+    return vec2.normalize(perpendicular, perpendicular);
   }
 
-  private tryShoot(nearObjects: Array<Physical>) {
-    const enemies = this.enemiesByDistance(nearObjects);
-    const visible = enemies.find((e) =>
+  private tryShoot(character: CharacterPhysical, nearObjects: Array<Physical>) {
+    const visible = this.enemiesByDistance(nearObjects).find((e) =>
       this.hasLineOfSightTo(e.character.center, nearObjects),
     );
     if (!visible) {
@@ -276,71 +263,69 @@ export class NPC extends PlayerBase {
       return;
     }
 
-    const target = visible.character;
-    const distance = visible.distance;
+    const { character: target, distance } = visible;
 
     const velocity = vec2.create();
     if (this.aimTargetId === target.id) {
       vec2.subtract(velocity, target.center, this.aimTargetLastPosition);
-      vec2.scale(velocity, velocity, 1 / npcTuning.shootIntervalSeconds);
+      vec2.scale(velocity, velocity, 1 / tuning.shootIntervalSeconds);
     }
     this.aimTargetId = target.id;
     vec2.copy(this.aimTargetLastPosition, target.center);
 
     if (
       Random.getRandom() >
-      npcTuning.fireBaseChance + npcTuning.fireAggressionChance * this.aggression
+      tuning.fireBaseChance + tuning.fireAggressionChance * this.aggression
     ) {
       return;
     }
 
     const charge =
-      distance > npcTuning.chargeRangeThreshold &&
+      distance > tuning.chargeRangeThreshold &&
       Random.getRandom() <
-        npcTuning.chargeBaseChance + npcTuning.chargeAggressionChance * this.aggression
-        ? Random.getRandomInRange(npcTuning.chargeMin, 1)
+        tuning.chargeBaseChance + tuning.chargeAggressionChance * this.aggression
+        ? Random.getRandomInRange(tuning.chargeMin, 1)
         : 0;
 
     const projectileSpeed =
       charge > 0 ? settings.chargeShotSpeedMax : settings.chargeShotSpeedMin;
-    const leadTime = distance / projectileSpeed;
-    const aim = vec2.scaleAndAdd(vec2.create(), target.center, velocity, leadTime);
+    const aim = vec2.scaleAndAdd(
+      vec2.create(),
+      target.center,
+      velocity,
+      distance / projectileSpeed,
+    );
 
     const spread =
-      (npcTuning.spreadBase + distance * npcTuning.spreadPerDistance) *
-      (npcTuning.spreadAggressionFalloff - this.aggression);
-    aim.x += Random.getRandomInRange(-spread, spread);
-    aim.y += Random.getRandomInRange(-spread, spread);
+      (tuning.spreadBase + distance * tuning.spreadPerDistance) *
+      (tuning.spreadAggressionFalloff - this.aggression);
+    aim[0] += Random.getRandomInRange(-spread, spread);
+    aim[1] += Random.getRandomInRange(-spread, spread);
 
-    this.character!.shootTowards(aim, charge);
+    character.shootTowards(aim, charge);
   }
 
   private hasLineOfSightTo(target: vec2, nearObjects: Array<Physical>): boolean {
-    const planets: Array<PlanetPhysical> = [];
-    for (const o of nearObjects) {
-      if (o.gameObject instanceof PlanetPhysical) {
-        planets.push(o.gameObject);
-      }
-    }
+    const planets = planetsIn(nearObjects);
     if (planets.length === 0) {
       return true;
     }
 
     const direction = vec2.subtract(vec2.create(), target, this.center);
     const totalDistance = vec2.length(direction);
-    if (totalDistance <= npcTuning.lineOfSightStartOffset) {
+    if (totalDistance <= tuning.lineOfSightStartOffset) {
       return true;
     }
     vec2.normalize(direction, direction);
 
-    let traveled = npcTuning.lineOfSightStartOffset;
+    let traveled = tuning.lineOfSightStartOffset;
     const position = vec2.scaleAndAdd(vec2.create(), this.center, direction, traveled);
     while (traveled < totalDistance) {
       let sdf = Infinity;
       for (const planet of planets) {
         sdf = Math.min(sdf, planet.distance(position));
       }
-      if (sdf < npcTuning.lineOfSightClearance) {
+      if (sdf < tuning.lineOfSightClearance) {
         return false;
       }
       traveled += sdf;
@@ -351,45 +336,34 @@ export class NPC extends PlayerBase {
 
   private observe(radius: number): Array<Physical> {
     return this.objectContainer.findIntersecting(
-      getBoundingBoxOfCircle(new Circle(this.center, radius)),
+      BoundingBox.ofCircle(this.center, radius),
     );
   }
 
-  private enemiesByDistance(
-    nearObjects: Array<Physical>,
-  ): Array<{ character: CharacterPhysical; distance: number }> {
-    const seen = new Set<CharacterPhysical>();
-    const enemies: Array<{ character: CharacterPhysical; distance: number }> = [];
+  private enemiesByDistance(nearObjects: Array<Physical>): Array<Enemy> {
+    const enemies: Array<Enemy> = [];
     for (const o of nearObjects) {
       const c = o.gameObject;
       if (
         c instanceof CharacterPhysical &&
         c !== this.character &&
         c.isAlive &&
-        c.team !== this.team &&
-        !seen.has(c)
+        c.team !== this.team
       ) {
-        seen.add(c);
         enemies.push({ character: c, distance: vec2.distance(this.center, c.center) });
       }
     }
-    enemies.sort((a, b) => a.distance - b.distance);
-    return enemies;
+    return enemies.sort((a, b) => a.distance - b.distance);
   }
 
   private capturablePlanetsByDistance(
     nearObjects: Array<Physical>,
-  ): Array<{ planet: PlanetPhysical; distance: number }> {
-    const planets = nearObjects
-      .filter(
-        (o): o is Physical =>
-          o.gameObject instanceof PlanetPhysical && o.gameObject.team !== this.team,
-      )
-      .map((o) => ({
-        planet: o.gameObject as PlanetPhysical,
-        distance: vec2.distance(this.center, (o.gameObject as PlanetPhysical).center),
-      }));
-    planets.sort((a, b) => a.distance - b.distance);
-    return planets;
+  ): Array<PlanetPhysical> {
+    return planetsIn(nearObjects)
+      .filter((p) => p.team !== this.team)
+      .sort(
+        (a, b) =>
+          vec2.distance(this.center, a.center) - vec2.distance(this.center, b.center),
+      );
   }
 }

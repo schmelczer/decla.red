@@ -2,23 +2,23 @@ import { vec2 } from 'gl-matrix';
 import { Random } from '../../helper/random';
 import { settings } from '../../settings';
 import { serializable } from '../../serialization/serializable';
-import { toArrayFromFields } from '../../serialization/serialized-fields';
 import { GameObject } from '../game-object';
 import { Id } from '../../communication/communication';
 import { CharacterTeam } from './character-base';
+import { GroundSurface } from '../../physics/sdf';
+import { planetDistance, planetGravity } from '../../physics/planet-sdf';
 
 @serializable
-export class PlanetBase extends GameObject {
-  // centre/radius are derived from vertices, so not serialized.
-  private static readonly serializedFields = [
-    'id',
-    'vertices',
-    'ownership',
-    'isKeystone',
-  ] as const;
-
+export class PlanetBase extends GameObject implements GroundSurface {
+  public readonly canCollide = true;
+  public readonly isGround = true;
   public readonly center: vec2;
   public readonly radius: number;
+  public angularVelocity = 0;
+
+  private _rotation = 0;
+  private cosRotation = 1;
+  private sinRotation = 0;
 
   constructor(
     id: Id,
@@ -31,11 +31,9 @@ export class PlanetBase extends GameObject {
     vec2.scale(this.center, this.center, 1 / vertices.length);
     this.radius =
       vertices.reduce((sum, v) => sum + vec2.distance(this.center, v), 0) /
-      this.vertices.length;
+      vertices.length;
   }
 
-  // The one capture rule: server flips and scoring, client tints and the
-  // keystone arrow all read this.
   public get team(): CharacterTeam {
     return Math.abs(this.ownership - 0.5) < settings.planetControlThreshold
       ? CharacterTeam.neutral
@@ -44,12 +42,37 @@ export class PlanetBase extends GameObject {
         : CharacterTeam.red;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public generatedPoints(value: number) {}
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public onFlipped(team: CharacterTeam) {}
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public setContested(contested: boolean) {}
+  public get rotation(): number {
+    return this._rotation;
+  }
+
+  public set rotation(value: number) {
+    this._rotation = value;
+    this.cosRotation = Math.cos(value);
+    this.sinRotation = Math.sin(value);
+  }
+
+  public advanceRotation(deltaTimeInSeconds: number) {
+    this.rotation += this.angularVelocity * deltaTimeInSeconds;
+  }
+
+  public distance(target: vec2): number {
+    return planetDistance(
+      target,
+      this.vertices,
+      this.center,
+      this.cosRotation,
+      this.sinRotation,
+    );
+  }
+
+  public gravityAt(position: vec2): vec2 {
+    return planetGravity(this.center, this.radius, position);
+  }
+
+  public generatedPoints(_value: number) {}
+  public onFlipped(_team: CharacterTeam) {}
+  public setContested(_contested: boolean) {}
 
   public static createPlanetVertices(
     center: vec2,
@@ -76,6 +99,6 @@ export class PlanetBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    return toArrayFromFields(this, PlanetBase.serializedFields);
+    return [this.id, this.vertices, this.ownership, this.isKeystone];
   }
 }

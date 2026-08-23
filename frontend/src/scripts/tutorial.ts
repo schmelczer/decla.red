@@ -71,7 +71,7 @@ export class Tutorial extends CommandReceiver {
       return;
     }
 
-    const player = gameObjects.player;
+    const player = gameObjects.localPlayer;
     if (!player) {
       return;
     }

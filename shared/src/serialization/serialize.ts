@@ -1,12 +1,9 @@
 import { MANGLE } from './serializable-mapping';
 
-export const serialize = (object: any): string => {
-  return JSON.stringify(object, (_, value) => {
+export const serialize = (object: any): string =>
+  JSON.stringify(object, (_, value) => {
     if (value && value[MANGLE]) {
-      const props = value.toArray() as Array<any>;
-      props.unshift(value[MANGLE]);
-      return props;
+      return [value[MANGLE], ...value.toArray()];
     }
-    return value?.toFixed ? Number(value.toFixed(3)) : value;
+    return typeof value === 'number' ? Math.round(value * 1000) / 1000 : value;
   });
-};

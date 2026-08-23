@@ -1,18 +1,11 @@
 import { vec2 } from 'gl-matrix';
-import { CharacterTeam, Id, settings } from 'shared';
-
-export interface MinimapBlip {
-  id: Id;
-  position: vec2;
-  team: CharacterTeam;
-}
+import { CharacterTeam, Id, MinimapPlayer, settings } from 'shared';
 
 export class Minimap {
   public readonly element = document.createElement('canvas');
 
   private readonly ctx: CanvasRenderingContext2D;
   private readonly colors: Record<CharacterTeam, string>;
-  // Smoothed per player so the 25 Hz snapshots glide rather than step between frames.
   private readonly smoothed = new Map<Id, vec2>();
   private bufferSize = 0;
 
@@ -30,7 +23,7 @@ export class Minimap {
     };
   }
 
-  public update(localPosition: vec2 | undefined, players: Array<MinimapBlip>) {
+  public update(localPosition: vec2 | undefined, players: Array<MinimapPlayer>) {
     const size = this.element.clientWidth;
     if (size === 0) {
       return;
@@ -45,8 +38,8 @@ export class Minimap {
     const scale = innerRadius / settings.worldRadius;
 
     const toMap = (world: vec2): { x: number; y: number } => {
-      let dx = world.x * scale;
-      let dy = -world.y * scale; // world Y points up, canvas Y points down
+      let dx = world[0] * scale;
+      let dy = -world[1] * scale;
       const distance = Math.hypot(dx, dy);
       if (distance > innerRadius) {
         dx = (dx / distance) * innerRadius;
@@ -109,8 +102,6 @@ export class Minimap {
       this.element.width = target;
       this.element.height = target;
     }
-    // Setting the buffer size resets the transform, so (re)establish it every
-    // frame and draw in CSS pixels regardless of the device pixel ratio.
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 }

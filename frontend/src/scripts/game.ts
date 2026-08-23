@@ -33,8 +33,6 @@ import { GameObjectContainer } from './objects/game-object-container';
 import parser from 'socket.io-msgpack-parser';
 import { CharacterShape } from './shapes/character-shape';
 import { PlanetShape } from './shapes/planet-shape';
-import { RenderCommand } from './commands/types/render';
-import { StepCommand } from './commands/types/step';
 import { serverTimeline } from './helper/server-timeline';
 import {
   localCharacterPredictor,
@@ -46,32 +44,57 @@ import { Minimap } from './minimap';
 import { ScreenShake } from './screen-shake';
 import { FeedbackHud } from './feedback-hud';
 
-// Ten attempts at the configured backoff is on the order of a minute of
-// retrying before the client gives up and returns to the landing page.
 const maximumReconnectionAttempts = 10;
 
 export class Game extends CommandReceiver {
   public gameObjects = new GameObjectContainer(this);
   public renderer?: Renderer;
+  public rejectionReason?: JoinRejectionReason;
+  public readonly started: Promise<void>;
+
   private socket!: Socket;
-  private isBetweenGames = false;
-
-  public started: Promise<void>;
-  private resolveStarted!: () => unknown;
-
-  private keyboardListener: KeyboardListener;
-  private mouseListener: MouseListener;
-  private touchListener: TouchListener;
-
-  private scoreboard = new Scoreboard();
-  private minimap = new Minimap();
-  private announcementText = document.createElement('h2');
-  private keystoneArrow?: HTMLElement;
   private socketReceiver!: CommandSocket;
   private tutorial!: Tutorial;
-  private reconnectToken?: string;
+  private resolveStarted!: () => void;
+  private isBetweenGames = false;
+  private isActive = true;
+  private isEnding = false;
+  private timeScaling = 1;
+
+  private readonly keyboardListener: KeyboardListener;
+  private readonly mouseListener: MouseListener;
+  private readonly touchListener: TouchListener;
+
+  private readonly scoreboard = new Scoreboard();
+  private readonly minimap = new Minimap();
+  private readonly announcementText = document.createElement('h2');
+  private keystoneArrow?: HTMLElement;
   private connectionBanner?: HTMLElement;
-  private rejectionReason?: JoinRejectionReason;
+  private reconnectToken?: string;
+  private lastAspectRatio?: number;
+  private lastGameState?: UpdateGameState;
+  private lastMinimap?: UpdateMinimap;
+  private lastAnnouncementText = '';
+  private timeSinceLastAnnouncement = 0;
+  private framesSinceLastLayoutUpdate = 0;
+
+  protected commandExecutors: CommandExecutors = {
+    [ServerAnnouncement.type]: (c: ServerAnnouncement) => {
+      this.lastAnnouncementText = c.text;
+      this.timeSinceLastAnnouncement = 0;
+    },
+    [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
+    [InputAcknowledgement.type]: (c: InputAcknowledgement) =>
+      localCharacterPredictor.acknowledge(
+        c.clientTimeMs,
+        c.movement,
+        c.lastLeapClientTimeMs,
+        c.ackAgeMs,
+      ),
+    [GameEndCommand.type]: () => (this.isEnding = true),
+    [UpdateMinimap.type]: (c: UpdateMinimap) => (this.lastMinimap = c),
+    [GameStartCommand.type]: () => this.initialize(),
+  };
 
   constructor(
     private readonly playerDecision: PlayerDecision,
@@ -82,9 +105,17 @@ export class Game extends CommandReceiver {
     this.started = new Promise((r) => (this.resolveStarted = r));
     this.announcementText.className = 'announcement';
 
-    this.keyboardListener = new KeyboardListener();
-    this.mouseListener = new MouseListener(this.canvas, this);
-    this.touchListener = new TouchListener(this.canvas, this.overlay, this);
+    const onInput = (c: Command) => {
+      this.socketReceiver.queue(c);
+      this.tutorial.handleCommand(c);
+    };
+    this.keyboardListener = new KeyboardListener(onInput);
+    this.mouseListener = new MouseListener(this.canvas, this, onInput);
+    this.touchListener = new TouchListener(this.canvas, this.overlay, this, onInput);
+  }
+
+  protected defaultCommandExecutor(c: Command) {
+    this.gameObjects.handleCommand(c);
   }
 
   private initialize() {
@@ -94,6 +125,7 @@ export class Game extends CommandReceiver {
     serverTimeline.reset();
     localCharacterPredictor.reset();
     ScreenShake.reset();
+    this.gameObjects.reset();
     this.gameObjects = new GameObjectContainer(this);
     this.overlay.innerHTML = '';
     this.keystoneArrow = undefined;
@@ -101,58 +133,50 @@ export class Game extends CommandReceiver {
     this.lastMinimap = undefined;
     this.isEnding = false;
     this.lastAnnouncementText = '';
-    this.overlay.appendChild(this.scoreboard.element);
-    this.overlay.appendChild(this.minimap.element);
     this.announcementText.innerText = '';
     this.timeScaling = 1;
-    this.overlay.appendChild(this.announcementText);
+    this.overlay.append(
+      this.scoreboard.element,
+      this.minimap.element,
+      this.announcementText,
+    );
     this.tutorial = new Tutorial(this.overlay);
 
     this.socket = io(this.playerDecision.server, {
       reconnectionDelayMax: 10000,
-      // Must be finite. The default is Infinity, and with it the manager never
-      // gives up, so `reconnect_failed` below never fires and a client whose
-      // server is gone sits on a frozen world behind the banner forever.
+      // Must be finite, otherwise `reconnect_failed` never fires.
       reconnectionAttempts: maximumReconnectionAttempts,
       transports: ['websocket'],
       forceNew: true,
       parser,
     } as any);
+    this.socketReceiver = new CommandSocket(this.socket);
 
-    // In socket.io-client v4 reconnection events are emitted by the Manager (`socket.io`), not the Socket itself.
     this.socket.io.on('reconnect_attempt', () => {
       this.socket.io.opts.transports = ['polling', 'websocket'];
     });
 
-    // A transport drop is not the end of the match — tearing the game down would cancel the reconnection the client is configured for.
     this.socket.on('disconnect', () => {
-      if (this.isBetweenGames) {
-        return;
+      if (!this.isBetweenGames) {
+        this.showConnectionBanner('Reconnecting…');
       }
-      this.showConnectionBanner('Reconnecting…');
     });
 
+    // Fires for every (re)connection: a reconnect is a brand-new server-side player.
     this.socket.on('connect', () => {
       if (this.isBetweenGames) {
         return;
       }
-      // A reconnect is a brand-new server-side connection that has never seen a join, so the join must be re-sent or the client sits connected and invisible forever.
       this.hideConnectionBanner();
       serverTimeline.reset();
       localCharacterPredictor.reset();
-      // A brand-new server-side player whose view-area bookkeeping starts empty: the dropped session's objects will never be retracted, so reset here.
       this.gameObjects.reset();
       this.socket.emit(TransportEvents.PlayerJoining, {
         ...this.playerDecision,
         reconnectToken: this.reconnectToken,
       });
-      // A reconnect gets a brand-new server-side Player, back on the default
-      // aspect ratio; the camera only reports a ratio when it changes, so
-      // without this re-send it would stay wrong for the rest of the match.
       if (this.lastAspectRatio !== undefined) {
-        this.socketReceiver.handleCommand(
-          new SetAspectRatioActionCommand(this.lastAspectRatio),
-        );
+        this.socketReceiver.queue(new SetAspectRatioActionCommand(this.lastAspectRatio));
       }
     });
 
@@ -172,13 +196,11 @@ export class Game extends CommandReceiver {
       this.destroy();
     });
 
-    // Echo the nonce: the server only accepts a reply matching the ping still outstanding, so a stale or duplicated Pong cannot move its RTT.
     this.socket.on(TransportEvents.Ping, (nonce: unknown) => {
       this.socket.emit(TransportEvents.Pong, nonce);
     });
 
     this.socket.on(TransportEvents.ServerToPlayer, (serializedCommands: string) => {
-      // deserialize revives classes by name from the payload, so a hostile or corrupt field can throw inside JSON.parse's reviver — one malformed object must not take down the message pump or every later batch is lost with it.
       try {
         const commands: Array<Command> = deserialize(serializedCommands);
         commands.forEach((c) => {
@@ -193,54 +215,12 @@ export class Game extends CommandReceiver {
       }
     });
 
-    this.socketReceiver = new CommandSocket(this.socket);
-    this.keyboardListener.clearSubscribers();
-    this.keyboardListener.subscribe(this.socketReceiver);
-    this.keyboardListener.subscribe(this.tutorial);
-    this.mouseListener.clearSubscribers();
-    this.mouseListener.subscribe(this.socketReceiver);
-    this.mouseListener.subscribe(this.tutorial);
-    this.touchListener.clearSubscribers();
-    this.touchListener.subscribe(this.socketReceiver);
-    this.touchListener.subscribe(this.tutorial);
-
-    // Join is emitted from the `connect` handler above, which fires for the first connection and every reconnection alike — so one code path covers both and a reconnect can never be left unjoined.
     this.isBetweenGames = false;
   }
 
-  protected defaultCommandExecutor(c: Command) {
-    this.gameObjects.handleCommand(c);
-  }
-
-  private lastGameState?: UpdateGameState;
-  private isEnding = false;
-  private timeScaling = 1;
-
-  private lastAnnouncementText = '';
-  protected commandExecutors: CommandExecutors = {
-    [ServerAnnouncement.type]: (c: ServerAnnouncement) => {
-      this.lastAnnouncementText = c.text;
-      this.timeSinceLastAnnouncement = 0;
-    },
-    [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
-    [InputAcknowledgement.type]: (c: InputAcknowledgement) =>
-      localCharacterPredictor.acknowledge(
-        c.clientTimeMs,
-        c.movement,
-        c.lastLeapClientTimeMs,
-        c.ackAgeMs,
-      ),
-    [GameEndCommand.type]: () => (this.isEnding = true),
-    [UpdateMinimap.type]: (c: UpdateMinimap) => (this.lastMinimap = c),
-    [GameStartCommand.type]: this.initialize.bind(this),
-  };
-
-  private lastMinimap?: UpdateMinimap;
-
   public async start(): Promise<void> {
-    const noiseTexture = await renderNoise([256, 256], 2, 1);
-
     this.initialize();
+    const noiseTexture = await renderNoise([256, 256], 2, 1);
 
     await runAnimation(
       this.canvas,
@@ -272,18 +252,15 @@ export class Game extends CommandReceiver {
         },
       },
     );
+
     this.socket.close();
+    this.gameObjects.reset();
     this.overlay.innerHTML = '';
     this.hideConnectionBanner();
-    // The HUD root lives on document.body, not the overlay, so it must be torn down explicitly or it stays painted over the landing page.
     FeedbackHud.reset();
     this.keyboardListener.destroy();
     this.mouseListener.destroy();
     this.touchListener.destroy();
-  }
-
-  public get lastRejectionReason(): JoinRejectionReason | undefined {
-    return this.rejectionReason;
   }
 
   public static rejectionText(reason: JoinRejectionReason): string {
@@ -319,38 +296,32 @@ export class Game extends CommandReceiver {
     return this.renderer?.displayToWorldCoordinates(p) ?? vec2.create();
   }
 
-  private lastAspectRatio?: number;
   public aspectRatioChanged(aspectRatio: number) {
     this.lastAspectRatio = aspectRatio;
-    this.socketReceiver.handleCommand(new SetAspectRatioActionCommand(aspectRatio));
+    this.socketReceiver.queue(new SetAspectRatioActionCommand(aspectRatio));
   }
 
-  private isActive = true;
   public destroy() {
     this.isActive = false;
   }
 
-  private timeSinceLastAnnouncement = 0;
-  private framesSinceLastLayoutUpdate = 0;
   private gameLoop(
     renderer: Renderer,
     currentTime: DOMHighResTimeStamp,
     deltaTime: DOMHighResTimeStamp,
   ): boolean {
+    this.renderer = renderer;
     this.resolveStarted();
-    // Must use the frame's timestamp, not performance.now(): the dispatch delay would land in the prediction replay window and jitter the predicted body.
+    // The frame timestamp, not performance.now(): dispatch jitter would land in the replay window.
     setFrameTimeMs(currentTime);
     deltaTime /= 1000;
 
-    // Camera impact decays on raw wall-clock time, before the end-game slow-motion scaling below — view-only, never the simulation, so it stays decoupled from prediction and netcode.
+    // Both run on wall-clock time: the end-game slow motion is already baked into the snapshots.
     ScreenShake.step(deltaTime);
-
-    // Stepped before the end-game time scaling on purpose: the slow motion is already baked into the server's snapshots, so the playback cursor must keep running on wall-clock time.
     serverTimeline.step(deltaTime);
 
-    let shouldChangeLayout = false;
-    if (++this.framesSinceLastLayoutUpdate > 1) {
-      shouldChangeLayout = true;
+    const shouldChangeLayout = ++this.framesSinceLastLayoutUpdate > 1;
+    if (shouldChangeLayout) {
       this.framesSinceLastLayoutUpdate = 0;
       this.draw();
     }
@@ -366,17 +337,10 @@ export class Game extends CommandReceiver {
       deltaTime /= this.timeScaling;
     }
 
-    this.renderer = renderer;
-
-    this.gameObjects.handleCommand(new StepCommand(deltaTime));
-    this.gameObjects.handleCommand(
-      new RenderCommand(this.renderer, this.overlay, shouldChangeLayout),
-    );
-
+    this.gameObjects.step(deltaTime);
+    this.gameObjects.render(renderer, this.overlay, shouldChangeLayout);
     this.touchListener.update();
-
     this.tutorial.step(this.gameObjects);
-
     this.socketReceiver.sendQueuedCommands();
 
     return this.isActive;
@@ -384,11 +348,11 @@ export class Game extends CommandReceiver {
 
   private draw() {
     if (this.lastGameState) {
-      this.scoreboard.update(this.lastGameState, this.gameObjects.player?.team);
+      this.scoreboard.update(this.lastGameState, this.gameObjects.localPlayer?.team);
     }
 
     this.minimap.update(
-      this.gameObjects.localPlayerPosition,
+      this.gameObjects.localPlayer?.position,
       this.lastMinimap?.players ?? [],
     );
 
@@ -400,11 +364,8 @@ export class Game extends CommandReceiver {
   }
 
   private handleKeystoneArrow() {
-    if (!this.renderer) {
-      return;
-    }
     const keystone = this.gameObjects.planets.find((p) => p.isKeystone);
-    if (!keystone) {
+    if (!this.renderer || !keystone) {
       if (this.keystoneArrow) {
         this.keystoneArrow.style.display = 'none';
       }
@@ -416,40 +377,34 @@ export class Game extends CommandReceiver {
       this.overlay.appendChild(this.keystoneArrow);
     }
 
-    const width = this.renderer.canvasSize.x;
-    const height = this.renderer.canvasSize.y;
+    const [width, height] = this.renderer.canvasSize;
     const display = this.renderer.worldToDisplayCoordinates(keystone.center);
     const margin = 48;
     const onScreen =
-      display.x >= margin &&
-      display.x <= width - margin &&
-      display.y >= margin &&
-      display.y <= height - margin;
+      display[0] >= margin &&
+      display[0] <= width - margin &&
+      display[1] >= margin &&
+      display[1] <= height - margin;
 
     this.keystoneArrow.className = 'keystone-arrow ' + keystone.team;
-
+    this.keystoneArrow.style.display = onScreen ? 'none' : 'block';
     if (onScreen) {
-      this.keystoneArrow.style.display = 'none';
       return;
     }
-    this.keystoneArrow.style.display = 'block';
 
-    const center = vec2.fromValues(width / 2, height / 2);
-    const dir = vec2.fromValues(display.x - center.x, display.y - center.y);
-    const angle = Math.atan2(dir.y, dir.x);
+    const dx = display[0] - width / 2;
+    const dy = display[1] - height / 2;
+    const angle = Math.atan2(dy, dx);
 
-    const aspectRatio = width / height;
-    const directionRatio = dir.x / dir.y;
     let deltaX: number, deltaY: number;
-    if (aspectRatio < Math.abs(directionRatio)) {
-      deltaX = (width / 2 - margin) * Math.sign(dir.x);
-      deltaY = deltaX / directionRatio;
+    if (width / height < Math.abs(dx / dy)) {
+      deltaX = (width / 2 - margin) * Math.sign(dx);
+      deltaY = (deltaX * dy) / dx;
     } else {
-      deltaY = (height / 2 - margin) * Math.sign(dir.y);
-      deltaX = deltaY * directionRatio;
+      deltaY = (height / 2 - margin) * Math.sign(dy);
+      deltaX = (deltaY * dx) / dy;
     }
 
-    const p = vec2.add(center, center, vec2.fromValues(deltaX, deltaY));
-    this.keystoneArrow.style.transform = `translateX(${p.x}px) translateY(${p.y}px) translateX(-50%) translateY(-50%) rotate(${angle + Math.PI / 2}rad)`;
+    this.keystoneArrow.style.transform = `translateX(${width / 2 + deltaX}px) translateY(${height / 2 + deltaY}px) translateX(-50%) translateY(-50%) rotate(${angle + Math.PI / 2}rad)`;
   }
 }

@@ -1,28 +1,26 @@
 import { vec2 } from 'gl-matrix';
-import { CommandGenerator, PrimaryActionCommand, holdDurationToCharge } from 'shared';
+import { chargeHeldSince, Command } from 'shared';
 import { Game } from '../game';
 import { ChargeIndicator } from '../charge-indicator';
-import { predictorNowMs } from '../helper/prediction/local-character-predictor';
 import { pointer } from '../helper/pointer';
+import { InputGenerator } from './input-generator';
 
-export class MouseListener extends CommandGenerator {
+export class MouseListener extends InputGenerator {
   private primaryDownAt: number | null = null;
 
   constructor(
-    private target: HTMLElement,
+    private readonly target: HTMLElement,
     private readonly game: Game,
+    onCommand: (command: Command) => void,
   ) {
-    super();
-
+    super(onCommand);
     target.addEventListener('mousedown', this.mouseDownListener);
     target.addEventListener('mousemove', this.mouseMoveListener);
     target.addEventListener('contextmenu', this.contextMenuListener);
-    // Release watched on the window, not the canvas — a release over UI or outside the window must still fire.
     window.addEventListener('mouseup', this.mouseUpListener);
     window.addEventListener('blur', this.cancelPrimary);
   }
 
-  // Store screen position; reproject to world each frame so gaze stays correct while the camera pans.
   private mouseMoveListener = (event: MouseEvent) => {
     pointer.displayPosition = vec2.fromValues(event.clientX, event.clientY);
   };
@@ -38,35 +36,23 @@ export class MouseListener extends CommandGenerator {
     if (event.button !== 0 || this.primaryDownAt === null) {
       return;
     }
-
     ChargeIndicator.end();
-    const charge = holdDurationToCharge((performance.now() - this.primaryDownAt) / 1000);
+    const charge = chargeHeldSince(this.primaryDownAt);
     this.primaryDownAt = null;
-    this.sendCommandToSubscribers(
-      new PrimaryActionCommand(
-        this.positionFromEvent(event),
-        charge,
-        Math.round(predictorNowMs()),
-      ),
+    this.sendPrimary(
+      this.game.displayToWorldCoordinates(vec2.fromValues(event.clientX, event.clientY)),
+      charge,
     );
   };
 
   private cancelPrimary = () => {
-    if (this.primaryDownAt !== null) {
-      this.primaryDownAt = null;
-      ChargeIndicator.end();
-    }
+    this.primaryDownAt = null;
+    ChargeIndicator.end();
   };
 
   private contextMenuListener = (event: MouseEvent) => {
     event.preventDefault();
   };
-
-  private positionFromEvent(event: MouseEvent): vec2 {
-    return this.game.displayToWorldCoordinates(
-      vec2.fromValues(event.clientX, event.clientY),
-    );
-  }
 
   public destroy() {
     ChargeIndicator.end();

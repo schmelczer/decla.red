@@ -1,27 +1,18 @@
 import { vec2 } from 'gl-matrix';
-import { CircleLight } from 'sdf-2d';
+import { CircleLight, Renderer } from 'sdf-2d';
 import {
   CharacterTeam,
-  CommandExecutors,
   Id,
   ProjectileBase,
   settings,
   UpdatePropertyCommand,
 } from 'shared';
-import { RenderCommand } from '../../commands/types/render';
-import { StepCommand } from '../../commands/types/step';
 import { Vec2Interpolator } from '../../helper/interpolators/vec2-interpolator';
+import { View } from '../view';
 
-export class ProjectileView extends ProjectileBase {
-  private light: CircleLight;
-
-  private centerInterpolator: Vec2Interpolator;
-
-  protected commandExecutors: CommandExecutors = {
-    [RenderCommand.type]: this.draw.bind(this),
-    [StepCommand.type]: this.handleStep.bind(this),
-    [UpdatePropertyCommand.type]: this.updateProperty.bind(this),
-  };
+export class ProjectileView extends ProjectileBase implements View {
+  private readonly light: CircleLight;
+  private readonly centerInterpolator: Vec2Interpolator;
 
   constructor(
     id: Id,
@@ -39,12 +30,12 @@ export class ProjectileView extends ProjectileBase {
     this.centerInterpolator = new Vec2Interpolator(center);
   }
 
-  private updateProperty({ propertyValue, rateOfChange }: UpdatePropertyCommand): void {
+  public updateProperty({ propertyValue, rateOfChange }: UpdatePropertyCommand) {
     this.centerInterpolator.addFrame(propertyValue, rateOfChange);
   }
 
-  private handleStep({ deltaTimeInSeconds }: StepCommand): void {
-    this.step(deltaTimeInSeconds);
+  public step(deltaTimeInSeconds: number) {
+    super.step(deltaTimeInSeconds);
 
     this.center = this.centerInterpolator.getValue(deltaTimeInSeconds);
     this.light.center = this.center;
@@ -54,7 +45,7 @@ export class ProjectileView extends ProjectileBase {
     );
   }
 
-  private draw({ renderer }: RenderCommand): void {
+  public render(renderer: Renderer) {
     renderer.addDrawable(this.light);
   }
 }

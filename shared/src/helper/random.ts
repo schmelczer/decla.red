@@ -8,9 +8,6 @@ function getRandom(): number {
 }
 
 export const Random = {
-  get seed() {
-    return seed;
-  },
   set seed(value: number) {
     seed = value;
   },

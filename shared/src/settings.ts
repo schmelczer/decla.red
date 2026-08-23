@@ -7,8 +7,6 @@ const redColor = rgb255(209, 86, 82);
 const q = 2.5;
 const blueColorDim = rgb255(64 * q, 105 * q, 165 * q);
 const redColorDim = rgb255(209 * q, 86 * q, 82 * q);
-const bluePlanetColor = blueColorDim;
-const redPlanetColor = redColorDim;
 
 export const settings = {
   lightCutoffDistance: 600,
@@ -30,8 +28,6 @@ export const settings = {
   maxGravityDistance: 800,
   minGravityDistance: 1,
   maxGravityQ: 5000,
-  // Neutral dead-band around 50% ownership. The single capture rule: flips,
-  // scoring and every client-side tint all read PlanetBase.team.
   planetControlThreshold: 0.12,
   playerMaxHealth: 100,
   maxGravityStrength: 50000,
@@ -67,7 +63,7 @@ export const settings = {
   chargeShotSpeedMax: 3400,
   backgroundGradient: [rgb255(90, 38, 43), rgb255(43, 39, 73)],
   blueColor,
-  bluePlanetColor,
+  bluePlanetColor: blueColorDim,
   npcNames: [
     'Adam',
     'Andrew',
@@ -119,7 +115,7 @@ export const settings = {
     'Wyatt',
   ],
   redColor,
-  redPlanetColor,
+  redPlanetColor: redColorDim,
   colorIndices: {
     [CharacterTeam.blue]: 0,
     [CharacterTeam.neutral]: 1,
@@ -168,20 +164,14 @@ export const settings = {
 
   chargeShotRecoilMax: 650,
 
-  // DoS guard: parsing is synchronous with the physics loop, so one oversized
-  // message stalls the tick for everyone.
   maxInboundMessageBytes: 16 * 1024,
 
-  // Must NOT be the frame rate: per-render-frame sends exceed the inbound
-  // allowance on high-Hz displays, and dropped batches lose edge-triggered
-  // movement commands that are never re-sent.
+  // Must not be the frame rate: dropped batches lose edge-triggered movement commands.
   clientSendInterval: 1 / 30,
 
   maxInboundMessagesPerSecond: 240,
   maxInboundMessageBurst: 480,
 
-  // The nonce check makes the Pong reply unforgeable/single-use; this bounds
-  // what stalling one can buy.
   maxMeasuredRttMs: 1000,
 
   maxBufferedBytesPerClient: 256 * 1024,

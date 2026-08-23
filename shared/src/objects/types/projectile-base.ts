@@ -1,21 +1,12 @@
 import { vec2 } from 'gl-matrix';
 import { settings } from '../../settings';
 import { serializable } from '../../serialization/serializable';
-import { toArrayFromFields } from '../../serialization/serialized-fields';
 import { GameObject } from '../game-object';
 import { Id } from '../../communication/communication';
 import { CharacterTeam } from './character-base';
 
 @serializable
 export class ProjectileBase extends GameObject {
-  private static readonly serializedFields = [
-    'id',
-    'center',
-    'radius',
-    'team',
-    'strength',
-  ] as const;
-
   constructor(
     id: Id,
     public center: vec2,
@@ -32,6 +23,6 @@ export class ProjectileBase extends GameObject {
   }
 
   public toArray(): Array<any> {
-    return toArrayFromFields(this, ProjectileBase.serializedFields);
+    return [this.id, this.center, this.radius, this.team, this.strength];
   }
 }

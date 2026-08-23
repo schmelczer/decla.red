@@ -19,7 +19,6 @@ export class CharacterShape extends Drawable {
         return distance(target, circleCenter) - radius;
       }
 
-      // Distance to the segment a->b; subtract a radius to get a capsule (a rounded thick line).
       float segmentDistance(vec2 a, vec2 b, vec2 target) {
         vec2 pa = target - a;
         vec2 ba = b - a;
@@ -37,7 +36,6 @@ export class CharacterShape extends Drawable {
           float headRadius = characterHeadRadii[i];
           float footRadius = characterFootRadii[i];
 
-          // The server rotates the whole posture toward travel, so the head leads: forward is the facing direction, perp its 90deg rotation, so the face sits on the leading side at any rotation.
           vec2 footAverage = (leftFoot + rightFoot) * 0.5;
           vec2 toHead = head - footAverage;
           float toHeadLength = length(toHead);
@@ -66,7 +64,6 @@ export class CharacterShape extends Drawable {
           float scleraRadius = renderRadius * 0.26;
           float pupilRadius = renderRadius * 0.11;
 
-          // The normalize is guarded so a cursor resting exactly on an eye can't produce NaNs.
           vec2 gazeTarget = characterGazeTargets[i];
           float pupilReach = (scleraRadius - pupilRadius) * 0.6;
           vec2 toLeftGaze = gazeTarget - leftEyeCenter;
@@ -83,7 +80,7 @@ export class CharacterShape extends Drawable {
             circleDistance(rightEyeCenter + rightGaze * pupilReach, pupilRadius, target)
           );
 
-          // Computed here in uniform control flow — NOT inside the body branch below — so the screen-space derivatives fwidth needs stay defined. WebGL1 fallback keeps the plain world-space band (no fwidth in GLSL ES 1.00).
+          // Uniform control flow on purpose: fwidth needs defined derivatives.
           float eyeAaBase = renderRadius * 0.025;
           #ifdef WEBGL2_IS_AVAILABLE
             float scleraAa = max(eyeAaBase, fwidth(sclera));
@@ -101,7 +98,6 @@ export class CharacterShape extends Drawable {
               clamp(characterFlash[i], 0.0, 1.0)
             );
 
-            // The sclera albedo is HDR (>> 1) so the shading pass — which multiplies by dim scene light before clamping — still renders a clean white eye instead of dimming to a dark socket. Needs sdf-2d's float colour buffer; on 8-bit fallback it clamps to plain white.
             color = mix(color, vec4(10.0, 10.0, 10.0, 1.0), 1.0 - smoothstep(-scleraAa, scleraAa, sclera));
             color = mix(color, vec4(0.04, 0.04, 0.07, 1.0), 1.0 - smoothstep(-pupilAa, pupilAa, pupil));
           }

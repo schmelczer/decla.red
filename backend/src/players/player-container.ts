@@ -1,22 +1,25 @@
-import { CharacterTeam, PlayerInformation, Random, settings, Command } from 'shared';
+import {
+  CharacterTeam,
+  PlayerInformation,
+  Random,
+  settings,
+  Command,
+  GameObject,
+  PropertyUpdatesForObject,
+} from 'shared';
 import { Socket } from 'socket.io';
-import { PhysicalContainer } from '../physics/containers/physical-container';
+import { PhysicalContainer } from '../physics/physical-container';
 import { NPC } from './npc';
 import { Player } from './player';
-import { PlayerBase } from './player-base';
-import { ServerFullError } from './server-full-error';
+import { PlayerBase, Score } from './player-base';
 
-// Team and score carried over from the connection a reconnecting client is
-// replacing, so it resumes the match instead of starting from zero.
-export interface CarriedScore {
+export interface CarriedScore extends Score {
   team: CharacterTeam;
-  kills: number;
-  deaths: number;
 }
 
 export class PlayerContainer {
   private _players: Array<Player> = [];
-  private _npcs: Array<NPC> = [];
+  private npcs: Array<NPC> = [];
 
   constructor(
     private readonly objects: PhysicalContainer,
@@ -26,14 +29,14 @@ export class PlayerContainer {
     this.createNPCs();
   }
 
-  public createNPCs() {
+  private createNPCs() {
     const newNpcCount = Math.min(
-      this.playerMaxCount - this._players.length - this._npcs.length,
-      this.npcMaxCount - this._npcs.length,
+      this.playerMaxCount - this._players.length - this.npcs.length,
+      this.npcMaxCount - this.npcs.length,
     );
     for (let i = 0; i < newNpcCount; i++) {
       const name = `🤖 ${Random.choose(settings.npcNames)}`;
-      this._npcs.push(
+      this.npcs.push(
         new NPC({ name }, this, this.objects, this.getTeamOfNextPlayer(true)),
       );
     }
@@ -44,31 +47,20 @@ export class PlayerContainer {
     socket: Socket,
     carried?: CarriedScore,
   ): Player {
-    if (this._players.length >= this.playerMaxCount) {
-      throw new ServerFullError();
-    }
-
     const team = carried ? carried.team : this.getTeamOfNextPlayer();
 
-    // Retire the bot before the player spawns: its body would otherwise push
-    // the spawn search away from the position it picked.
     const npcToReplace =
-      this._npcs.find((n) => n.team === team) ?? this._npcs.find((n) => n.team !== team);
+      this.npcs.find((n) => n.team === team) ?? this.npcs.find((n) => n.team !== team);
     npcToReplace?.destroy();
-    this._npcs = this._npcs.filter((n) => n !== npcToReplace);
+    this.npcs = this.npcs.filter((n) => n !== npcToReplace);
 
-    const player = new Player(playerInfo, this, this.objects, team, socket);
+    const player = new Player(playerInfo, this, this.objects, team, socket, carried);
     this._players.push(player);
-
-    if (carried) {
-      player.restoreScore(carried.kills, carried.deaths);
-    }
-
     return player;
   }
 
   public get players(): Array<PlayerBase> {
-    return [...this._players, ...this._npcs];
+    return [...this._players, ...this.npcs];
   }
 
   public get count(): number {
@@ -79,20 +71,22 @@ export class PlayerContainer {
     return this._players.length >= this.playerMaxCount;
   }
 
-  // Real connected players only — NPCs have no socket and are excluded.
   public get connectedPlayerRttsMs(): Array<number> {
     return this._players.map((p) => p.rttMs);
   }
 
   public step(deltaTimeInSeconds: number) {
-    // Iterate the backing arrays directly: this runs per 200 Hz substep and the
-    // `players` getter allocates a new array every call.
     this._players.forEach((p) => p.step(deltaTimeInSeconds));
-    this._npcs.forEach((p) => p.step(deltaTimeInSeconds));
+    this.npcs.forEach((p) => p.step(deltaTimeInSeconds));
   }
 
-  public stepCommunication(deltaTimeInSeconds: number) {
-    this._players.forEach((p) => p.stepCommunications(deltaTimeInSeconds));
+  public stepCommunication(
+    deltaTimeInSeconds: number,
+    propertyUpdatesOf: (object: GameObject) => PropertyUpdatesForObject | undefined,
+  ) {
+    this._players.forEach((p) =>
+      p.stepCommunications(deltaTimeInSeconds, propertyUpdatesOf),
+    );
   }
 
   public endGame(winner: CharacterTeam) {
@@ -120,12 +114,8 @@ export class PlayerContainer {
   }
 
   public deletePlayer(player: Player) {
-    const had = this._players.includes(player);
-    this._players = this._players.filter((p) => p !== player);
-    // Only refill bots if this player was actually ours: a stale socket from a
-    // previous round reports its disconnect against the new container, and
-    // topping up on that would over-fill the roster.
-    if (had) {
+    if (this._players.includes(player)) {
+      this._players = this._players.filter((p) => p !== player);
       this.createNPCs();
     }
   }

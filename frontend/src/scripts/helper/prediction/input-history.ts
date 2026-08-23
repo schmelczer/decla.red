@@ -7,7 +7,6 @@ interface InputSample {
 
 const retainMs = 1500;
 
-// Timeline of local movement directions; the predictor replays exactly the input the server receives.
 export class InputHistory {
   private samples: Array<InputSample> = [];
 

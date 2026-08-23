@@ -1,15 +1,16 @@
+import { clamp01 } from 'shared';
 import hitSound from '../../static/hit.mp3';
 import shootSound from '../../static/shoot.mp3';
 import clickSound from '../../static/click.mp3';
 import ambientAudio from '../../static/ambient.mp3';
-import { OptionsHandler } from './options-handler';
+import { options } from './options-handler';
 
 export const Sounds = { hit: 'hit', shoot: 'shoot', click: 'click' } as const;
 export type Sound = (typeof Sounds)[keyof typeof Sounds];
 
 let sounds: Record<Sound, HTMLAudioElement>;
 let isAmbientPlaying = false;
-const ambientSnd = new Audio(ambientAudio);
+const ambient = new Audio(ambientAudio);
 let initialized = false;
 
 async function initializeSound(src: string): Promise<HTMLAudioElement> {
@@ -26,29 +27,28 @@ async function initialize(
   onPlayKeypress: () => unknown = () => null,
   onPauseKeypress: () => unknown = () => null,
 ) {
-  sounds = {
-    hit: await initializeSound(hitSound),
-    shoot: await initializeSound(shootSound),
-    click: await initializeSound(clickSound),
-  };
+  const [hit, shoot, click] = await Promise.all(
+    [hitSound, shootSound, clickSound].map(initializeSound),
+  );
+  sounds = { hit, shoot, click };
 
-  await ambientSnd.play();
-  ambientSnd.muted = true;
+  await ambient.play();
+  ambient.muted = true;
   initialized = true;
-  ambientSnd.onpause = onPauseKeypress;
-  ambientSnd.onplay = onPlayKeypress;
+  ambient.onpause = onPauseKeypress;
+  ambient.onplay = onPlayKeypress;
 
-  ambientSnd.muted = false;
-  ambientSnd.volume = 0.5;
-  ambientSnd.loop = true;
+  ambient.muted = false;
+  ambient.volume = 0.5;
+  ambient.loop = true;
 
   if (!isAmbientPlaying) {
-    ambientSnd.pause();
+    ambient.pause();
   }
 }
 
 function play(snd: Sound, volume = 1, playbackRate = 1) {
-  if (!initialized || !OptionsHandler.options.soundsEnabled) {
+  if (!initialized || !options.soundsEnabled) {
     return;
   }
 
@@ -58,7 +58,7 @@ function play(snd: Sound, volume = 1, playbackRate = 1) {
   if (!isBusy) {
     audio.currentTime = 0;
   }
-  audio.volume = Math.max(0, Math.min(1, volume));
+  audio.volume = clamp01(volume);
   audio.playbackRate = playbackRate;
   void audio.play().catch(() => undefined);
 }
@@ -66,14 +66,14 @@ function play(snd: Sound, volume = 1, playbackRate = 1) {
 function playAmbient() {
   isAmbientPlaying = true;
   if (initialized) {
-    ambientSnd.play();
+    ambient.play();
   }
 }
 
 function stopAmbient() {
   isAmbientPlaying = false;
   if (initialized) {
-    ambientSnd.pause();
+    ambient.pause();
   }
 }
 

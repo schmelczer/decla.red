@@ -12,30 +12,20 @@ export interface MarchResult {
 const minimumStep = 0.5;
 const maximumSteps = 256;
 
-// Raymarch a circle by `delta`, stopping at the first surface it would overlap.
-// Shared so server and client resolve motion identically; the collision reaction
-// is not dispatched here — on a real hit `onHit(intersecting)` is invoked by the
-// caller. Advances by the free gap (distance minus radius), as sphere-tracing requires.
 export const marchCircle = (
   body: PhysicsBody,
   delta: vec2,
   possibleIntersectors: Array<Sdf>,
-  ignoreCollision = false,
   onHit?: (intersecting: Sdf) => void,
 ): MarchResult => {
   const deltaLength = vec2.length(delta);
-
-  // Zero-length move cannot resolve a contact by advancing; report no hit so a
-  // caller looping on `hitSurface` doesn't spin forever.
   if (!(deltaLength > 0)) {
     return { hitSurface: false };
   }
 
   const direction = vec2.normalize(vec2.create(), delta);
-
   const rayEnd = vec2.create();
   let travelled = 0;
-  // Furthest point along the ray known to be overlap-free; a hit rewinds here.
   let lastFreeDistance = 0;
 
   for (let step = 0; step < maximumSteps; step++) {
@@ -47,19 +37,6 @@ export const marchCircle = (
       const intersecting = possibleIntersectors.find(
         (i) => i.distance(rayEnd) <= body.radius,
       )!;
-
-      if (ignoreCollision) {
-        // Pass through, but still report the contact so repeated marches keep
-        // progressing. The normal comes along: `hitSurface: true` is the
-        // contract callers read it under, and one without it would be a
-        // TypeError in whichever caller first enables pass-through.
-        vec2.scaleAndAdd(body.center, body.center, direction, deltaLength);
-        return {
-          hitSurface: true,
-          normal: sdfNormal(rayEnd, [intersecting]),
-          hitObject: intersecting,
-        };
-      }
 
       onHit?.(intersecting);
 
@@ -85,11 +62,7 @@ export const marchCircle = (
     );
   }
 
-  // lastFreeDistance, not deltaLength: on a completed march they are equal, and
-  // if the step budget ran out it is the furthest point actually checked.
   vec2.scaleAndAdd(body.center, body.center, direction, lastFreeDistance);
 
-  return {
-    hitSurface: false,
-  };
+  return { hitSurface: false };
 };

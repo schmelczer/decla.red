@@ -10,52 +10,43 @@ export type PlayerDecision = {
 };
 
 const pollInterval = 8000;
+
 export class JoinFormHandler {
-  private joinButton: HTMLButtonElement;
-  private waitingForDecision: Promise<PlayerDecision>;
-  private resolvePlayerDecision!: (d: PlayerDecision) => void;
-  private pollServersTimer: any;
+  private readonly joinButton: HTMLButtonElement;
+  private readonly decision: Promise<PlayerDecision>;
+  private readonly pollServersTimer: ReturnType<typeof setInterval>;
+  private servers: Array<ServerChooserOption> = [];
+
   private keyUpListener = (e: KeyboardEvent) => {
-    // requestSubmit() (not submit()) fires onsubmit and runs HTML5 validation, so Enter matches clicking Join.
     if (e.key === 'Enter' && !this.joinButton.disabled) {
       this.form.requestSubmit();
     }
   };
 
   constructor(
-    private form: HTMLFormElement,
+    private readonly form: HTMLFormElement,
     private readonly container: HTMLElement,
   ) {
     this.joinButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
     this.joinButton.disabled = true;
-    this.waitingForDecision = new Promise((r) => (this.resolvePlayerDecision = r));
 
-    new FormData(form);
+    this.decision = new Promise((resolve) => {
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        SoundHandler.play(Sounds.click);
+        const data = new FormData(form);
+        resolve({ name: String(data.get('name')), server: String(data.get('server')) });
+      };
+    });
+    this.decision.then(() => this.destroy());
 
     addEventListener('keyup', this.keyUpListener);
-
-    form.onsubmit = (e) => {
-      SoundHandler.play(Sounds.click);
-      const result: PlayerDecision = (
-        Array.from((new FormData(form) as any).entries()) as Array<[string, any]>
-      ).reduce((result, [name, value]) => {
-        (result as any)[name] = value;
-        return result;
-      }, {}) as any;
-
-      this.resolvePlayerDecision(result);
-
-      e.preventDefault();
-    };
-
-    this.pollServersTimer = setInterval(this.loadServers.bind(this), pollInterval);
+    this.pollServersTimer = setInterval(() => this.loadServers(), pollInterval);
     this.loadServers();
-    this.waitForFinish();
   }
 
-  private async waitForFinish() {
-    await this.waitingForDecision;
-    this.destroy();
+  public getPlayerDecision(): Promise<PlayerDecision> {
+    return this.decision;
   }
 
   private destroy() {
@@ -64,77 +55,86 @@ export class JoinFormHandler {
     this.servers.forEach((s) => s.destroy());
   }
 
-  private servers: Array<ServerChooserOption> = [];
-  private async loadServers() {
-    const serverList = servers.filter((u) => !this.servers.find((s) => s.url === u));
+  private loadServers() {
+    servers
+      .filter((url) => !this.servers.some((s) => s.url === url))
+      .forEach(async (url) => {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), pollInterval * 0.8);
 
-    serverList.map(async (url) => {
-      const controller = new AbortController();
-      const signal = controller.signal;
-      setTimeout(() => controller.abort(), pollInterval * 0.8);
+        let content: ServerInformation;
+        try {
+          const response = await fetch(url + serverInformationEndpoint, {
+            signal: controller.signal,
+          });
+          if (!response.ok) {
+            return;
+          }
+          content = await response.json();
+        } catch {
+          return;
+        }
 
-      let response: Response | undefined;
-      try {
-        response = await fetch(url + serverInformationEndpoint, { signal });
-      } catch {}
-
-      if (response?.ok) {
-        const content: ServerInformation = await response.json();
-        if (!this.servers.find((s) => s.url === url)) {
+        if (!this.servers.some((s) => s.url === url)) {
           const server = new ServerChooserOption(
             content,
             url,
-            this.removeServer.bind(this),
+            (s) => this.removeServer(s),
             this.servers.length === 0,
           );
           this.servers.push(server);
           this.joinButton.disabled = false;
           this.container.appendChild(server.element);
         }
-      }
-    });
+      });
   }
 
   private removeServer(server: ServerChooserOption) {
     this.servers = this.servers.filter((s) => s !== server);
-    if (!this.servers.length) {
-      this.joinButton.disabled = true;
-    }
-  }
-
-  public async getPlayerDecision(): Promise<PlayerDecision> {
-    return this.waitingForDecision;
+    this.joinButton.disabled = this.servers.length === 0;
   }
 }
 
-class ServerChooserOption {
-  private divElement = document.createElement('div');
-  private inputElement = document.createElement('input');
-  private labelElement = document.createElement('label');
-  private serverNameElement = document.createElement('span');
-  private completionElement = document.createElement('span');
+const roundCompletionTexts = [
+  'Just started',
+  'Just started',
+  'Ongoing',
+  'Halfway through',
+  'Nearly over',
+  'About to finish',
+  'Game is over',
+];
 
-  private socket: Socket;
+class ServerChooserOption {
+  public readonly element = document.createElement('div');
+  private readonly serverNameElement = document.createElement('span');
+  private readonly completionElement = document.createElement('span');
+  private readonly socket: Socket;
 
   constructor(
-    private content: ServerInformation,
+    private readonly content: ServerInformation,
     public readonly url: string,
-    private onDestroy: (v: ServerChooserOption) => unknown,
+    private readonly onDestroy: (v: ServerChooserOption) => unknown,
     isFirst: boolean,
   ) {
-    this.inputElement.required = true;
-    this.inputElement.type = 'radio';
-    this.inputElement.id = this.inputElement.value = url;
-    this.inputElement.name = 'server';
-    this.inputElement.checked = isFirst;
-    this.labelElement.htmlFor = url;
-    this.labelElement.onclick = () => SoundHandler.play(Sounds.click);
-    this.divElement.appendChild(this.inputElement);
-    this.divElement.appendChild(this.labelElement);
-    this.labelElement.appendChild(this.serverNameElement);
-    this.labelElement.appendChild(document.createElement('br'));
-    this.labelElement.appendChild(this.completionElement);
+    const input = document.createElement('input');
+    input.required = true;
+    input.type = 'radio';
+    input.id = input.value = url;
+    input.name = 'server';
+    input.checked = isFirst;
+
+    const label = document.createElement('label');
+    label.htmlFor = url;
+    label.onclick = () => SoundHandler.play(Sounds.click);
+    label.append(
+      this.serverNameElement,
+      document.createElement('br'),
+      this.completionElement,
+    );
     this.completionElement.className = 'completion';
+
+    this.element.append(input, label);
     this.setServerInfoLabelText();
 
     this.socket = io(url, {
@@ -144,8 +144,7 @@ class ServerChooserOption {
       parser,
     } as any);
 
-    this.socket.io.on('reconnect_failed', this.destroy.bind(this));
-
+    this.socket.io.on('reconnect_failed', () => this.destroy());
     this.socket.on('connect', () =>
       this.socket.emit(TransportEvents.SubscribeForServerInfoUpdates),
     );
@@ -161,32 +160,16 @@ class ServerChooserOption {
 
   public destroy() {
     this.socket.close();
-    this.divElement.parentElement?.removeChild(this.divElement);
+    this.element.remove();
     this.onDestroy(this);
   }
 
-  private getRoundCompletionText(percent: number): string {
-    const texts = [
-      'Just started',
-      'Just started',
-      'Ongoing',
-      'Halfway through',
-      'Nearly over',
-      'About to finish',
-      'Game is over',
-    ];
-
-    return texts[Math.floor((percent / 100) * (texts.length - 1))];
-  }
-
   private setServerInfoLabelText() {
-    this.serverNameElement.innerText = `${this.content.serverName} - ${this.content.playerCount}/${this.content.playerLimit} players`;
-    this.completionElement.innerText = this.getRoundCompletionText(
-      this.content.gameStatePercent,
-    );
-  }
-
-  public get element(): HTMLElement {
-    return this.divElement;
+    const { serverName, playerCount, playerLimit, gameStatePercent } = this.content;
+    this.serverNameElement.innerText = `${serverName} - ${playerCount}/${playerLimit} players`;
+    this.completionElement.innerText =
+      roundCompletionTexts[
+        Math.floor((gameStatePercent / 100) * (roundCompletionTexts.length - 1))
+      ];
   }
 }

@@ -3,9 +3,6 @@ import { PhysicsBody, Sdf } from './sdf';
 import { evaluateSdf } from './evaluate-sdf';
 import { sdfNormal } from './sdf-normal';
 
-// marchCircle assumes an overlap-free start (inside, it registers a zero-
-// distance hit and never moves), so any overlap from rotating surfaces must be
-// resolved here before marching.
 export const depenetrateCircle = (
   body: PhysicsBody,
   possibleIntersectors: Array<Sdf>,

@@ -1,4 +1,3 @@
-// Flat config (ESLint 9+/10). Ported from the former .eslintrc.json.
 const tseslint = require('typescript-eslint');
 const prettierRecommended = require('eslint-plugin-prettier/recommended');
 const unusedImports = require('eslint-plugin-unused-imports');
@@ -25,7 +24,6 @@ module.exports = tseslint.config(
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-empty-function': 'off',
-      // Renamed from the former no-var-requires; keep require() allowed.
       '@typescript-eslint/no-require-imports': 'off',
     },
   },

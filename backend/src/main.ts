@@ -2,7 +2,7 @@ import { Server as IoServer } from 'socket.io';
 import express from 'express';
 import { Server } from 'http';
 import cors from 'cors';
-import { applyArrayPlugins, Random, serverInformationEndpoint, settings } from 'shared';
+import { Random, serverInformationEndpoint, settings } from 'shared';
 import minimist from 'minimist';
 import { glMatrix } from 'gl-matrix';
 import { GameServer } from './game-server';
@@ -10,7 +10,6 @@ import { defaultOptions } from './options';
 import parser from 'socket.io-msgpack-parser';
 
 glMatrix.setMatrixArrayType(Array);
-applyArrayPlugins();
 
 const optionOverrides = minimist(process.argv.slice(2));
 const options = {

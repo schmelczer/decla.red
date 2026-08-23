@@ -3,8 +3,6 @@ import { settings } from '../settings';
 import { GroundSurface, PhysicsBody } from './sdf';
 import { interpolateAngles } from './interpolate-angles';
 
-// Body layout — must match CharacterPhysical verbatim so the predicted body
-// equals the authoritative one to the bit.
 export const headRadius = 50;
 export const feetRadius = 20;
 
@@ -33,7 +31,6 @@ export const rightFootOffset = vec2.subtract(
 );
 export const boundRadius = (headRadius + feetRadius * 2) * 2;
 
-// Shared by backend CharacterPhysical and the client predictor.
 export interface CharacterMovementState {
   readonly head: PhysicsBody;
   readonly leftFoot: PhysicsBody;
@@ -41,21 +38,14 @@ export interface CharacterMovementState {
   direction: number;
   currentPlanet: GroundSurface | undefined;
   secondsSinceOnSurface: number;
-  // Persistent launch momentum; walking zeroes per-part velocity each tick, so
-  // anything that must carry lives here. The client predictor leaves it zero and
-  // snaps to the server's impulses; the server uses it for full movement.
   bodyVelocity: vec2;
 }
 
-// The server backs this with its spatial container (dispatching collision
-// reactions); the client backs it with planets only, dispatching nothing.
 export interface CharacterWorld {
   groundsNear(center: vec2, radius: number): Array<GroundSurface>;
   stepBody(body: PhysicsBody, deltaTimeInSeconds: number): GroundSurface | undefined;
 }
 
-// Exported so the backend's CirclePhysical accumulates forces through the exact
-// same expression, f32 intermediate included.
 export const applyForce = (
   body: PhysicsBody,
   force: vec2,
@@ -68,8 +58,7 @@ export const applyForce = (
   );
 };
 
-// ((head + leftFoot) + rightFoot) / 3 — do not reassociate; every reader of the
-// character centre uses this exact association.
+// ((head + leftFoot) + rightFoot) / 3 — do not reassociate.
 export const characterCenter = (
   head: { center: vec2 },
   leftFoot: { center: vec2 },
@@ -98,7 +87,6 @@ const springMove = (
   const desiredPosition = vec2.add(vec2.create(), center, offset);
   vec2.rotate(desiredPosition, desiredPosition, center, state.direction);
   const positionDelta = vec2.subtract(vec2.create(), desiredPosition, body.center);
-  // dt arrives later at integration, so per-tick displacement is positionDelta * stiffness * dt.
   vec2.scaleAndAdd(body.velocity, body.velocity, positionDelta, stiffness);
 };
 
@@ -121,8 +109,6 @@ const keepPosture = (state: CharacterMovementState) => {
   springMove(state, state.head, center, headOffset, settings.postureHeadStiffness);
 };
 
-// Ride a planet's spin: rotate the body about the planet centre by the same
-// per-tick angle the collision SDF turns by (negative, matching R(-rotation)).
 const carryWithRotatingPlanet = (
   state: CharacterMovementState,
   deltaTimeInSeconds: number,
@@ -148,8 +134,6 @@ const carryWithRotatingPlanet = (
   );
 };
 
-// Shared so the server's leap() and the client's prediction apply the exact
-// same impulse. Caller does gating; no-op when not on a surface.
 export const applyLeapImpulse = (state: CharacterMovementState, moveDirection: vec2) => {
   const planet = state.currentPlanet;
   if (!planet) {
@@ -179,7 +163,6 @@ export const applyLeapImpulse = (state: CharacterMovementState, moveDirection: v
   vec2.normalize(launch, launch);
   vec2.scaleAndAdd(state.bodyVelocity, state.bodyVelocity, launch, settings.leapSpeed);
 
-  // Slingshot: tangential velocity of the spinning surface (same motion carryWithRotatingPlanet imparts).
   const center = characterCenter(state.head, state.leftFoot, state.rightFoot);
   const omega = planet.angularVelocity;
   const surfaceVelocity = vec2.fromValues(
@@ -197,8 +180,6 @@ export const applyLeapImpulse = (state: CharacterMovementState, moveDirection: v
   state.secondsSinceOnSurface = settings.planetDetachmentSeconds;
 };
 
-// Kept as its own step: on the server it runs before the ownership/scoring
-// blocks; the client calls it at the head of each tick.
 export const tickPlanetDetachment = (
   state: CharacterMovementState,
   deltaTimeInSeconds: number,
@@ -210,8 +191,6 @@ export const tickPlanetDetachment = (
   }
 };
 
-// Inject body momentum onto every part right before they step, so the whole
-// body translates rigidly without disturbing the posture springs. No-op while walking.
 const applyBodyMomentum = (state: CharacterMovementState) => {
   if (vec2.squaredLength(state.bodyVelocity) === 0) {
     return;
@@ -221,8 +200,6 @@ const applyBodyMomentum = (state: CharacterMovementState) => {
   vec2.add(state.head.velocity, state.head.velocity, state.bodyVelocity);
 };
 
-// Shared so the living body, the client predictor, and the ragdoll corpse all
-// brake identically.
 export const decayMomentum = (
   bodyVelocity: vec2,
   onGround: boolean,
@@ -251,7 +228,7 @@ const decayBodyMomentum = (state: CharacterMovementState, deltaTimeInSeconds: nu
   decayMomentum(state.bodyVelocity, !!state.currentPlanet, deltaTimeInSeconds);
 };
 
-const sumGravity = (grounds: Array<GroundSurface>, position: vec2): vec2 =>
+export const sumGravity = (grounds: Array<GroundSurface>, position: vec2): vec2 =>
   grounds.reduce(
     (sum, ground) => vec2.add(sum, sum, ground.gravityAt(position)),
     vec2.create(),
@@ -267,15 +244,16 @@ const latchGround = (
   }
 };
 
-// The exact movement block of CharacterPhysical.step (gravity → movement force
-// → on/off-planet branch → posture → step the parts); server-only concerns are
-// left to the caller. `inputDirection` is the already-normalized movement direction.
 export const stepCharacterMovement = (
   state: CharacterMovementState,
   world: CharacterWorld,
   inputDirection: vec2,
   deltaTimeInSeconds: number,
 ) => {
+  vec2.zero(state.head.velocity);
+  vec2.zero(state.leftFoot.velocity);
+  vec2.zero(state.rightFoot.velocity);
+
   const movementForce = vec2.scale(
     inputDirection,
     inputDirection,
@@ -285,8 +263,6 @@ export const stepCharacterMovement = (
   applyForce(state.rightFoot, movementForce, deltaTimeInSeconds);
 
   if (!state.currentPlanet) {
-    // Widest query the character makes — only run while airborne; grounded is
-    // the common case.
     const center = characterCenter(state.head, state.leftFoot, state.rightFoot);
     const grounds = world.groundsNear(center, boundRadius + settings.maxGravityDistance);
     const leftFootGravity = sumGravity(grounds, state.leftFoot.center);
@@ -341,10 +317,6 @@ export const stepCharacterMovement = (
 
   applyBodyMomentum(state);
 
-  // Only the feet latch. The grounded branch above projects gravity onto the
-  // foot contact normals and leap() launches off them, so latching on a head
-  // contact would ground the body against normals no part of it is touching —
-  // a head-first tumble would read as standing.
   latchGround(state, world.stepBody(state.leftFoot, deltaTimeInSeconds));
   latchGround(state, world.stepBody(state.rightFoot, deltaTimeInSeconds));
   world.stepBody(state.head, deltaTimeInSeconds);

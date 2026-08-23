@@ -3,19 +3,12 @@ import { PhysicsBody, Sdf } from './sdf';
 import { depenetrateCircle } from './depenetrate-circle';
 import { marchCircle } from './march-circle';
 
-// Position-resolution half of CirclePhysical.stepManually, extracted so server
-// and client integrate a body identically. The caller owns the broadphase
-// (gathering `possibleIntersectors`, incl. the swept-radius bump); everything
-// from depenetration onward lives here. `onHit` is threaded to marchCircle so
-// the backend dispatches collision reactions at the same points; the client
-// passes none. Velocity is reset at the end — the character re-applies all
-// forces from zero every tick, so retained velocity would double-integrate and diverge.
 export const resolveCircleMovement = (
   body: PhysicsBody,
   deltaTimeInSeconds: number,
   possibleIntersectors: Array<Sdf>,
   onHit?: (intersecting: Sdf) => void,
-): { hitObject?: Sdf; velocity: vec2 } => {
+): Sdf | undefined => {
   let delta = vec2.scale(vec2.create(), body.velocity, deltaTimeInSeconds);
 
   depenetrateCircle(body, possibleIntersectors);
@@ -24,7 +17,6 @@ export const resolveCircleMovement = (
     body,
     delta,
     possibleIntersectors,
-    false,
     onHit,
   );
 
@@ -43,12 +35,9 @@ export const resolveCircleMovement = (
 
     if (vec2.length(body.velocity) > 50) {
       delta = vec2.scale(vec2.create(), body.velocity, deltaTimeInSeconds);
-      marchCircle(body, delta, possibleIntersectors, false, onHit);
+      marchCircle(body, delta, possibleIntersectors, onHit);
     }
   }
 
-  const lastVelocity = vec2.clone(body.velocity);
-  vec2.zero(body.velocity);
-
-  return { hitObject, velocity: lastVelocity };
+  return hitObject;
 };

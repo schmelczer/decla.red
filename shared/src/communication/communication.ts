@@ -1,9 +1,7 @@
-export type Id = number | null;
+export type Id = number;
 
 let currentId = 0;
-export const id = (): number => {
-  return currentId++;
-};
+export const id = (): Id => currentId++;
 
 export interface PlayerInformation {
   name: string;

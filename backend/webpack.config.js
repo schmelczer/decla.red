@@ -33,8 +33,7 @@ module.exports = (env, argv) => ({
     minimizer: [
       new TerserJSPlugin({
         exclude: /node_modules/,
-        // The custom serialization protocol keys on class names, so they must
-        // survive minification (see shared/src/serialization).
+        // The serialization protocol keys on class names.
         terserOptions: {
           keep_classnames: true,
         },

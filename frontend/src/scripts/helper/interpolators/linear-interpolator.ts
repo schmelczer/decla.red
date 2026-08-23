@@ -13,11 +13,6 @@ const blendSeconds = 0.12;
 
 const maxFrames = 32;
 
-/**
- * Replays a server-streamed scalar by interpolating between timestamped
- * snapshots at the render time; coasts briefly on the streamed rate of change
- * when the buffer runs dry.
- */
 export class LinearInterpolator {
   private frames: Array<Frame> = [];
   private blendOffset = 0;

@@ -46,8 +46,6 @@ function resetScreenShake(): void {
   offsetYValue = 0;
 }
 
-// The one public surface. The functions above stay module-private so each
-// operation has exactly one name.
 export const ScreenShake = {
   add: addTrauma,
   addPunch,
