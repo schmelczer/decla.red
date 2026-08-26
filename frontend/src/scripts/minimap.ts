@@ -8,6 +8,7 @@ export class Minimap {
   private readonly colors: Record<CharacterTeam, string>;
   private readonly smoothed = new Map<Id, vec2>();
   private bufferSize = 0;
+  private size = 0;
 
   constructor() {
     this.element.className = 'minimap';
@@ -23,8 +24,14 @@ export class Minimap {
     };
   }
 
+  // Reading clientWidth after this frame's style writes would force a synchronous layout of
+  // the whole overlay inside the animation frame; the size only changes when the window does.
+  public measure() {
+    this.size = this.element.clientWidth;
+  }
+
   public update(localPosition: vec2 | undefined, players: Array<MinimapPlayer>) {
-    const size = this.element.clientWidth;
+    const size = this.size;
     if (size === 0) {
       return;
     }

@@ -119,12 +119,13 @@ export class GameObjectContainer extends CommandReceiver {
   }
 
   public render(renderer: Renderer, overlay: HTMLElement, shouldChangeLayout: boolean) {
+    // First: everything below projects world coordinates through this frame's view area.
+    this.camera.draw(renderer);
     this.objects.forEach((o) => {
       if (this.isVisible(o.id)) {
         o.render(renderer, overlay, shouldChangeLayout);
       }
     });
-    this.camera.draw(renderer);
   }
 
   private isVisible(id: Id): boolean {

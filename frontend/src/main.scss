@@ -127,7 +127,6 @@ body {
 
     .player-tag {
       border-radius: 1000px;
-      transition: transform 200ms;
 
       &.blue {
         color: $bright-blue;
@@ -255,7 +254,6 @@ body {
 
     // Off-screen pointer to the keystone "Heart", tinted by its current owner.
     .keystone-arrow {
-      transition: transform 150ms;
       opacity: 0.9;
 
       @include square($large-icon);

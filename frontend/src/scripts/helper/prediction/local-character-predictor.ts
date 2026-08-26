@@ -5,8 +5,7 @@ import {
   CharacterMovementState,
   PhysicsBody,
   settings,
-  clamp,
-  easeVec2,
+  followVec2,
   stepCharacterMovement,
   applyLeapImpulse,
   tickPlanetDetachment,
@@ -24,10 +23,12 @@ let frameTimeMs = 0;
 export const setFrameTimeMs = (timeMs: number): void => {
   frameTimeMs = timeMs;
 };
-export const clientTimeMs = (): number => Math.round(frameTimeMs);
+export const clientTimeMs = (): number => frameTimeMs;
 
 const maxReplayMs = 400;
 
+// Only a correction has to fade; the character's own motion is carried straight through, so this
+// buys smoothing without costing responsiveness.
 const smoothSeconds = 0.06;
 
 const snapDistance = 250;
@@ -58,6 +59,7 @@ export class LocalCharacterPredictor {
   private renderHead = new Circle(vec2.create(), headRadius);
   private renderLeftFoot = new Circle(vec2.create(), feetRadius);
   private renderRightFoot = new Circle(vec2.create(), feetRadius);
+  private previousTargets = [vec2.create(), vec2.create(), vec2.create()];
   private hasRender = false;
 
   public get head(): Circle {
@@ -152,7 +154,7 @@ export class LocalCharacterPredictor {
       this.snapRenderTo(predicted);
       this.hasRender = true;
     } else {
-      this.easeRenderTo(predicted, frameSeconds);
+      this.followRenderTo(predicted, frameSeconds);
     }
     return true;
   }
@@ -161,10 +163,10 @@ export class LocalCharacterPredictor {
     const auth = this.authoritative!;
     const movement = this.movement!;
     const now = clientTimeMs();
-    const startMs = clamp(this.replayAnchorMs!, now - maxReplayMs, now);
+    const startMs = Math.max(this.replayAnchorMs!, now - maxReplayMs);
     const windowMs = Math.max(0, now - startMs);
     const steps = Math.floor(windowMs / stepMs);
-    const remainderSeconds = (windowMs - steps * stepMs) / 1000;
+    const partialStep = (windowMs - steps * stepMs) / stepMs;
 
     const state: CharacterMovementState = {
       head: makeBody(auth.head.center, auth.head.radius, upwards),
@@ -191,9 +193,10 @@ export class LocalCharacterPredictor {
     let t = startMs;
     for (let i = 0; i < steps; i++) {
       const input = this.inputHistory.directionAt(t);
+      // Planets first: the server's container holds them ahead of every character.
+      this.world.advance(stepSeconds);
       tickPlanetDetachment(state, stepSeconds);
       stepCharacterMovement(state, this.world, input, stepSeconds);
-      this.world.advance(stepSeconds);
 
       for (const leapMs of this.leapHistory) {
         if (
@@ -213,21 +216,32 @@ export class LocalCharacterPredictor {
       t += stepMs;
     }
 
-    if (remainderSeconds > 0) {
-      tickPlanetDetachment(state, remainderSeconds);
+    // A shorter final step would not integrate like the server's fixed one, so take a whole
+    // step and read the pose part-way along it instead.
+    if (partialStep > 0) {
+      const from = [state.head, state.leftFoot, state.rightFoot].map((b) =>
+        vec2.clone(b.center),
+      );
+      this.world.advance(stepSeconds);
+      tickPlanetDetachment(state, stepSeconds);
       stepCharacterMovement(
         state,
         this.world,
-        this.inputHistory.directionAt(now),
-        remainderSeconds,
+        this.inputHistory.directionAt(t),
+        stepSeconds,
       );
-      this.world.advance(remainderSeconds);
+      [state.head, state.leftFoot, state.rightFoot].forEach((body, i) =>
+        vec2.lerp(body.center, from[i], body.center, partialStep),
+      );
     }
 
     return state;
   }
 
   private snapRenderTo(state: CharacterMovementState): void {
+    this.previousTargets = [state.head, state.leftFoot, state.rightFoot].map((b) =>
+      vec2.clone(b.center),
+    );
     this.renderHead = new Circle(vec2.clone(state.head.center), state.head.radius);
     this.renderLeftFoot = new Circle(
       vec2.clone(state.leftFoot.center),
@@ -239,14 +253,26 @@ export class LocalCharacterPredictor {
     );
   }
 
-  private easeRenderTo(state: CharacterMovementState, frameSeconds: number): void {
-    this.easePart(this.renderHead, state.head, frameSeconds);
-    this.easePart(this.renderLeftFoot, state.leftFoot, frameSeconds);
-    this.easePart(this.renderRightFoot, state.rightFoot, frameSeconds);
+  private followRenderTo(state: CharacterMovementState, frameSeconds: number): void {
+    this.followPart(this.renderHead, state.head, 0, frameSeconds);
+    this.followPart(this.renderLeftFoot, state.leftFoot, 1, frameSeconds);
+    this.followPart(this.renderRightFoot, state.rightFoot, 2, frameSeconds);
   }
 
-  private easePart(render: Circle, target: PhysicsBody, frameSeconds: number): void {
-    easeVec2(render.center, target.center, frameSeconds, smoothSeconds, snapDistance);
+  private followPart(
+    render: Circle,
+    target: PhysicsBody,
+    index: number,
+    frameSeconds: number,
+  ): void {
+    followVec2(
+      render.center,
+      target.center,
+      this.previousTargets[index],
+      frameSeconds,
+      smoothSeconds,
+      snapDistance,
+    );
     render.radius = target.radius;
   }
 }

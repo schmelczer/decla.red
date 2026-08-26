@@ -1,6 +1,6 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
-import { calculateViewArea, easeVec2, mixRgb, settings } from 'shared';
+import { calculateViewArea, followVec2, mixRgb, settings } from 'shared';
 import { Game } from '../../game';
 import { ScreenShake } from '../../screen-shake';
 
@@ -9,12 +9,20 @@ const snapDistance = 1500;
 
 export class Camera {
   public readonly center: vec2 = vec2.create();
+  private readonly previousTarget = vec2.create();
   private aspectRatio?: number;
 
   constructor(private readonly game: Game) {}
 
   public follow(target: vec2, deltaTimeInSeconds: number) {
-    easeVec2(this.center, target, deltaTimeInSeconds, followSeconds, snapDistance);
+    followVec2(
+      this.center,
+      target,
+      this.previousTarget,
+      deltaTimeInSeconds,
+      followSeconds,
+      snapDistance,
+    );
   }
 
   public draw(renderer: Renderer) {

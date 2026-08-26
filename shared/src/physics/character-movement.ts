@@ -2,6 +2,7 @@ import { vec2 } from 'gl-matrix';
 import { settings } from '../settings';
 import { GroundSurface, PhysicsBody } from './sdf';
 import { interpolateAngles } from './interpolate-angles';
+import { smoothing } from '../helper/ease';
 
 export const headRadius = 50;
 export const feetRadius = 20;
@@ -69,11 +70,20 @@ export const characterCenter = (
   return vec2.scale(center, center, 1 / 3);
 };
 
-const setDirection = (state: CharacterMovementState, direction: vec2) => {
+// Tuned so one physics step still turns the same 20% it always did, but a replay that splits
+// or merges steps now lands on the same facing instead of one that depends on the step count.
+const directionSmoothingSeconds =
+  settings.targetPhysicsDeltaTimeInSeconds / Math.log(1 / (1 - 0.2));
+
+const setDirection = (
+  state: CharacterMovementState,
+  direction: vec2,
+  deltaTimeInSeconds: number,
+) => {
   state.direction = interpolateAngles(
     state.direction,
     Math.atan2(direction[1], direction[0]) + Math.PI / 2,
-    0.2,
+    smoothing(deltaTimeInSeconds, directionSmoothingSeconds),
   );
 };
 
@@ -255,7 +265,7 @@ export const stepCharacterMovement = (
   vec2.zero(state.rightFoot.velocity);
 
   const movementForce = vec2.scale(
-    inputDirection,
+    vec2.create(),
     inputDirection,
     settings.maxAcceleration,
   );
@@ -272,7 +282,11 @@ export const stepCharacterMovement = (
     applyForce(state.rightFoot, rightFootGravity, deltaTimeInSeconds);
 
     const sumForce = vec2.subtract(vec2.create(), leftFootGravity, movementForce);
-    setDirection(state, vec2.length(sumForce) === 0 ? vec2.fromValues(0, -1) : sumForce);
+    setDirection(
+      state,
+      vec2.length(sumForce) === 0 ? vec2.fromValues(0, -1) : sumForce,
+      deltaTimeInSeconds,
+    );
   } else {
     carryWithRotatingPlanet(state, deltaTimeInSeconds);
 
@@ -310,7 +324,7 @@ export const stepCharacterMovement = (
     if (vec2.length(gravity) <= settings.planetDetachmentForceThreshold) {
       state.currentPlanet = undefined;
     }
-    setDirection(state, gravity);
+    setDirection(state, gravity, deltaTimeInSeconds);
   }
 
   keepPosture(state);

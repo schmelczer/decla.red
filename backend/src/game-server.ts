@@ -301,6 +301,7 @@ export class GameServer implements GameEvents {
 
   private handlePhysics() {
     const frameStart = process.hrtime.bigint();
+    const frameStartMs = performance.now();
     const delta = Number(frameStart - this.lastPhysicsBase) / 1e9;
     this.lastPhysicsBase = frameStart;
 
@@ -348,8 +349,13 @@ export class GameServer implements GameEvents {
       this.players.step(scaledDelta);
     }
 
+    // Physics has only advanced to the start of this frame less whatever is still in the
+    // accumulator. Timing anything off the send time instead would put up to one physics step
+    // of noise on every interpolated position and on the client's replay anchor.
+    const simulatedThroughMs = frameStartMs - this.physicsAccumulator * 1000;
+
     const propertyUpdates = new Map<GameObject, PropertyUpdatesForObject | undefined>();
-    this.players.stepCommunication(delta, (object) => {
+    this.players.stepCommunication(delta, simulatedThroughMs, (object) => {
       if (!propertyUpdates.has(object)) {
         propertyUpdates.set(object, object.getPropertyUpdates());
       }

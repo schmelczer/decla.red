@@ -347,6 +347,9 @@ export class Game extends CommandReceiver {
   }
 
   private draw() {
+    // Before any style writes this frame, so the read cannot force a synchronous layout.
+    this.minimap.measure();
+
     if (this.lastGameState) {
       this.scoreboard.update(this.lastGameState, this.gameObjects.localPlayer?.team);
     }

@@ -82,10 +82,11 @@ export class PlayerContainer {
 
   public stepCommunication(
     deltaTimeInSeconds: number,
+    simulatedThroughMs: number,
     propertyUpdatesOf: (object: GameObject) => PropertyUpdatesForObject | undefined,
   ) {
     this._players.forEach((p) =>
-      p.stepCommunications(deltaTimeInSeconds, propertyUpdatesOf),
+      p.stepCommunications(deltaTimeInSeconds, simulatedThroughMs, propertyUpdatesOf),
     );
   }
 

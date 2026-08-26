@@ -160,6 +160,7 @@ export class Player extends PlayerBase {
 
   public stepCommunications(
     deltaTime: number,
+    simulatedThroughMs: number,
     propertyUpdatesOf: (object: GameObject) => PropertyUpdatesForObject | undefined,
   ) {
     const remoteCalls: Array<RemoteCallsForObject> = [];
@@ -180,15 +181,20 @@ export class Player extends PlayerBase {
       this.socket.emit(TransportEvents.Ping, this.pendingPingNonce);
     }
 
+    // Subtracted, not zeroed: zeroing would stretch every interval to the next physics frame.
     if ((this.timeSinceLastMessage += deltaTime) > settings.updateMessageInterval) {
-      this.timeSinceLastMessage = 0;
+      this.timeSinceLastMessage = Math.min(
+        this.timeSinceLastMessage - settings.updateMessageInterval,
+        settings.updateMessageInterval,
+      );
       this.queueAnnouncement();
-      this.queueSnapshot(propertyUpdatesOf);
+      this.queueSnapshot(simulatedThroughMs, propertyUpdatesOf);
       this.sendQueuedCommandsToClient();
     }
   }
 
   private queueSnapshot(
+    simulatedThroughMs: number,
     propertyUpdatesOf: (object: GameObject) => PropertyUpdatesForObject | undefined,
   ) {
     const { topLeft, size } = calculateViewArea(this.center, this.aspectRatio, 1.2);
@@ -227,7 +233,7 @@ export class Player extends PlayerBase {
       }
     }
     this.queueCommandSend(
-      new PropertyUpdatesForObjects(propertyUpdates, performance.now() / 1000),
+      new PropertyUpdatesForObjects(propertyUpdates, simulatedThroughMs / 1000),
     );
 
     if (this.character) {
@@ -236,8 +242,10 @@ export class Player extends PlayerBase {
           this.lastInputClientTimeMs,
           this.character.movementSnapshot,
           this.lastLeapClientTimeMs,
+          // Aged against the instant the pose is from, not the send time: the difference is
+          // the un-simulated remainder, and it would land straight in the client's replay.
           this.lastInputReceiptMs > 0
-            ? Math.max(0, performance.now() - this.lastInputReceiptMs)
+            ? Math.max(0, simulatedThroughMs - this.lastInputReceiptMs)
             : 0,
         ),
       );
