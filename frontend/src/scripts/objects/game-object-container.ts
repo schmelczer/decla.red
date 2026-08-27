@@ -109,7 +109,7 @@ export class GameObjectContainer extends CommandReceiver {
       localCharacterPredictor.setStrength(
         player.strengthFraction * settings.playerMaxStrength,
       );
-      if (localCharacterPredictor.update(this.planets, deltaTimeInSeconds)) {
+      if (localCharacterPredictor.update(this.planets)) {
         player.head = localCharacterPredictor.head;
         player.leftFoot = localCharacterPredictor.leftFoot;
         player.rightFoot = localCharacterPredictor.rightFoot;

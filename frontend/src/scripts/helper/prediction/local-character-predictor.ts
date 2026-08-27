@@ -5,7 +5,6 @@ import {
   CharacterMovementState,
   PhysicsBody,
   settings,
-  followVec2,
   stepCharacterMovement,
   applyLeapImpulse,
   tickPlanetDetachment,
@@ -26,12 +25,6 @@ export const setFrameTimeMs = (timeMs: number): void => {
 export const clientTimeMs = (): number => frameTimeMs;
 
 const maxReplayMs = 400;
-
-// Only a correction has to fade; the character's own motion is carried straight through, so this
-// buys smoothing without costing responsiveness.
-const smoothSeconds = 0.06;
-
-const snapDistance = 250;
 
 const upwards = vec2.fromValues(0, 1);
 
@@ -59,8 +52,6 @@ export class LocalCharacterPredictor {
   private renderHead = new Circle(vec2.create(), headRadius);
   private renderLeftFoot = new Circle(vec2.create(), feetRadius);
   private renderRightFoot = new Circle(vec2.create(), feetRadius);
-  private previousTargets = [vec2.create(), vec2.create(), vec2.create()];
-  private hasRender = false;
 
   public get head(): Circle {
     return this.renderHead;
@@ -122,7 +113,6 @@ export class LocalCharacterPredictor {
     this.replayAnchorMs = undefined;
     this.movement = undefined;
     this.currentStrength = settings.playerMaxStrength;
-    this.hasRender = false;
     this.alive = true;
   }
 
@@ -141,21 +131,21 @@ export class LocalCharacterPredictor {
     );
   }
 
-  public update(planets: Array<PlanetView>, frameSeconds: number): boolean {
+  public update(planets: Array<PlanetView>): boolean {
     if (!this.alive || !this.canPredict || this.isAnimatingInOrOut) {
-      this.hasRender = false;
       return false;
     }
 
     this.world.sync(planets);
     const predicted = this.simulate();
 
-    if (!this.hasRender) {
-      this.snapRenderTo(predicted);
-      this.hasRender = true;
-    } else {
-      this.followRenderTo(predicted, frameSeconds);
-    }
+    vec2.copy(this.renderHead.center, predicted.head.center);
+    this.renderHead.radius = predicted.head.radius;
+    vec2.copy(this.renderLeftFoot.center, predicted.leftFoot.center);
+    this.renderLeftFoot.radius = predicted.leftFoot.radius;
+    vec2.copy(this.renderRightFoot.center, predicted.rightFoot.center);
+    this.renderRightFoot.radius = predicted.rightFoot.radius;
+
     return true;
   }
 
@@ -193,7 +183,6 @@ export class LocalCharacterPredictor {
     let t = startMs;
     for (let i = 0; i < steps; i++) {
       const input = this.inputHistory.directionAt(t);
-      // Planets first: the server's container holds them ahead of every character.
       this.world.advance(stepSeconds);
       tickPlanetDetachment(state, stepSeconds);
       stepCharacterMovement(state, this.world, input, stepSeconds);
@@ -216,8 +205,6 @@ export class LocalCharacterPredictor {
       t += stepMs;
     }
 
-    // A shorter final step would not integrate like the server's fixed one, so take a whole
-    // step and read the pose part-way along it instead.
     if (partialStep > 0) {
       const from = [state.head, state.leftFoot, state.rightFoot].map((b) =>
         vec2.clone(b.center),
@@ -236,44 +223,6 @@ export class LocalCharacterPredictor {
     }
 
     return state;
-  }
-
-  private snapRenderTo(state: CharacterMovementState): void {
-    this.previousTargets = [state.head, state.leftFoot, state.rightFoot].map((b) =>
-      vec2.clone(b.center),
-    );
-    this.renderHead = new Circle(vec2.clone(state.head.center), state.head.radius);
-    this.renderLeftFoot = new Circle(
-      vec2.clone(state.leftFoot.center),
-      state.leftFoot.radius,
-    );
-    this.renderRightFoot = new Circle(
-      vec2.clone(state.rightFoot.center),
-      state.rightFoot.radius,
-    );
-  }
-
-  private followRenderTo(state: CharacterMovementState, frameSeconds: number): void {
-    this.followPart(this.renderHead, state.head, 0, frameSeconds);
-    this.followPart(this.renderLeftFoot, state.leftFoot, 1, frameSeconds);
-    this.followPart(this.renderRightFoot, state.rightFoot, 2, frameSeconds);
-  }
-
-  private followPart(
-    render: Circle,
-    target: PhysicsBody,
-    index: number,
-    frameSeconds: number,
-  ): void {
-    followVec2(
-      render.center,
-      target.center,
-      this.previousTargets[index],
-      frameSeconds,
-      smoothSeconds,
-      snapDistance,
-    );
-    render.radius = target.radius;
   }
 }
 
