@@ -6,19 +6,19 @@ WORKDIR /app
 
 # `shared` is consumed by the backend as `file:../shared` and is bundled into
 # the server bundle by webpack, so it must be installed and built first.
-COPY shared/package.json shared/
-RUN cd shared && npm install
+COPY shared/package.json shared/package-lock.json shared/
+RUN npm --prefix shared ci
 COPY shared/ shared/
-RUN cd shared && npm run build
+RUN npm --prefix shared run build
 
-COPY backend/package.json backend/
-RUN cd backend && npm install
+COPY backend/package.json backend/package-lock.json backend/
+RUN npm --prefix backend ci
 COPY backend/ backend/
-RUN cd backend && npm run build
+RUN npm --prefix backend run build
 
 # Drop devDependencies; the runtime only needs the production deps that webpack
 # left external (express, socket.io, cors, gl-matrix, minimist, msgpack parser).
-RUN cd backend && npm prune --production
+RUN npm --prefix backend prune --production
 
 FROM node:22-bookworm-slim
 WORKDIR /app
