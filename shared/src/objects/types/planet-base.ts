@@ -27,11 +27,16 @@ export class PlanetBase extends GameObject implements GroundSurface {
     public readonly isKeystone: boolean = false,
   ) {
     super(id);
-    this.center = vertices.reduce((sum, v) => vec2.add(sum, sum, v), vec2.create());
+    this.center = vec2.create();
+    for (const vertex of vertices) {
+      vec2.add(this.center, this.center, vertex);
+    }
     vec2.scale(this.center, this.center, 1 / vertices.length);
-    this.radius =
-      vertices.reduce((sum, v) => sum + vec2.distance(this.center, v), 0) /
-      vertices.length;
+    let totalRadius = 0;
+    for (const vertex of vertices) {
+      totalRadius += vec2.distance(this.center, vertex);
+    }
+    this.radius = totalRadius / vertices.length;
   }
 
   public get team(): CharacterTeam {

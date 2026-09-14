@@ -62,7 +62,6 @@ export const settings = {
   chargeShotSpeedMin: 2500,
   chargeShotSpeedMax: 3400,
   backgroundGradient: [rgb255(90, 38, 43), rgb255(43, 39, 73)],
-  blueColor,
   bluePlanetColor: blueColorDim,
   npcNames: [
     'Adam',
@@ -114,7 +113,6 @@ export const settings = {
     'Will',
     'Wyatt',
   ],
-  redColor,
   redPlanetColor: redColorDim,
   colorIndices: {
     [CharacterTeam.blue]: 0,

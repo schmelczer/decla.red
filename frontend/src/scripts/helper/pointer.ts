@@ -1,3 +1,9 @@
 import { vec2 } from 'gl-matrix';
 
-export const pointer = { displayPosition: null as vec2 | null };
+let displayPosition: vec2 | null = null;
+
+export const setDisplayPosition = (position: vec2): void => {
+  displayPosition = position;
+};
+
+export const getDisplayPosition = (): vec2 | null => displayPosition;

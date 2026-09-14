@@ -32,14 +32,7 @@ const io = new IoServer(server, {
 
 const gameServer = new GameServer(io, options);
 
-app.use(
-  cors({
-    origin: (_, callback) => {
-      callback(null, true);
-    },
-    credentials: true,
-  }),
-);
+app.use(cors({ origin: true, credentials: true }));
 
 app.get(serverInformationEndpoint, (_, res) => {
   res.json(gameServer.serverInfo);

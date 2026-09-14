@@ -1,10 +1,11 @@
 import { vec2 } from 'gl-matrix';
+import type { Command } from 'shared';
 import { InputGenerator } from './input-generator';
 
 export class KeyboardListener extends InputGenerator {
   private keysDown: Set<string> = new Set();
 
-  constructor(onCommand: ConstructorParameters<typeof InputGenerator>[0]) {
+  constructor(onCommand: (command: Command) => void) {
     super(onCommand);
     addEventListener('keydown', this.keyDownListener);
     addEventListener('keyup', this.keyUpListener);

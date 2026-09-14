@@ -12,7 +12,7 @@ import {
 import { PhysicalContainer } from '../physics/physical-container';
 import { BoundingBox } from '../physics/bounding-box';
 import { CharacterPhysical } from '../objects/character-physical';
-import { PlanetPhysical, planetsIn } from '../objects/planet-physical';
+import { PlanetPhysical, planetsNear } from '../objects/planet-physical';
 import { PlayerContainer } from './player-container';
 
 const maximumNameLength = 40;
@@ -65,7 +65,9 @@ export abstract class PlayerBase extends CommandReceiver {
     return this.character;
   }
 
-  public abstract step(deltaTimeInSeconds: number): void;
+  public step(deltaTimeInSeconds: number) {
+    this.stepLifecycle(deltaTimeInSeconds);
+  }
 
   protected stepLifecycle(deltaTimeInSeconds: number): CharacterPhysical | undefined {
     if (this.character) {
@@ -89,10 +91,10 @@ export abstract class PlayerBase extends CommandReceiver {
   }
 
   private findSpawnCenter(): vec2 {
-    const planets = planetsIn(
-      this.objectContainer.findIntersecting(
-        BoundingBox.ofCircle(vec2.create(), settings.worldRadius * 2),
-      ),
+    const planets = planetsNear(
+      this.objectContainer,
+      vec2.create(),
+      settings.worldRadius * 2,
     );
 
     const friendly = planets.filter((p) => p.team === this.team);

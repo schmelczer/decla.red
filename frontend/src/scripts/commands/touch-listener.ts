@@ -1,7 +1,9 @@
 import { vec2 } from 'gl-matrix';
-import { chargeHeldSince, Command, settings } from 'shared';
-import { Game } from '../game';
+import { chargeHeldSince, settings } from 'shared';
+import type { Command } from 'shared';
+import type { Game } from '../game';
 import { ChargeIndicator } from '../charge-indicator';
+import { centeredTransform } from '../helper/centered-transform';
 import { InputGenerator } from './input-generator';
 
 const deadZone = 8;
@@ -104,11 +106,14 @@ export class TouchListener extends InputGenerator {
       this.primaryDownAt = null;
       ChargeIndicator.end();
       this.overlay.appendChild(this.joystick);
-      this.joystick.style.transform = `translateX(${this.touchStartPosition[0]}px) translateY(${this.touchStartPosition[1]}px) translateX(-50%) translateY(-50%)`;
+      this.joystick.style.transform = centeredTransform(
+        this.touchStartPosition[0],
+        this.touchStartPosition[1],
+      );
     }
 
     vec2.scale(delta, delta, Math.min(1, joystickMaxLength / deltaLength));
-    this.joystickButton.style.transform = `translateX(${delta[0]}px) translateY(${delta[1]}px) translateX(-50%) translateY(-50%)`;
+    this.joystickButton.style.transform = centeredTransform(delta[0], delta[1]);
 
     if (deltaLength > deadZone) {
       vec2.set(delta, delta[0], -delta[1]);

@@ -13,9 +13,10 @@ import {
   strengthToCharge,
   UpdatePropertyCommand,
 } from 'shared';
+import { centeredTransform } from '../../helper/centered-transform';
 import { CircleInterpolator } from '../../helper/interpolators/circle-interpolator';
 import { LinearInterpolator } from '../../helper/interpolators/linear-interpolator';
-import { pointer } from '../../helper/pointer';
+import { getDisplayPosition } from '../../helper/pointer';
 import { CharacterShape } from '../../shapes/character-shape';
 import { SoundHandler, Sounds } from '../../sound-handler';
 import { VibrationHandler } from '../../vibration-handler';
@@ -264,7 +265,11 @@ export class CharacterView extends CharacterBase implements View {
           this.head.radius + 80,
         ),
       );
-      this.nameElement.style.transform = `translateX(${screenPosition[0]}px) translateY(${screenPosition[1]}px) translateX(-50%) translateY(-50%) rotate(-15deg)`;
+      this.nameElement.style.transform = centeredTransform(
+        screenPosition[0],
+        screenPosition[1],
+        ' rotate(-15deg)',
+      );
       this.healthElement.style.width =
         (50 * this.health) / settings.playerMaxHealth + 'px';
       this.chargeElement.style.width =
@@ -287,7 +292,7 @@ export class CharacterView extends CharacterBase implements View {
   }
 
   private calculateGazeTarget(renderer: Renderer): vec2 {
-    const cursor = pointer.displayPosition;
+    const cursor = getDisplayPosition();
     if (this.isMainCharacter && cursor) {
       return renderer.displayToWorldCoordinates(cursor);
     }

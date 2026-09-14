@@ -1,8 +1,9 @@
 import { vec2 } from 'gl-matrix';
-import { chargeHeldSince, Command } from 'shared';
-import { Game } from '../game';
+import { chargeHeldSince } from 'shared';
+import type { Command } from 'shared';
+import type { Game } from '../game';
 import { ChargeIndicator } from '../charge-indicator';
-import { pointer } from '../helper/pointer';
+import { setDisplayPosition } from '../helper/pointer';
 import { InputGenerator } from './input-generator';
 
 export class MouseListener extends InputGenerator {
@@ -22,7 +23,7 @@ export class MouseListener extends InputGenerator {
   }
 
   private mouseMoveListener = (event: MouseEvent) => {
-    pointer.displayPosition = vec2.fromValues(event.clientX, event.clientY);
+    setDisplayPosition(vec2.fromValues(event.clientX, event.clientY));
   };
 
   private mouseDownListener = (event: MouseEvent) => {

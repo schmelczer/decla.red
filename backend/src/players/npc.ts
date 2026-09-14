@@ -1,5 +1,12 @@
 import { vec2 } from 'gl-matrix';
-import { PlayerInformation, settings, Random, CharacterTeam, Id } from 'shared';
+import {
+  PlayerInformation,
+  settings,
+  Random,
+  CharacterTeam,
+  Id,
+  evaluateSdf,
+} from 'shared';
 import { PhysicalContainer } from '../physics/physical-container';
 import { BoundingBox } from '../physics/bounding-box';
 import { PlayerContainer } from './player-container';
@@ -321,10 +328,7 @@ export class NPC extends PlayerBase {
     let traveled = tuning.lineOfSightStartOffset;
     const position = vec2.scaleAndAdd(vec2.create(), this.center, direction, traveled);
     while (traveled < totalDistance) {
-      let sdf = Infinity;
-      for (const planet of planets) {
-        sdf = Math.min(sdf, planet.distance(position));
-      }
+      const sdf = evaluateSdf(position, planets);
       if (sdf < tuning.lineOfSightClearance) {
         return false;
       }

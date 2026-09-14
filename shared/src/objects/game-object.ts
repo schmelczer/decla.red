@@ -92,9 +92,7 @@ export abstract class GameObject {
   }
 
   public resetRemoteCalls() {
-    if (this.remoteCalls.length > 0) {
-      this.remoteCalls = [];
-    }
+    this.remoteCalls = [];
   }
 
   protected remoteCall(name: string & keyof this, ...args: Array<any>) {

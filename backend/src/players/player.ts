@@ -42,9 +42,9 @@ const minimumAspectRatio = 0.2;
 const maximumAspectRatio = 8;
 
 const sheddableWhenBackedUp: ReadonlyArray<string> = [
-  PropertyUpdatesForObjects.type,
-  UpdateMinimap.type,
-  InputAcknowledgement.type,
+  PropertyUpdatesForObjects.name,
+  UpdateMinimap.name,
+  InputAcknowledgement.name,
 ];
 
 export class Player extends PlayerBase {
@@ -68,7 +68,7 @@ export class Player extends PlayerBase {
 
   // Input is untrusted: one non-finite value reaching the simulation leaves a character that never dies.
   protected commandExecutors: CommandExecutors = {
-    [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) => {
+    [SetAspectRatioActionCommand.name]: (v: SetAspectRatioActionCommand) => {
       this.aspectRatio = finiteInRange(
         v.aspectRatio,
         minimumAspectRatio,
@@ -76,7 +76,7 @@ export class Player extends PlayerBase {
         this.aspectRatio,
       );
     },
-    [MoveActionCommand.type]: (c: MoveActionCommand) => {
+    [MoveActionCommand.name]: (c: MoveActionCommand) => {
       const direction = finiteVec2(c.direction, 1);
       if (!direction) {
         return;
@@ -84,7 +84,7 @@ export class Player extends PlayerBase {
       this.observeClientTime(c.clientTimeMs);
       this.character?.setMoveDirection(direction);
     },
-    [PrimaryActionCommand.type]: (c: PrimaryActionCommand) => {
+    [PrimaryActionCommand.name]: (c: PrimaryActionCommand) => {
       const position = finiteVec2(c.position, settings.maxClientPositionMagnitude);
       if (!position) {
         return;
@@ -92,7 +92,7 @@ export class Player extends PlayerBase {
       this.observeClientTime(c.clientTimeMs);
       this.character?.shootTowards(position, finiteInRange(c.charge, 0, 1, 0));
     },
-    [LeapActionCommand.type]: (c: LeapActionCommand) => {
+    [LeapActionCommand.name]: (c: LeapActionCommand) => {
       if (!isFiniteNumber(c.clientTimeMs)) {
         return;
       }
@@ -100,7 +100,7 @@ export class Player extends PlayerBase {
       this.observeClientTime(c.clientTimeMs);
       this.character?.leap();
     },
-    [ClientHeartbeatCommand.type]: (c: ClientHeartbeatCommand) =>
+    [ClientHeartbeatCommand.name]: (c: ClientHeartbeatCommand) =>
       this.observeClientTime(c.clientTimeMs),
   };
 
@@ -148,10 +148,6 @@ export class Player extends PlayerBase {
 
   public onGameEnded(winnerTeam: CharacterTeam) {
     this.winnerTeam = winnerTeam;
-  }
-
-  public step(deltaTimeInSeconds: number) {
-    this.stepLifecycle(deltaTimeInSeconds);
   }
 
   public queueCommandSend(command: Command) {
@@ -273,7 +269,7 @@ export class Player extends PlayerBase {
     // Only state the next snapshot regenerates may be dropped; create/delete are one-shot.
     if (this.bufferedBytes > settings.maxBufferedBytesPerClient) {
       this.commandsToBeSent = this.commandsToBeSent.filter(
-        (c) => !sheddableWhenBackedUp.includes(c.type),
+        (c) => !sheddableWhenBackedUp.includes(c.constructor.name),
       );
     }
     if (this.commandsToBeSent.length === 0) {

@@ -36,9 +36,7 @@ export class PlayerContainer {
     );
     for (let i = 0; i < newNpcCount; i++) {
       const name = `🤖 ${Random.choose(settings.npcNames)}`;
-      this.npcs.push(
-        new NPC({ name }, this, this.objects, this.getTeamOfNextPlayer(true)),
-      );
+      this.npcs.push(new NPC({ name }, this, this.objects, this.getTeamOfNextNpc()));
     }
   }
 
@@ -102,8 +100,15 @@ export class PlayerContainer {
     this._players.forEach((p) => p.sendQueuedCommandsToClient());
   }
 
-  private getTeamOfNextPlayer(isNpc = false): CharacterTeam {
-    const players = isNpc ? this.players : this._players;
+  private getTeamOfNextPlayer(): CharacterTeam {
+    return this.teamOfNext(this._players);
+  }
+
+  private getTeamOfNextNpc(): CharacterTeam {
+    return this.teamOfNext(this.players);
+  }
+
+  private teamOfNext(players: Array<PlayerBase>): CharacterTeam {
     const blueCount = players.filter((p) => p.team === CharacterTeam.blue).length;
     const redCount = players.filter((p) => p.team === CharacterTeam.red).length;
 

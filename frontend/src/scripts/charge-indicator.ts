@@ -1,5 +1,5 @@
 import { chargeHeldSince } from 'shared';
-import { pointer } from './helper/pointer';
+import { getDisplayPosition } from './helper/pointer';
 
 let element: HTMLElement | undefined;
 let heldSince = 0;
@@ -42,7 +42,7 @@ function updateChargeIndicator() {
   element.classList.toggle('full', charge >= 1);
 
   if (isFollowingPointer) {
-    const cursor = pointer.displayPosition;
+    const cursor = getDisplayPosition();
     if (cursor) {
       element.style.left = `${cursor[0]}px`;
       element.style.top = `${cursor[1]}px`;

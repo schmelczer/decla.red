@@ -10,14 +10,22 @@ import {
   PropertyUpdatesForObject,
   UpdatePropertyCommand,
 } from 'shared';
-import { GameEvents } from '../game-events';
+import { addPointsForTeam, GameEvents } from '../game-events';
 import { BoundingBox } from '../physics/bounding-box';
 import { Physical } from '../physics/physical';
+import { PhysicalContainer } from '../physics/physical-container';
 import { LampPhysical } from './lamp-physical';
 import type { CharacterPhysical } from './character-physical';
 
 export const planetsIn = (objects: Array<Physical>): Array<PlanetPhysical> =>
   objects.filter((o): o is PlanetPhysical => o instanceof PlanetPhysical);
+
+export const planetsNear = (
+  container: PhysicalContainer,
+  center: vec2,
+  radius: number,
+): Array<PlanetPhysical> =>
+  planetsIn(container.findIntersecting(BoundingBox.ofCircle(center, radius)));
 
 export class PlanetPhysical extends PlanetBase implements Physical {
   public readonly boundingBox: BoundingBox;
@@ -80,11 +88,7 @@ export class PlanetPhysical extends PlanetBase implements Physical {
   }
 
   private awardToOwner(base: number) {
-    const value = Math.round(base * this.sizePointMultiplier);
-    this.game.addPoints(
-      this.team === CharacterTeam.blue ? value : 0,
-      this.team === CharacterTeam.red ? value : 0,
-    );
+    addPointsForTeam(this.game, this.team, Math.round(base * this.sizePointMultiplier));
   }
 
   private resolveCapture(deltaTime: number) {

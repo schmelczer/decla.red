@@ -12,7 +12,7 @@ import {
   headRadius,
 } from 'shared';
 import { ClientCharacterWorld } from './client-character-world';
-import { PlanetView } from '../../objects/types/planet-view';
+import type { PlanetView } from '../../objects/types/planet-view';
 import { InputHistory } from './input-history';
 
 const stepSeconds = settings.targetPhysicsDeltaTimeInSeconds;
@@ -32,7 +32,7 @@ const makeBody = (center: vec2, radius: number, normal: vec2): PhysicsBody => ({
   center: vec2.clone(center),
   radius,
   velocity: vec2.create(),
-  lastNormal: vec2.fromValues(normal[0], normal[1]),
+  lastNormal: vec2.clone(normal),
   restitution: 0,
 });
 

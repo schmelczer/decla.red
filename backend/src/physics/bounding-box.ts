@@ -17,6 +17,14 @@ export class BoundingBox {
     );
   }
 
+  public setCircle(center: vec2, radius: number): BoundingBox {
+    this.xMin = center[0] - radius;
+    this.xMax = center[0] + radius;
+    this.yMin = center[1] - radius;
+    this.yMax = center[1] + radius;
+    return this;
+  }
+
   public intersects(other: BoundingBox): boolean {
     return (
       this.xMin < other.xMax &&

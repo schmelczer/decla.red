@@ -3,7 +3,7 @@ import { Command } from '../../command';
 
 @serializable
 export class LeapActionCommand extends Command {
-  public constructor(public readonly clientTimeMs: number = 0) {
+  public constructor(public readonly clientTimeMs: number) {
     super();
   }
 

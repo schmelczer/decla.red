@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { applyForce, Circle, GameObject, resolveCircleMovement } from 'shared';
+import { Circle, GameObject, resolveCircleMovement } from 'shared';
 import { BoundingBox } from '../physics/bounding-box';
 import { PhysicalContainer } from '../physics/physical-container';
 import { Physical } from '../physics/physical';
@@ -22,11 +22,7 @@ export class CirclePhysical extends Circle implements Physical {
   }
 
   public get boundingBox(): BoundingBox {
-    this.box.xMin = this.center[0] - this.radius;
-    this.box.xMax = this.center[0] + this.radius;
-    this.box.yMin = this.center[1] - this.radius;
-    this.box.yMax = this.center[1] + this.radius;
-    return this.box;
+    return this.box.setCircle(this.center, this.radius);
   }
 
   public get gameObject(): GameObject {
@@ -35,10 +31,6 @@ export class CirclePhysical extends Circle implements Physical {
 
   public onCollision(other: GameObject) {
     this.owner.onCollision?.(other);
-  }
-
-  public applyForce(force: vec2, timeInSeconds: number) {
-    applyForce(this, force, timeInSeconds);
   }
 
   public stepManually(

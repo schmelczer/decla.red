@@ -6,8 +6,8 @@ import { Command } from '../../command';
 export class PrimaryActionCommand extends Command {
   public constructor(
     public readonly position: vec2,
-    public readonly charge: number = 0,
-    public readonly clientTimeMs: number = 0,
+    public readonly charge: number,
+    public readonly clientTimeMs: number,
   ) {
     super();
   }

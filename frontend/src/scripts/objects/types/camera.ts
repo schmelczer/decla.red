@@ -1,7 +1,7 @@
 import { vec2 } from 'gl-matrix';
 import { Renderer } from 'sdf-2d';
 import { calculateViewArea, followVec2, mixRgb, settings } from 'shared';
-import { Game } from '../../game';
+import type { Game } from '../../game';
 import { ScreenShake } from '../../screen-shake';
 
 const followSeconds = 0.08;

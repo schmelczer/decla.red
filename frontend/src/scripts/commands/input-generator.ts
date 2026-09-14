@@ -10,7 +10,7 @@ import {
   localCharacterPredictor,
 } from '../helper/prediction/local-character-predictor';
 
-export abstract class InputGenerator {
+export class InputGenerator {
   constructor(protected readonly onCommand: (command: Command) => void) {}
 
   protected sendMove(direction: vec2) {

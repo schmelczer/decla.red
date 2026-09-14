@@ -8,6 +8,7 @@ import {
   CharacterTeam,
   settings,
 } from 'shared';
+import { centeredTransform } from '../../helper/centered-transform';
 import { LinearInterpolator } from '../../helper/interpolators/linear-interpolator';
 import { PlanetShape } from '../../shapes/planet-shape';
 import { View } from '../view';
@@ -118,7 +119,10 @@ export class PlanetView extends PlanetBase implements View {
       }
 
       const screenPosition = renderer.worldToDisplayCoordinates(this.center);
-      this.ownershipProgress.style.transform = `translateX(${screenPosition[0]}px) translateY(${screenPosition[1]}px) translateX(-50%) translateY(-50%)`;
+      this.ownershipProgress.style.transform = centeredTransform(
+        screenPosition[0],
+        screenPosition[1],
+      );
 
       const gradient = this.getGradient();
       if (gradient !== this.lastGradient) {

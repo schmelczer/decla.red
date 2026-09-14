@@ -13,6 +13,7 @@ import {
   clamp01,
   strengthToCharge,
   stepCharacterMovement,
+  applyForce,
   applyLeapImpulse,
   decayMomentum,
   tickPlanetDetachment,
@@ -27,12 +28,13 @@ import {
   rightFootOffset,
   boundRadius,
 } from 'shared';
+import { addPointsForTeam } from '../game-events';
 import { Physical } from '../physics/physical';
 import { CirclePhysical } from './circle-physical';
 import { PhysicalContainer } from '../physics/physical-container';
 import { BoundingBox } from '../physics/bounding-box';
 import { ProjectilePhysical } from './projectile-physical';
-import { PlanetPhysical, planetsIn } from './planet-physical';
+import { PlanetPhysical, planetsNear } from './planet-physical';
 
 const placeholder = new Circle(vec2.create(), 0);
 
@@ -99,8 +101,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   }
 
   private readonly movementWorld: CharacterWorld = {
-    groundsNear: (center, radius) =>
-      planetsIn(this.container.findIntersecting(BoundingBox.ofCircle(center, radius))),
+    groundsNear: (center, radius) => planetsNear(this.container, center, radius),
     stepBody: (body, deltaTimeInSeconds) => {
       const hit = (body as CirclePhysical).stepManually(deltaTimeInSeconds);
       return hit instanceof PlanetPhysical ? hit : undefined;
@@ -139,12 +140,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   }
 
   public get boundingBox(): BoundingBox {
-    const center = this.center;
-    this.box.xMin = center[0] - boundRadius;
-    this.box.xMax = center[0] + boundRadius;
-    this.box.yMin = center[1] - boundRadius;
-    this.box.yMax = center[1] + boundRadius;
-    return this.box;
+    return this.box.setCircle(this.center, boundRadius);
   }
 
   public get gameObject(): this {
@@ -309,11 +305,9 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     this.remoteCall('onDie');
 
     if (killedInCombat) {
-      const points = settings.playerKillPoint;
-      this.container.game.addPoints(
-        this.team === CharacterTeam.blue ? 0 : points,
-        this.team === CharacterTeam.red ? 0 : points,
-      );
+      const opposingTeam =
+        this.team === CharacterTeam.blue ? CharacterTeam.red : CharacterTeam.blue;
+      addPointsForTeam(this.container.game, opposingTeam, settings.playerKillPoint);
     }
   }
 
@@ -427,7 +421,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     let grounded = false;
     for (const part of this.parts) {
       vec2.copy(part.velocity, this.bodyVelocity);
-      part.applyForce(sumGravity(planets, part.center), deltaTime);
+      applyForce(part, sumGravity(planets, part.center), deltaTime);
       if (part.stepManually(deltaTime) instanceof PlanetPhysical) {
         grounded = true;
       }

@@ -34,6 +34,7 @@ import parser from 'socket.io-msgpack-parser';
 import { CharacterShape } from './shapes/character-shape';
 import { PlanetShape } from './shapes/planet-shape';
 import { serverTimeline } from './helper/server-timeline';
+import { centeredTransform } from './helper/centered-transform';
 import {
   localCharacterPredictor,
   setFrameTimeMs,
@@ -79,21 +80,21 @@ export class Game extends CommandReceiver {
   private framesSinceLastLayoutUpdate = 0;
 
   protected commandExecutors: CommandExecutors = {
-    [ServerAnnouncement.type]: (c: ServerAnnouncement) => {
+    [ServerAnnouncement.name]: (c: ServerAnnouncement) => {
       this.lastAnnouncementText = c.text;
       this.timeSinceLastAnnouncement = 0;
     },
-    [UpdateGameState.type]: (c: UpdateGameState) => (this.lastGameState = c),
-    [InputAcknowledgement.type]: (c: InputAcknowledgement) =>
+    [UpdateGameState.name]: (c: UpdateGameState) => (this.lastGameState = c),
+    [InputAcknowledgement.name]: (c: InputAcknowledgement) =>
       localCharacterPredictor.acknowledge(
         c.clientTimeMs,
         c.movement,
         c.lastLeapClientTimeMs,
         c.ackAgeMs,
       ),
-    [GameEndCommand.type]: () => (this.isEnding = true),
-    [UpdateMinimap.type]: (c: UpdateMinimap) => (this.lastMinimap = c),
-    [GameStartCommand.type]: () => this.initialize(),
+    [GameEndCommand.name]: () => (this.isEnding = true),
+    [UpdateMinimap.name]: (c: UpdateMinimap) => (this.lastMinimap = c),
+    [GameStartCommand.name]: () => this.initialize(),
   };
 
   constructor(
@@ -220,6 +221,7 @@ export class Game extends CommandReceiver {
 
   public async start(): Promise<void> {
     this.initialize();
+    this.resolveStarted();
     const noiseTexture = await renderNoise([256, 256], 2, 1);
 
     await runAnimation(
@@ -311,7 +313,6 @@ export class Game extends CommandReceiver {
     deltaTime: DOMHighResTimeStamp,
   ): boolean {
     this.renderer = renderer;
-    this.resolveStarted();
     // The frame timestamp, not performance.now(): dispatch jitter would land in the replay window.
     setFrameTimeMs(currentTime);
     deltaTime /= 1000;
@@ -408,6 +409,10 @@ export class Game extends CommandReceiver {
       deltaX = (deltaY * dx) / dy;
     }
 
-    this.keystoneArrow.style.transform = `translateX(${width / 2 + deltaX}px) translateY(${height / 2 + deltaY}px) translateX(-50%) translateY(-50%) rotate(${angle + Math.PI / 2}rad)`;
+    this.keystoneArrow.style.transform = centeredTransform(
+      width / 2 + deltaX,
+      height / 2 + deltaY,
+      ` rotate(${angle + Math.PI / 2}rad)`,
+    );
   }
 }

@@ -1,5 +1,5 @@
 import { settings } from 'shared';
-import { pointer } from './helper/pointer';
+import { getDisplayPosition } from './helper/pointer';
 
 let root: HTMLElement | undefined;
 let killfeed: HTMLElement | undefined;
@@ -20,7 +20,7 @@ function ensureRoot(): { root: HTMLElement; killfeed: HTMLElement } {
 }
 
 function focusPoint(): { x: number; y: number } {
-  const cursor = pointer.displayPosition;
+  const cursor = getDisplayPosition();
   if (cursor) {
     return { x: cursor[0], y: cursor[1] };
   }

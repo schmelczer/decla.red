@@ -13,7 +13,7 @@ import {
   UpdatePropertyCommand,
 } from 'shared';
 import { FeedbackHud } from '../feedback-hud';
-import { Game } from '../game';
+import type { Game } from '../game';
 import { serverTimeline } from '../helper/server-timeline';
 import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
 import { Camera } from './types/camera';
@@ -36,7 +36,7 @@ export class GameObjectContainer extends CommandReceiver {
   private awaitingDeleteStamp: Array<Id> = [];
 
   protected commandExecutors: CommandExecutors = {
-    [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
+    [CreatePlayerCommand.name]: (c: CreatePlayerCommand) => {
       this.player = c.character as CharacterView;
       this.player.isMainCharacter = true;
       this.addObject(this.player);
@@ -45,18 +45,18 @@ export class GameObjectContainer extends CommandReceiver {
       this.wasLocalPlayerAlive = true;
     },
 
-    [CreateObjectsCommand.type]: (c: CreateObjectsCommand) =>
+    [CreateObjectsCommand.name]: (c: CreateObjectsCommand) =>
       c.objects.forEach((o) => {
         this.addObject(o as View);
         this.awaitingCreateStamp.push(o.id);
       }),
 
-    [RemoteCallsForObjects.type]: (c: RemoteCallsForObjects) =>
+    [RemoteCallsForObjects.name]: (c: RemoteCallsForObjects) =>
       c.callsForObjects.forEach((c) =>
         this.objects.get(c.id)?.processRemoteCalls(c.calls),
       ),
 
-    [PropertyUpdatesForObjects.type]: (c: PropertyUpdatesForObjects) => {
+    [PropertyUpdatesForObjects.name]: (c: PropertyUpdatesForObjects) => {
       serverTimeline.onSnapshot(c.timestamp);
       this.stampPending(c.timestamp);
       c.updates.forEach((u) => {
@@ -68,7 +68,7 @@ export class GameObjectContainer extends CommandReceiver {
       });
     },
 
-    [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
+    [DeleteObjectsCommand.name]: (c: DeleteObjectsCommand) =>
       c.ids.forEach((id: Id) => this.awaitingDeleteStamp.push(id)),
   };
 
@@ -80,6 +80,7 @@ export class GameObjectContainer extends CommandReceiver {
   public reset() {
     this.objects.forEach((o) => o.beforeDestroy?.());
     this.objects.clear();
+    this.player = undefined;
     this.planets = [];
     this.visibleFrom.clear();
     this.deleteAt.clear();

@@ -33,7 +33,7 @@ class FakeSocket {
     this.sent.push({ event, payload });
   }
 
-  public get lastBatch(): Array<{ type: string }> {
+  public get lastBatch(): Array<{ constructor: { name: string } }> {
     const last = [...this.sent]
       .reverse()
       .find((m) => m.event === TransportEvents.ServerToPlayer);
@@ -61,7 +61,8 @@ const queueOneSnapshot = (player: ReturnType<typeof makePlayer>['player']) => {
   player.queueCommandSend(new PropertyUpdatesForObjects([], 1));
 };
 
-const typesIn = (batch: Array<{ type: string }>) => batch.map((c) => c.type);
+const typesIn = (batch: Array<{ constructor: { name: string } }>) =>
+  batch.map((c) => c.constructor.name);
 
 describe('slow-client backpressure', () => {
   beforeEach(() => {

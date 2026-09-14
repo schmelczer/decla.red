@@ -6,7 +6,7 @@ import { Command } from '../../command';
 export class MoveActionCommand extends Command {
   public constructor(
     public readonly direction: vec2,
-    public readonly clientTimeMs: number = 0,
+    public readonly clientTimeMs: number,
   ) {
     super();
   }

@@ -84,10 +84,11 @@ export class ProjectilePhysical extends ProjectileBase implements Physical {
   }
 
   public onCollision(other: GameObject) {
-    if (
-      !(other instanceof CharacterPhysical && other.team === this.team) &&
-      this.bounceCount++ === settings.projectileMaxBounceCount
-    ) {
+    if (other instanceof CharacterPhysical && other.team === this.team) {
+      return;
+    }
+    this.bounceCount++;
+    if (this.bounceCount > settings.projectileMaxBounceCount) {
       this.destroy();
     }
   }
