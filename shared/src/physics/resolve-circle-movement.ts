@@ -13,7 +13,6 @@ export const resolveCircleMovement = (
   let remainingSeconds = deltaTimeInSeconds;
   let firstHit: Sdf | undefined;
 
-  // Resolve at most two contacts per step, spending only the time left after each hit.
   for (let pass = 0; pass < 2 && remainingSeconds > 0; pass++) {
     const speed = vec2.length(body.velocity);
     if (speed === 0) {

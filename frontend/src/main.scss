@@ -230,8 +230,6 @@ body {
       }
     }
 
-    // Top-down radar of the whole arena (see Minimap). The circular border is
-    // the world boundary; dots are painted onto the canvas.
     .minimap {
       top: $small-padding;
       left: $small-padding;
@@ -252,7 +250,6 @@ body {
       z-index: 100;
     }
 
-    // Off-screen pointer to the keystone "Heart", tinted by its current owner.
     .keystone-arrow {
       opacity: 0.9;
 
@@ -330,8 +327,6 @@ body {
           content: '\25C9';
         }
 
-        // Twin-stick aim indicator: drawn from the button centre toward the
-        // current drag direction while aiming a shot (see TouchListener).
         .aim-line {
           position: absolute;
           left: 50%;
@@ -735,8 +730,6 @@ body {
     }
   }
 
-  // Centred "Eliminated" overlay shown while the local player is dead; the
-  // respawn countdown is the server-driven "Reviving in N…" announcement.
   .elimination {
     position: absolute;
     top: 42%;

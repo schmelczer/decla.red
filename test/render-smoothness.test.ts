@@ -64,7 +64,6 @@ interface Result {
   maximumSpeed: number;
 }
 
-// Exercise shared movement with independent server, network, and render clocks.
 // Measure world travel: the camera tracks the local character exactly, so measuring
 // their relative position would always report zero even when the world visibly stutters.
 const measure = ({
@@ -96,7 +95,6 @@ const measure = ({
   const predictor = new LocalCharacterPredictor();
   predictor.setStrength(settings.playerMaxStrength);
 
-  // Deterministic frame-time noise: a real display never delivers a perfectly even cadence.
   let seed = 12345;
   const random = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
 

@@ -61,7 +61,6 @@ function character(id = 1) {
     step: vi.fn(),
     render: vi.fn(),
     beforeDestroy: vi.fn(),
-    // A health setter also represents damage sound/flash feedback in CharacterView.
     setHealth: vi.fn((health: number) => (object.health = health)),
     onShoot: vi.fn(),
     onDie: vi.fn(),
@@ -126,7 +125,6 @@ describe('suspended rendering', () => {
     expect(survivor.onShoot).not.toHaveBeenCalled();
     expect(retained(container).remoteCalls.length).toBeLessThanOrEqual(3);
 
-    // With no additional effects, subsequent snapshots retire the entire old tail.
     snapshot(container, 46);
     expect(container.planets).toHaveLength(0);
     expect(retained(container).objects.size).toBe(1);

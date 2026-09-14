@@ -1,4 +1,3 @@
-# The server image only needs `shared/` and `backend/`.
 **/node_modules
 **/dist
 **/lib

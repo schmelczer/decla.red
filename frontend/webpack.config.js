@@ -75,7 +75,6 @@ module.exports = (env, argv) => {
           ],
         },
         {
-          // svg-url-loader emits a CJS module that css-loader 7 writes out verbatim.
           test: /\.svg$/,
           type: 'asset/inline',
         },
