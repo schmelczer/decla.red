@@ -1,6 +1,7 @@
 import { Renderer } from 'sdf-2d';
 import {
   Circle,
+  CharacterBase,
   CommandExecutors,
   CommandReceiver,
   CreateObjectsCommand,
@@ -21,6 +22,10 @@ import { CharacterView } from './types/character-view';
 import { PlanetView } from './types/planet-view';
 import { View } from './view';
 
+// Keep enough history for interpolation, without retaining a background tab's entire session.
+const deferredHistorySeconds = 0.5;
+const persistentRemoteCalls = new Set(['setKillCount', 'setLight', 'setContested']);
+
 export class GameObjectContainer extends CommandReceiver {
   public player?: CharacterView;
   public readonly camera: Camera;
@@ -28,6 +33,7 @@ export class GameObjectContainer extends CommandReceiver {
 
   private objects: Map<Id, View> = new Map();
   private wasLocalPlayerAlive = false;
+  private lastStepAtMs = performance.now();
 
   // Creates and deletes take effect on the render timeline, not on arrival.
   private visibleFrom = new Map<Id, number>();
@@ -67,6 +73,7 @@ export class GameObjectContainer extends CommandReceiver {
     [PropertyUpdatesForObjects.name]: (c: PropertyUpdatesForObjects) => {
       serverTimeline.onSnapshot(c.timestamp);
       this.stampPending(c.timestamp);
+      this.pruneDeferred(c.timestamp - deferredHistorySeconds);
       c.updates.forEach((u) => {
         const object = this.objects.get(u.id);
         u.updates.forEach((au) => object?.updateProperty?.(au));
@@ -96,6 +103,7 @@ export class GameObjectContainer extends CommandReceiver {
     this.awaitingDeleteStamp = [];
     this.remoteCalls = [];
     this.wasLocalPlayerAlive = false;
+    this.lastStepAtMs = performance.now();
   }
 
   public get localPlayer(): CharacterView | undefined {
@@ -104,6 +112,12 @@ export class GameObjectContainer extends CommandReceiver {
 
   public step(deltaTimeInSeconds: number) {
     this.stampPending(serverTimeline.snapshotTime);
+    const nowMs = performance.now();
+    const resumed = nowMs - this.lastStepAtMs > deferredHistorySeconds * 1000;
+    this.lastStepAtMs = nowMs;
+    this.pruneDeferred(
+      serverTimeline.renderTime - (resumed ? 0 : deferredHistorySeconds),
+    );
     this.retireDueObjects();
     this.remoteCalls = this.remoteCalls.filter(({ object, calls, at }) => {
       if (this.objects.get(object.id) !== object) {
@@ -166,8 +180,25 @@ export class GameObjectContainer extends CommandReceiver {
     }
   }
 
-  private retireDueObjects() {
-    const renderTime = serverTimeline.renderTime;
+  private pruneDeferred(cutoff: number) {
+    this.retireDueObjects(cutoff);
+    this.remoteCalls = this.remoteCalls.filter(({ object, calls, at }) => {
+      if (at === undefined || at > cutoff) {
+        return true;
+      }
+      for (const call of calls) {
+        if (call.functionName === 'setHealth' && object instanceof CharacterBase) {
+          // The view's health setter also plays hit feedback; expired damage is state only.
+          object.health = call.args[0];
+        } else if (persistentRemoteCalls.has(call.functionName)) {
+          object.processRemoteCalls([call]);
+        }
+      }
+      return false;
+    });
+  }
+
+  private retireDueObjects(renderTime = serverTimeline.renderTime) {
     for (const [id, at] of this.deleteAt) {
       if (renderTime >= at) {
         this.deleteObject(id);
@@ -205,8 +236,13 @@ export class GameObjectContainer extends CommandReceiver {
   }
 
   private deleteObject(id: Id) {
-    this.objects.get(id)?.beforeDestroy?.();
+    const object = this.objects.get(id);
+    object?.beforeDestroy?.();
     this.objects.delete(id);
+    this.remoteCalls = this.remoteCalls.filter((call) => call.object !== object);
+    if (this.player === object) {
+      this.player = undefined;
+    }
     this.planets = this.planets.filter((p) => p.id !== id);
     this.visibleFrom.delete(id);
     this.deleteAt.delete(id);
