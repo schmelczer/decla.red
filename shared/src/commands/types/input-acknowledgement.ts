@@ -13,6 +13,7 @@ export class CharacterMovementSnapshot {
     public readonly rightFootNormal: vec2,
     public readonly groundPlanetId: Id | null,
     public readonly secondsSinceOnSurface: number,
+    public readonly leapCooldownRemaining: number = 0,
   ) {}
 
   public toArray(): Array<any> {
@@ -23,6 +24,7 @@ export class CharacterMovementSnapshot {
       this.rightFootNormal,
       this.groundPlanetId,
       this.secondsSinceOnSurface,
+      this.leapCooldownRemaining,
     ];
   }
 }

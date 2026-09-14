@@ -59,8 +59,6 @@ export class Game extends CommandReceiver {
   private resolveStarted!: () => void;
   private isBetweenGames = false;
   private isActive = true;
-  private isEnding = false;
-  private timeScaling = 1;
 
   private readonly keyboardListener: KeyboardListener;
   private readonly mouseListener: MouseListener;
@@ -92,7 +90,7 @@ export class Game extends CommandReceiver {
         c.lastLeapClientTimeMs,
         c.ackAgeMs,
       ),
-    [GameEndCommand.name]: () => (this.isEnding = true),
+    [GameEndCommand.name]: () => (localCharacterPredictor.enabled = false),
     [UpdateMinimap.name]: (c: UpdateMinimap) => (this.lastMinimap = c),
     [GameStartCommand.name]: () => this.initialize(),
   };
@@ -125,6 +123,7 @@ export class Game extends CommandReceiver {
     this.socket?.close();
     serverTimeline.reset();
     localCharacterPredictor.reset();
+    localCharacterPredictor.enabled = true;
     ScreenShake.reset();
     this.gameObjects.reset();
     this.gameObjects = new GameObjectContainer(this);
@@ -132,10 +131,8 @@ export class Game extends CommandReceiver {
     this.keystoneArrow = undefined;
     this.connectionBanner = undefined;
     this.lastMinimap = undefined;
-    this.isEnding = false;
     this.lastAnnouncementText = '';
     this.announcementText.innerText = '';
-    this.timeScaling = 1;
     this.overlay.append(
       this.scoreboard.element,
       this.minimap.element,
@@ -172,6 +169,7 @@ export class Game extends CommandReceiver {
       serverTimeline.reset();
       localCharacterPredictor.reset();
       this.gameObjects.reset();
+      this.socketReceiver.reset();
       this.socket.emit(TransportEvents.PlayerJoining, {
         ...this.playerDecision,
         reconnectToken: this.reconnectToken,
@@ -220,49 +218,64 @@ export class Game extends CommandReceiver {
   }
 
   public async start(): Promise<void> {
-    this.initialize();
-    this.resolveStarted();
-    const noiseTexture = await renderNoise([256, 256], 2, 1);
+    setFrameTimeMs(0);
+    try {
+      this.initialize();
+      this.resolveStarted();
+      let renderError: unknown;
+      const noiseTexture = await renderNoise([256, 256], 2, 1);
 
-    await runAnimation(
-      this.canvas,
-      [
-        PlanetShape.descriptor,
-        CharacterShape.descriptor,
-        {
-          ...CircleLight.descriptor,
-          shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
+      await runAnimation(
+        this.canvas,
+        [
+          PlanetShape.descriptor,
+          CharacterShape.descriptor,
+          {
+            ...CircleLight.descriptor,
+            shaderCombinationSteps: [0, 1, 2, 4, 8, 16],
+          },
+        ],
+        (renderer, currentTime, deltaTime) => {
+          try {
+            return this.gameLoop(renderer, currentTime, deltaTime);
+          } catch (error) {
+            renderError = error;
+            return false;
+          }
         },
-      ],
-      this.gameLoop.bind(this),
-      {
-        shadowTraceCount: 16,
-        paletteSize: settings.paletteDim.length,
-        colorPalette: settings.paletteDim,
-        enableHighDpiRendering: true,
-        lightCutoffDistance: settings.lightCutoffDistance,
-        lightOverlapReduction: settings.lightOverlapReduction,
-        textures: {
-          noiseTexture: {
-            source: noiseTexture,
-            overrides: {
-              maxFilter: FilteringOptions.LINEAR,
-              wrapS: WrapOptions.MIRRORED_REPEAT,
-              wrapT: WrapOptions.MIRRORED_REPEAT,
+        {
+          shadowTraceCount: 16,
+          paletteSize: settings.paletteDim.length,
+          colorPalette: settings.paletteDim,
+          enableHighDpiRendering: true,
+          lightCutoffDistance: settings.lightCutoffDistance,
+          lightOverlapReduction: settings.lightOverlapReduction,
+          textures: {
+            noiseTexture: {
+              source: noiseTexture,
+              overrides: {
+                maxFilter: FilteringOptions.LINEAR,
+                wrapS: WrapOptions.MIRRORED_REPEAT,
+                wrapT: WrapOptions.MIRRORED_REPEAT,
+              },
             },
           },
         },
-      },
-    );
-
-    this.socket.close();
-    this.gameObjects.reset();
-    this.overlay.innerHTML = '';
-    this.hideConnectionBanner();
-    FeedbackHud.reset();
-    this.keyboardListener.destroy();
-    this.mouseListener.destroy();
-    this.touchListener.destroy();
+      );
+      if (renderError) {
+        throw renderError;
+      }
+    } finally {
+      this.resolveStarted();
+      this.socket?.close();
+      this.gameObjects.reset();
+      this.overlay.innerHTML = '';
+      this.hideConnectionBanner();
+      FeedbackHud.reset();
+      this.keyboardListener.destroy();
+      this.mouseListener.destroy();
+      this.touchListener.destroy();
+    }
   }
 
   public static rejectionText(reason: JoinRejectionReason): string {
@@ -307,6 +320,11 @@ export class Game extends CommandReceiver {
     this.isActive = false;
   }
 
+  public resendMovement() {
+    this.keyboardListener.resendMovement();
+    this.touchListener.resendMovement();
+  }
+
   private gameLoop(
     renderer: Renderer,
     currentTime: DOMHighResTimeStamp,
@@ -331,11 +349,6 @@ export class Game extends CommandReceiver {
       (this.timeSinceLastAnnouncement += deltaTime) > settings.announcementVisibleSeconds
     ) {
       this.lastAnnouncementText = '';
-    }
-
-    if (this.isEnding) {
-      this.timeScaling *= Math.pow(settings.endGameDeltaScaling, deltaTime);
-      deltaTime /= this.timeScaling;
     }
 
     this.gameObjects.step(deltaTime);

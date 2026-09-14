@@ -21,12 +21,13 @@ export class TouchListener extends InputGenerator {
 
   private isJoystickActive = false;
   private touchStartPosition = vec2.create();
+  private movement = vec2.create();
   private primaryDownAt: number | null = null;
   private gestureTouchId: number | null = null;
 
   private fireDownAt: number | null = null;
+  private fireTouchId: number | null = null;
   private fireButtonCenter = vec2.create();
-  private fireAim: vec2 | null = null;
 
   constructor(
     private readonly target: HTMLElement,
@@ -46,6 +47,7 @@ export class TouchListener extends InputGenerator {
     this.fireButton.addEventListener('touchstart', this.fireButtonDownListener);
     this.fireButton.addEventListener('touchmove', this.fireButtonMoveListener);
     this.fireButton.addEventListener('touchend', this.fireButtonUpListener);
+    this.fireButton.addEventListener('touchcancel', this.fireButtonCancelListener);
 
     this.leapButton.className = 'touch-button leap';
     this.leapButton.addEventListener('touchstart', this.leapButtonListener);
@@ -54,11 +56,12 @@ export class TouchListener extends InputGenerator {
     target.addEventListener('touchmove', this.touchMoveListener);
     target.addEventListener('touchend', this.touchEndListener);
     target.addEventListener('touchcancel', this.touchCancelListener);
+    window.addEventListener('blur', this.cancelTouches);
   }
 
-  private findGestureTouch(list: TouchList): Touch | undefined {
+  private findTouch(list: TouchList, id: number | null): Touch | undefined {
     for (let i = 0; i < list.length; i++) {
-      if (list[i].identifier === this.gestureTouchId) {
+      if (list[i].identifier === id) {
         return list[i];
       }
     }
@@ -78,7 +81,7 @@ export class TouchListener extends InputGenerator {
         ),
         0,
       );
-    } else {
+    } else if (this.gestureTouchId === null) {
       this.gestureTouchId = touch.identifier;
       vec2.set(this.touchStartPosition, touch.clientX, touch.clientY);
       this.primaryDownAt = performance.now();
@@ -89,7 +92,7 @@ export class TouchListener extends InputGenerator {
   private touchMoveListener = (event: TouchEvent) => {
     event.preventDefault();
 
-    const touch = this.findGestureTouch(event.touches);
+    const touch = this.findTouch(event.touches, this.gestureTouchId);
     if (!touch) {
       return;
     }
@@ -117,16 +120,17 @@ export class TouchListener extends InputGenerator {
 
     if (deltaLength > deadZone) {
       vec2.set(delta, delta[0], -delta[1]);
-      this.sendMove(vec2.normalize(delta, delta));
+      vec2.normalize(this.movement, delta);
     } else {
-      this.sendMove(vec2.create());
+      vec2.zero(this.movement);
     }
+    this.sendMove(vec2.clone(this.movement));
   };
 
   private touchEndListener = (event: TouchEvent) => {
     event.preventDefault();
 
-    const touch = this.findGestureTouch(event.changedTouches);
+    const touch = this.findTouch(event.changedTouches, this.gestureTouchId);
     if (!touch) {
       return;
     }
@@ -147,7 +151,7 @@ export class TouchListener extends InputGenerator {
   };
 
   private touchCancelListener = (event: TouchEvent) => {
-    if (!this.findGestureTouch(event.changedTouches)) {
+    if (!this.findTouch(event.changedTouches, this.gestureTouchId)) {
       return;
     }
     this.gestureTouchId = null;
@@ -161,7 +165,30 @@ export class TouchListener extends InputGenerator {
   private releaseJoystick() {
     this.isJoystickActive = false;
     this.joystick.remove();
-    this.sendMove(vec2.create());
+    vec2.zero(this.movement);
+    this.sendMove(vec2.clone(this.movement));
+  }
+
+  public resendMovement() {
+    if (this.isJoystickActive) {
+      this.sendMove(vec2.clone(this.movement));
+    }
+  }
+
+  private cancelTouches = () => {
+    this.gestureTouchId = null;
+    this.primaryDownAt = null;
+    this.cancelFire();
+    if (this.isJoystickActive) {
+      this.releaseJoystick();
+    }
+  };
+
+  private cancelFire() {
+    this.fireTouchId = null;
+    this.fireDownAt = null;
+    this.fireAimLine.style.opacity = '0';
+    ChargeIndicator.end();
   }
 
   private swallowTouch(event: TouchEvent) {
@@ -176,6 +203,11 @@ export class TouchListener extends InputGenerator {
 
   private fireButtonDownListener = (event: TouchEvent) => {
     this.swallowTouch(event);
+    const touch = event.changedTouches[0];
+    if (this.fireTouchId !== null || !touch) {
+      return;
+    }
+    this.fireTouchId = touch.identifier;
     this.fireDownAt = performance.now();
     const rect = this.fireButton.getBoundingClientRect();
     vec2.set(
@@ -183,18 +215,16 @@ export class TouchListener extends InputGenerator {
       rect.left + rect.width / 2,
       rect.top + rect.height / 2,
     );
-    this.fireAim = null;
     ChargeIndicator.begin(this.fireButtonCenter[0], this.fireButtonCenter[1]);
   };
 
   private fireButtonMoveListener = (event: TouchEvent) => {
     this.swallowTouch(event);
-    const touch = event.targetTouches[0] ?? event.changedTouches[0];
+    const touch = this.findTouch(event.touches, this.fireTouchId);
     if (this.fireDownAt === null || !touch) {
       return;
     }
     const aim = this.aimFromTouch(touch);
-    this.fireAim = aim;
     if (aim) {
       this.fireAimLine.style.opacity = '1';
       this.fireAimLine.style.transform = `translateY(-50%) rotate(${Math.atan2(-aim[1], aim[0])}rad)`;
@@ -215,22 +245,21 @@ export class TouchListener extends InputGenerator {
 
   private fireButtonUpListener = (event: TouchEvent) => {
     this.swallowTouch(event);
-    ChargeIndicator.end();
-    this.fireAimLine.style.opacity = '0';
-    if (this.fireDownAt === null) {
+    const touch = this.findTouch(event.changedTouches, this.fireTouchId);
+    if (this.fireDownAt === null || !touch) {
       return;
     }
 
     const charge = chargeHeldSince(this.fireDownAt);
-    this.fireDownAt = null;
+    const aim = this.aimFromTouch(touch);
+    this.cancelFire();
 
     const character = this.game.gameObjects.localPlayer;
     if (!character) {
       return;
     }
 
-    const direction = this.fireAim ?? character.facingDirection;
-    this.fireAim = null;
+    const direction = aim ?? character.facingDirection;
     this.sendPrimary(
       vec2.scaleAndAdd(
         vec2.create(),
@@ -242,9 +271,19 @@ export class TouchListener extends InputGenerator {
     );
   };
 
+  private fireButtonCancelListener = (event: TouchEvent) => {
+    this.swallowTouch(event);
+    if (this.findTouch(event.changedTouches, this.fireTouchId)) {
+      this.cancelFire();
+    }
+  };
+
   public update() {
     if (!this.fireButton.parentElement) {
       this.overlay.append(this.fireButton, this.leapButton);
+    }
+    if (this.isJoystickActive && !this.joystick.parentElement) {
+      this.overlay.appendChild(this.joystick);
     }
 
     const character = this.game.gameObjects.localPlayer;
@@ -261,13 +300,16 @@ export class TouchListener extends InputGenerator {
     this.target.removeEventListener('touchmove', this.touchMoveListener);
     this.target.removeEventListener('touchend', this.touchEndListener);
     this.target.removeEventListener('touchcancel', this.touchCancelListener);
+    window.removeEventListener('blur', this.cancelTouches);
 
     this.fireButton.removeEventListener('touchstart', this.fireButtonDownListener);
     this.fireButton.removeEventListener('touchmove', this.fireButtonMoveListener);
     this.fireButton.removeEventListener('touchend', this.fireButtonUpListener);
+    this.fireButton.removeEventListener('touchcancel', this.fireButtonCancelListener);
     this.leapButton.removeEventListener('touchstart', this.leapButtonListener);
 
     this.fireButton.remove();
     this.leapButton.remove();
+    this.joystick.remove();
   }
 }

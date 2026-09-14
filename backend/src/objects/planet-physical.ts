@@ -95,6 +95,9 @@ export class PlanetPhysical extends PlanetBase implements Physical {
     let blue = 0;
     let red = 0;
     for (const c of this.presentCharacters) {
+      if (!c.isAlive) {
+        continue;
+      }
       if (c.team === CharacterTeam.blue) {
         blue++;
       } else if (c.team === CharacterTeam.red) {
@@ -172,10 +175,14 @@ export class PlanetPhysical extends PlanetBase implements Physical {
     this.ownership = clamp01(this.ownership);
   }
 
-  public getPropertyUpdates(): PropertyUpdatesForObject {
+  public getPropertyUpdates(timeScale = 1): PropertyUpdatesForObject {
     return new PropertyUpdatesForObject(this.id, [
       new UpdatePropertyCommand('ownership', this.ownership, 0),
-      new UpdatePropertyCommand('rotation', this.rotation, this.angularVelocity),
+      new UpdatePropertyCommand(
+        'rotation',
+        this.rotation,
+        this.angularVelocity * timeScale,
+      ),
     ]);
   }
 }

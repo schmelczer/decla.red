@@ -9,11 +9,16 @@ import {
 } from 'shared';
 import { PlanetView } from '../../objects/types/planet-view';
 
+export type PlanetSnapshot = Pick<
+  PlanetView,
+  'id' | 'vertices' | 'snapshotRotation' | 'snapshotRotationSpeed'
+>;
+
 // Planets only, re-seeded from the newest snapshot every frame; never dispatches collisions.
 export class ClientCharacterWorld implements CharacterWorld {
   private surfaces: Array<PlanetBase> = [];
 
-  public sync(planets: Array<PlanetView>) {
+  public sync(planets: Array<PlanetSnapshot>) {
     this.surfaces = planets
       .map((planet) => {
         const surface = new PlanetBase(planet.id, planet.vertices);

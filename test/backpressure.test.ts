@@ -15,13 +15,19 @@ const {
   CreateObjectsCommand,
   DeleteObjectsCommand,
   PropertyUpdatesForObjects,
+  PropertyUpdatesForObject,
+  UpdatePropertyCommand,
+  InputAcknowledgement,
   UpdateMinimap,
   ServerAnnouncement,
 } = shared;
 
 class FakeSocket {
   public readonly sent: Array<{ event: string; payload: unknown }> = [];
-  public readonly conn = { transport: { socket: { bufferedAmount: 0 } } };
+  public readonly conn = {
+    transport: { socket: { bufferedAmount: 0 } },
+    writeBuffer: [] as Array<{ data: unknown }>,
+  };
 
   public set bufferedAmount(bytes: number) {
     this.conn.transport.socket.bufferedAmount = bytes;
@@ -58,7 +64,19 @@ const queueOneSnapshot = (player: ReturnType<typeof makePlayer>['player']) => {
   player.queueCommandSend(new DeleteObjectsCommand([1234]));
   player.queueCommandSend(new ServerAnnouncement('team blue wins'));
   player.queueCommandSend(new UpdateMinimap([]));
-  player.queueCommandSend(new PropertyUpdatesForObjects([], 1));
+  player.queueCommandSend(
+    new PropertyUpdatesForObjects(
+      [
+        new PropertyUpdatesForObject(1234, [
+          new UpdatePropertyCommand('ownership', 1, 0),
+        ]),
+      ],
+      1,
+    ),
+  );
+  player.queueCommandSend(
+    new InputAcknowledgement(123, player.character!.movementSnapshot, 0, 0),
+  );
 };
 
 const typesIn = (batch: Array<{ constructor: { name: string } }>) =>
@@ -80,6 +98,7 @@ describe('slow-client backpressure', () => {
       ServerAnnouncement.name,
       UpdateMinimap.name,
       PropertyUpdatesForObjects.name,
+      InputAcknowledgement.name,
     ]);
   });
 
@@ -89,7 +108,8 @@ describe('slow-client backpressure', () => {
     queueOneSnapshot(player);
     player.sendQueuedCommandsToClient();
 
-    expect(typesIn(socket.lastBatch)).not.toContain(PropertyUpdatesForObjects.name);
+    const marker = socket.lastBatch.find((c) => c instanceof PropertyUpdatesForObjects);
+    expect(marker).toMatchObject({ updates: [], timestamp: 1 });
   });
 
   it('sheds only the state the next tick regenerates', () => {
@@ -99,7 +119,8 @@ describe('slow-client backpressure', () => {
     player.sendQueuedCommandsToClient();
 
     const types = typesIn(socket.lastBatch);
-    expect(types).not.toContain(PropertyUpdatesForObjects.name);
+    expect(types).toContain(PropertyUpdatesForObjects.name);
+    expect(types).not.toContain(InputAcknowledgement.name);
     expect(types).not.toContain(UpdateMinimap.name);
     expect(types).toContain(CreateObjectsCommand.name);
     expect(types).toContain(DeleteObjectsCommand.name);
@@ -114,5 +135,33 @@ describe('slow-client backpressure', () => {
     player.sendQueuedCommandsToClient();
 
     expect(socket.sent.length).toBe(before);
+  });
+
+  it('also measures packets waiting inside Engine.IO for the transport to drain', () => {
+    const { player, socket } = makePlayer();
+    socket.conn.writeBuffer.push({
+      data: Buffer.alloc(settings.maxBufferedBytesPerClient + 1),
+    });
+    queueOneSnapshot(player);
+    player.sendQueuedCommandsToClient();
+
+    const marker = socket.lastBatch.find((c) => c instanceof PropertyUpdatesForObjects);
+    expect(marker).toMatchObject({ updates: [], timestamp: 1 });
+    expect(typesIn(socket.lastBatch)).not.toContain(InputAcknowledgement.name);
+  });
+
+  it('sends a fresh pose and acknowledgement after the transport drains', () => {
+    const { player, socket } = makePlayer();
+    socket.bufferedAmount = settings.maxBufferedBytesPerClient + 1;
+    queueOneSnapshot(player);
+    player.sendQueuedCommandsToClient();
+
+    socket.bufferedAmount = 0;
+    queueOneSnapshot(player);
+    player.sendQueuedCommandsToClient();
+
+    const snapshot = socket.lastBatch.find((c) => c instanceof PropertyUpdatesForObjects);
+    expect(snapshot).toMatchObject({ updates: [expect.anything()], timestamp: 1 });
+    expect(typesIn(socket.lastBatch)).toContain(InputAcknowledgement.name);
   });
 });

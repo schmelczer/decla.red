@@ -15,7 +15,7 @@ import '../static/favicons/favicon-32x32.png';
 import '../static/favicons/favicon.ico';
 import ResizeObserver from 'resize-observer-polyfill';
 import { LandingPageBackground } from './scripts/landing-page-background';
-import { JoinFormHandler } from './scripts/join-form-handler';
+import { JoinFormHandler, PlayerDecision } from './scripts/join-form-handler';
 import { handleFullScreen } from './scripts/helper/handle-full-screen';
 import { Game } from './scripts/game';
 import { initializeOptions } from './scripts/options-handler';
@@ -25,6 +25,7 @@ import { CharacterView } from './scripts/objects/types/character-view';
 import { LampView } from './scripts/objects/types/lamp-view';
 import { PlanetView } from './scripts/objects/types/planet-view';
 import { ProjectileView } from './scripts/objects/types/projectile-view';
+import { loadStoredValue, saveStoredValue } from './scripts/helper/storage';
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -88,9 +89,9 @@ const applyServerContainerShadows = () => {
 const main = async () => {
   let game: Game | undefined;
 
-  const storedUserName = localStorage.getItem('userName');
-  if (storedUserName) {
-    nameInput.value = JSON.parse(storedUserName);
+  const storedUserName = loadStoredValue('userName');
+  if (typeof storedUserName === 'string') {
+    nameInput.value = storedUserName;
   }
 
   const firstClickListener = () => {
@@ -138,12 +139,17 @@ const main = async () => {
     const background = new LandingPageBackground(canvas);
     const joinHandler = new JoinFormHandler(joinGameForm, serverContainer);
 
-    await background.renderer;
-    setVisible(spinner, false);
+    let playerDecision: PlayerDecision;
+    try {
+      await background.renderer;
+      setVisible(spinner, false);
+      playerDecision = await joinHandler.getPlayerDecision();
+    } finally {
+      background.destroy();
+      joinHandler.destroy();
+    }
 
-    const playerDecision = await joinHandler.getPlayerDecision();
-
-    localStorage.setItem('userName', JSON.stringify(playerDecision.name));
+    saveStoredValue('userName', playerDecision.name);
 
     if (!history.state) {
       history.pushState(true, '');
@@ -151,7 +157,6 @@ const main = async () => {
 
     setDisplayed(landingUI, null);
     setVisible(spinner, true);
-    background.destroy();
     game = new Game(playerDecision, canvas, overlay);
     const gameOver = game.start();
     await game.started;
@@ -168,6 +173,7 @@ const main = async () => {
 main().catch((error) => {
   console.error(error);
   setVisible(spinner, false);
+  setDisplayed(landingUI, 'flex');
   joinNotice.innerText = 'Something went wrong. Please reload the page.';
   setDisplayed(joinNotice, 'block');
 });

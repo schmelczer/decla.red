@@ -9,35 +9,39 @@ export const resolveCircleMovement = (
   possibleIntersectors: Array<Sdf>,
   onHit?: (intersecting: Sdf) => void,
 ): Sdf | undefined => {
-  let delta = vec2.scale(vec2.create(), body.velocity, deltaTimeInSeconds);
-
   depenetrateCircle(body, possibleIntersectors);
+  let remainingSeconds = deltaTimeInSeconds;
+  let firstHit: Sdf | undefined;
 
-  const { normal, hitSurface, hitObject } = marchCircle(
-    body,
-    delta,
-    possibleIntersectors,
-    onHit,
-  );
-
-  if (hitSurface) {
-    vec2.copy(body.lastNormal, normal!);
-
-    vec2.subtract(
-      body.velocity,
-      body.velocity,
-      vec2.scale(
-        normal!,
-        normal!,
-        (1 + body.restitution) * vec2.dot(normal!, body.velocity),
-      ),
+  // Resolve at most two contacts per step, spending only the time left after each hit.
+  for (let pass = 0; pass < 2 && remainingSeconds > 0; pass++) {
+    const speed = vec2.length(body.velocity);
+    if (speed === 0) {
+      break;
+    }
+    const delta = vec2.scale(vec2.create(), body.velocity, remainingSeconds);
+    const { normal, hitObject, travelled } = marchCircle(
+      body,
+      delta,
+      possibleIntersectors,
+      onHit,
     );
-
-    if (vec2.length(body.velocity) > 50) {
-      delta = vec2.scale(vec2.create(), body.velocity, deltaTimeInSeconds);
-      marchCircle(body, delta, possibleIntersectors, onHit);
+    if (!hitObject || !normal) {
+      break;
+    }
+    firstHit ??= hitObject;
+    vec2.copy(body.lastNormal, normal);
+    remainingSeconds -= travelled / speed;
+    const inwardSpeed = vec2.dot(normal, body.velocity);
+    if (inwardSpeed < 0) {
+      vec2.scaleAndAdd(
+        body.velocity,
+        body.velocity,
+        normal,
+        -(1 + body.restitution) * inwardSpeed,
+      );
     }
   }
 
-  return hitObject;
+  return firstHit;
 };

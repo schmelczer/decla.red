@@ -28,6 +28,7 @@ export class MouseListener extends InputGenerator {
 
   private mouseDownListener = (event: MouseEvent) => {
     if (event.button === 0) {
+      this.mouseMoveListener(event);
       this.primaryDownAt = performance.now();
       ChargeIndicator.begin(event.clientX, event.clientY, true);
     }

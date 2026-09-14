@@ -28,7 +28,10 @@ export class LinearInterpolator {
     const newest = this.frames.length > 0 ? this.frames[this.frames.length - 1] : null;
     const wasCoasting = this.isCoasting;
 
-    if (newest && time <= newest.time) {
+    if (newest && time < newest.time) {
+      return;
+    }
+    if (newest && time === newest.time) {
       this.frames[this.frames.length - 1] = {
         time: newest.time,
         value,

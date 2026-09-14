@@ -1,5 +1,6 @@
 import { SoundHandler, Sounds } from './sound-handler';
 import { VibrationHandler } from './vibration-handler';
+import { loadStoredValue, saveStoredValue } from './helper/storage';
 
 export interface Options {
   vibrationEnabled: boolean;
@@ -13,14 +14,17 @@ export const options: Options = {
   musicEnabled: true,
 };
 
-const save = () => localStorage.setItem('options', JSON.stringify(options));
-
 export const initializeOptions = (
   inputElements: Record<keyof Options, HTMLInputElement>,
 ) => {
-  const stored = localStorage.getItem('options');
-  if (stored) {
-    Object.assign(options, JSON.parse(stored));
+  const stored = loadStoredValue('options');
+  if (stored && typeof stored === 'object') {
+    for (const key of Object.keys(inputElements) as Array<keyof Options>) {
+      const value = (stored as Partial<Options>)[key];
+      if (typeof value === 'boolean') {
+        options[key] = value;
+      }
+    }
   }
 
   if (options.musicEnabled) {
@@ -51,7 +55,7 @@ export const initializeOptions = (
       }
 
       SoundHandler.play(Sounds.click);
-      save();
+      saveStoredValue('options', options);
     });
   }
 };

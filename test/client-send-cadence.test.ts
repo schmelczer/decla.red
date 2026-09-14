@@ -81,4 +81,21 @@ describe('client send cadence', () => {
 
     expect(batches).toHaveLength(0);
   });
+
+  it('discards commands from the previous connection before the next join', () => {
+    const batches: Array<string> = [];
+    const socket = new CommandSocket({
+      connected: true,
+      emit: (_event: string, payload: string) => batches.push(payload),
+    } as never);
+    setFrameTimeMs(1000);
+    socket.sendQueuedCommands();
+    socket.queue(new MoveActionCommand(vec2.fromValues(1, 0), 1000));
+    socket.reset();
+    socket.sendQueuedCommands();
+
+    expect(batches).toHaveLength(2);
+    expect(batches[1]).toContain(ClientHeartbeatCommand.name);
+    expect(batches[1]).not.toContain(MoveActionCommand.name);
+  });
 });

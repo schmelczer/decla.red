@@ -114,6 +114,8 @@ module.exports = (env, argv) => {
       ],
     },
     resolve: {
+      // Shared physics and rendering must use the same matrix array type as index.ts.
+      alias: { 'gl-matrix': path.resolve(__dirname, 'node_modules/gl-matrix') },
       extensions: ['.ts', '.js', '.json'],
     },
   };

@@ -93,13 +93,25 @@ export class ProjectilePhysical extends ProjectileBase implements Physical {
     }
   }
 
-  public getPropertyUpdates(): PropertyUpdatesForObject {
+  public getPropertyUpdates(timeScale = 1): PropertyUpdatesForObject {
     return new PropertyUpdatesForObject(this.id, [
-      new UpdatePropertyCommand('center', this.center, this.object.velocity),
+      new UpdatePropertyCommand(
+        'center',
+        this.center,
+        vec2.scale(vec2.create(), this.object.velocity, timeScale),
+      ),
+      new UpdatePropertyCommand(
+        'strength',
+        this.strength,
+        -settings.projectileFadeSpeed * timeScale,
+      ),
     ]);
   }
 
   public step(deltaTimeInSeconds: number) {
+    if (!this.isAlive) {
+      return;
+    }
     super.step(deltaTimeInSeconds);
 
     if (this.strength <= 0) {

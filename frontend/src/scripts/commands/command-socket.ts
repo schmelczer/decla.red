@@ -22,6 +22,11 @@ export class CommandSocket {
     this.commandQueue.push(command);
   }
 
+  public reset() {
+    this.commandQueue = [];
+    this.lastSendMs = -Infinity;
+  }
+
   public sendQueuedCommands() {
     // socket.io-client would buffer emits made while disconnected and flush them before the re-join.
     if (!this.socket.connected) {

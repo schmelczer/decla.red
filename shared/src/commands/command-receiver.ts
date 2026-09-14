@@ -12,7 +12,7 @@ export abstract class CommandReceiver {
   public handleCommand(command: Command) {
     const commandType = command.constructor.name;
 
-    if (commandType in this.commandExecutors) {
+    if (Object.prototype.hasOwnProperty.call(this.commandExecutors, commandType)) {
       this.commandExecutors[commandType]!(command);
     } else {
       this.defaultCommandExecutor(command);

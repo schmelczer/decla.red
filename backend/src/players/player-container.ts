@@ -30,13 +30,15 @@ export class PlayerContainer {
   }
 
   private createNPCs() {
-    const newNpcCount = Math.min(
-      this.playerMaxCount - this._players.length - this.npcs.length,
-      this.npcMaxCount - this.npcs.length,
-    );
+    const newNpcCount =
+      Math.min(this.playerMaxCount, this.npcMaxCount) -
+      this._players.length -
+      this.npcs.length;
     for (let i = 0; i < newNpcCount; i++) {
       const name = `🤖 ${Random.choose(settings.npcNames)}`;
-      this.npcs.push(new NPC({ name }, this, this.objects, this.getTeamOfNextNpc()));
+      this.npcs.push(
+        new NPC({ name }, this, this.objects, this.teamOfNext(this.players)),
+      );
     }
   }
 
@@ -45,7 +47,7 @@ export class PlayerContainer {
     socket: Socket,
     carried?: CarriedScore,
   ): Player {
-    const team = carried ? carried.team : this.getTeamOfNextPlayer();
+    const team = carried ? carried.team : this.teamOfNext(this._players);
 
     const npcToReplace =
       this.npcs.find((n) => n.team === team) ?? this.npcs.find((n) => n.team !== team);
@@ -98,14 +100,6 @@ export class PlayerContainer {
 
   public sendQueuedCommands() {
     this._players.forEach((p) => p.sendQueuedCommandsToClient());
-  }
-
-  private getTeamOfNextPlayer(): CharacterTeam {
-    return this.teamOfNext(this._players);
-  }
-
-  private getTeamOfNextNpc(): CharacterTeam {
-    return this.teamOfNext(this.players);
   }
 
   private teamOfNext(players: Array<PlayerBase>): CharacterTeam {

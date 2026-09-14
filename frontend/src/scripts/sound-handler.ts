@@ -16,7 +16,7 @@ let initialized = false;
 async function initializeSound(src: string): Promise<HTMLAudioElement> {
   const snd = new Audio(src);
   snd.muted = true;
-  await snd.play();
+  await snd.play().catch(() => undefined);
   snd.pause();
   snd.muted = false;
   snd.currentTime = 0;
@@ -27,20 +27,22 @@ async function initialize(
   onPlayKeypress: () => unknown = () => null,
   onPauseKeypress: () => unknown = () => null,
 ) {
+  ambient.muted = true;
+  ambient.volume = 0.5;
+  ambient.loop = true;
+  // Unlock every audio element during the initiating click, before awaiting any one.
+  const ambientReady = ambient.play().catch(() => undefined);
   const [hit, shoot, click] = await Promise.all(
     [hitSound, shootSound, clickSound].map(initializeSound),
   );
   sounds = { hit, shoot, click };
 
-  await ambient.play();
-  ambient.muted = true;
+  await ambientReady;
   initialized = true;
   ambient.onpause = onPauseKeypress;
   ambient.onplay = onPlayKeypress;
 
   ambient.muted = false;
-  ambient.volume = 0.5;
-  ambient.loop = true;
 
   if (!isAmbientPlaying) {
     ambient.pause();
@@ -66,7 +68,7 @@ function play(snd: Sound, volume = 1, playbackRate = 1) {
 function playAmbient() {
   isAmbientPlaying = true;
   if (initialized) {
-    ambient.play();
+    void ambient.play().catch(() => undefined);
   }
 }
 

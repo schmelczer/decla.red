@@ -14,6 +14,6 @@ export const defaultOptions: Options = {
   name: isDevelopment ? 'Dev server' : 'Doppler server',
   playerLimit: 16,
   npcCount: 8,
-  seed: Math.random(),
+  seed: (Math.random() * 0x100000000) >>> 0,
   scoreLimit: 2500,
 };

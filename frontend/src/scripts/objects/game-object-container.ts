@@ -8,8 +8,8 @@ import {
   DeleteObjectsCommand,
   Id,
   PropertyUpdatesForObjects,
+  RemoteCall,
   RemoteCallsForObjects,
-  settings,
   UpdatePropertyCommand,
 } from 'shared';
 import { FeedbackHud } from '../feedback-hud';
@@ -34,6 +34,8 @@ export class GameObjectContainer extends CommandReceiver {
   private deleteAt = new Map<Id, number>();
   private awaitingCreateStamp: Array<Id> = [];
   private awaitingDeleteStamp: Array<Id> = [];
+  private remoteCalls: Array<{ object: View; calls: Array<RemoteCall>; at?: number }> =
+    [];
 
   protected commandExecutors: CommandExecutors = {
     [CreatePlayerCommand.name]: (c: CreatePlayerCommand) => {
@@ -41,6 +43,7 @@ export class GameObjectContainer extends CommandReceiver {
       this.player.isMainCharacter = true;
       this.addObject(this.player);
       localCharacterPredictor.reset();
+      this.game.resendMovement();
       FeedbackHud.hideElimination();
       this.wasLocalPlayerAlive = true;
     },
@@ -52,9 +55,14 @@ export class GameObjectContainer extends CommandReceiver {
       }),
 
     [RemoteCallsForObjects.name]: (c: RemoteCallsForObjects) =>
-      c.callsForObjects.forEach((c) =>
-        this.objects.get(c.id)?.processRemoteCalls(c.calls),
-      ),
+      c.callsForObjects.forEach(({ id, calls }) => {
+        const object = this.objects.get(id);
+        if (object === this.player) {
+          object?.processRemoteCalls(calls);
+        } else if (object) {
+          this.remoteCalls.push({ object, calls });
+        }
+      }),
 
     [PropertyUpdatesForObjects.name]: (c: PropertyUpdatesForObjects) => {
       serverTimeline.onSnapshot(c.timestamp);
@@ -72,7 +80,7 @@ export class GameObjectContainer extends CommandReceiver {
       c.ids.forEach((id: Id) => this.awaitingDeleteStamp.push(id)),
   };
 
-  constructor(game: Game) {
+  constructor(private readonly game: Game) {
     super();
     this.camera = new Camera(game);
   }
@@ -86,6 +94,7 @@ export class GameObjectContainer extends CommandReceiver {
     this.deleteAt.clear();
     this.awaitingCreateStamp = [];
     this.awaitingDeleteStamp = [];
+    this.remoteCalls = [];
     this.wasLocalPlayerAlive = false;
   }
 
@@ -96,6 +105,16 @@ export class GameObjectContainer extends CommandReceiver {
   public step(deltaTimeInSeconds: number) {
     this.stampPending(serverTimeline.snapshotTime);
     this.retireDueObjects();
+    this.remoteCalls = this.remoteCalls.filter(({ object, calls, at }) => {
+      if (this.objects.get(object.id) !== object) {
+        return false;
+      }
+      if (at !== undefined && at <= serverTimeline.renderTime) {
+        object.processRemoteCalls(calls);
+        return false;
+      }
+      return true;
+    });
     this.objects.forEach((o) => o.step(deltaTimeInSeconds));
 
     const player = this.localPlayer;
@@ -107,15 +126,13 @@ export class GameObjectContainer extends CommandReceiver {
 
     if (player) {
       localCharacterPredictor.setAlive(alive);
-      localCharacterPredictor.setStrength(
-        player.strengthFraction * settings.playerMaxStrength,
-      );
+      localCharacterPredictor.setStrength(player.snapshotStrength);
       if (localCharacterPredictor.update(this.planets)) {
         player.head = localCharacterPredictor.head;
         player.leftFoot = localCharacterPredictor.leftFoot;
         player.rightFoot = localCharacterPredictor.rightFoot;
       }
-      this.camera.follow(player.position, deltaTimeInSeconds);
+      this.camera.follow(player.position);
     }
   }
 
@@ -144,11 +161,14 @@ export class GameObjectContainer extends CommandReceiver {
       this.deleteAt.set(id, timestamp);
     }
     this.awaitingDeleteStamp = [];
+    for (const call of this.remoteCalls) {
+      call.at ??= timestamp;
+    }
   }
 
   private retireDueObjects() {
     const renderTime = serverTimeline.renderTime;
-    for (const [id, at] of [...this.deleteAt]) {
+    for (const [id, at] of this.deleteAt) {
       if (renderTime >= at) {
         this.deleteObject(id);
       }
@@ -172,6 +192,12 @@ export class GameObjectContainer extends CommandReceiver {
   }
 
   private addObject(object: View) {
+    // An object can re-enter the interest area before its delayed deletion is drawn.
+    // Retire the old view and its pending deletion before installing the replacement.
+    if (this.objects.has(object.id)) {
+      this.deleteObject(object.id);
+    }
+    this.awaitingDeleteStamp = this.awaitingDeleteStamp.filter((id) => id !== object.id);
     this.objects.set(object.id, object);
     if (object instanceof PlanetView) {
       this.planets.push(object);

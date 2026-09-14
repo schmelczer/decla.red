@@ -22,9 +22,17 @@ const {
   headOffset,
   leftFootOffset,
   rightFootOffset,
+  CharacterMovementSnapshot,
 } = shared;
 
 describe('serialization round-trip (built shared lib)', () => {
+  it('preserves the authoritative leap cooldown for prediction', () => {
+    const snapshot = new CharacterMovementSnapshot(0, [1, 2], [0, 1], [0, 1], 5, 0, 0.25);
+    const out = deserialize(serialize(snapshot));
+    expect(out).toBeInstanceOf(CharacterMovementSnapshot);
+    expect(out.leapCooldownRemaining).toBe(0.25);
+  });
+
   it('reconstructs a ServerAnnouncement as the right class with its payload', () => {
     const [out] = deserialize(serialize([new ServerAnnouncement('Hello <b>world</b>')]));
     expect(out).toBeInstanceOf(ServerAnnouncement);

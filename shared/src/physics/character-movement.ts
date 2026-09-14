@@ -7,29 +7,11 @@ import { smoothing } from '../helper/ease';
 export const headRadius = 50;
 export const feetRadius = 20;
 
-const desiredHeadOffset = vec2.fromValues(0, 55);
-const desiredLeftFootOffset = vec2.fromValues(-20, 0);
-const desiredRightFootOffset = vec2.fromValues(20, 0);
-const centerOfMass = vec2.scale(
-  vec2.create(),
-  vec2.add(
-    vec2.create(),
-    vec2.add(vec2.create(), desiredHeadOffset, desiredLeftFootOffset),
-    desiredRightFootOffset,
-  ),
-  1 / 3,
-);
-export const headOffset = vec2.subtract(vec2.create(), desiredHeadOffset, centerOfMass);
-export const leftFootOffset = vec2.subtract(
-  vec2.create(),
-  desiredLeftFootOffset,
-  centerOfMass,
-);
-export const rightFootOffset = vec2.subtract(
-  vec2.create(),
-  desiredRightFootOffset,
-  centerOfMass,
-);
+// Imports run before setMatrixArrayType(Array): keep these fractional constants in f64.
+const centerHeight = 55 * (1 / 3);
+export const headOffset: vec2 = [0, 55 - centerHeight];
+export const leftFootOffset: vec2 = [-20, -centerHeight];
+export const rightFootOffset: vec2 = [20, -centerHeight];
 export const boundRadius = (headRadius + feetRadius * 2) * 2;
 
 export interface CharacterMovementState {
@@ -52,11 +34,7 @@ export const applyForce = (
   force: vec2,
   deltaTimeInSeconds: number,
 ) => {
-  vec2.add(
-    body.velocity,
-    body.velocity,
-    vec2.scale(vec2.create(), force, deltaTimeInSeconds),
-  );
+  vec2.scaleAndAdd(body.velocity, body.velocity, force, deltaTimeInSeconds);
 };
 
 // ((head + leftFoot) + rightFoot) / 3 — do not reassociate.
@@ -128,20 +106,9 @@ const carryWithRotatingPlanet = (
     return;
   }
   const angle = -planet.angularVelocity * deltaTimeInSeconds;
-  const center = planet.center;
-  state.head.center = vec2.rotate(vec2.create(), state.head.center, center, angle);
-  state.leftFoot.center = vec2.rotate(
-    vec2.create(),
-    state.leftFoot.center,
-    center,
-    angle,
-  );
-  state.rightFoot.center = vec2.rotate(
-    vec2.create(),
-    state.rightFoot.center,
-    center,
-    angle,
-  );
+  for (const body of [state.head, state.leftFoot, state.rightFoot]) {
+    vec2.rotate(body.center, body.center, planet.center, angle);
+  }
 };
 
 export const applyLeapImpulse = (state: CharacterMovementState, moveDirection: vec2) => {
@@ -232,10 +199,6 @@ export const decayMomentum = (
   } else {
     vec2.scale(bodyVelocity, bodyVelocity, target / speed);
   }
-};
-
-const decayBodyMomentum = (state: CharacterMovementState, deltaTimeInSeconds: number) => {
-  decayMomentum(state.bodyVelocity, !!state.currentPlanet, deltaTimeInSeconds);
 };
 
 export const sumGravity = (grounds: Array<GroundSurface>, position: vec2): vec2 =>
@@ -335,5 +298,5 @@ export const stepCharacterMovement = (
   latchGround(state, world.stepBody(state.rightFoot, deltaTimeInSeconds));
   world.stepBody(state.head, deltaTimeInSeconds);
 
-  decayBodyMomentum(state, deltaTimeInSeconds);
+  decayMomentum(state.bodyVelocity, !!state.currentPlanet, deltaTimeInSeconds);
 };

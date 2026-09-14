@@ -83,7 +83,7 @@ export abstract class GameObject {
     }
   }
 
-  public getPropertyUpdates(): PropertyUpdatesForObject | undefined {
+  public getPropertyUpdates(_timeScale = 1): PropertyUpdatesForObject | undefined {
     return undefined;
   }
 

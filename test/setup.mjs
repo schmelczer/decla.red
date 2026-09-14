@@ -1,4 +1,5 @@
-// Production makes every vector an f64 Array before any module-level vector is allocated.
+// Use production's f64 vector type in every package. The import-order regression separately
+// verifies that physics constants also retain full precision before startup configures it.
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);

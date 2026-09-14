@@ -29,6 +29,7 @@ import {
   finiteInRange,
   finiteVec2,
   isFiniteNumber,
+  boundRadius,
 } from 'shared';
 import { Socket } from 'socket.io';
 import { BoundingBox } from '../physics/bounding-box';
@@ -36,6 +37,7 @@ import { PhysicalContainer } from '../physics/physical-container';
 import { PlayerContainer } from './player-container';
 import { PlayerBase, Score } from './player-base';
 import { CharacterPhysical } from '../objects/character-physical';
+import { planetsNear } from '../objects/planet-physical';
 
 const pingIntervalSeconds = 1;
 const minimumAspectRatio = 0.2;
@@ -59,7 +61,7 @@ export class Player extends PlayerBase {
 
   private lastInputClientTimeMs = 0;
   private lastInputReceiptMs = 0;
-  private lastLeapClientTimeMs = 0;
+  private lastLeapClientTimeMs = -1;
 
   private timeSinceLastPing = 0;
   private lastPingSentMs = 0;
@@ -178,7 +180,7 @@ export class Player extends PlayerBase {
     }
 
     // Subtracted, not zeroed: zeroing would stretch every interval to the next physics frame.
-    if ((this.timeSinceLastMessage += deltaTime) > settings.updateMessageInterval) {
+    if ((this.timeSinceLastMessage += deltaTime) >= settings.updateMessageInterval) {
       this.timeSinceLastMessage = Math.min(
         this.timeSinceLastMessage - settings.updateMessageInterval,
         settings.updateMessageInterval,
@@ -206,6 +208,14 @@ export class Player extends PlayerBase {
     );
     if (this.character) {
       inViewArea.add(this.character);
+      // Prediction needs every gravity source, including planets outside a narrow viewport.
+      for (const planet of planetsNear(
+        this.objectContainer,
+        this.character.center,
+        boundRadius + settings.maxGravityDistance,
+      )) {
+        inViewArea.add(planet);
+      }
     }
 
     const created = [...inViewArea].filter((o) => !this.objectsInViewArea.has(o));
@@ -258,19 +268,45 @@ export class Player extends PlayerBase {
   }
 
   private get bufferedBytes(): number {
-    const conn = this.socket.conn as
-      | { transport?: { socket?: { bufferedAmount?: unknown } } }
+    const conn = this.socket.conn as unknown as
+      | {
+          transport?: { socket?: { bufferedAmount?: unknown } };
+          writeBuffer?: Array<{ data?: unknown }>;
+        }
       | undefined;
     const buffered = conn?.transport?.socket?.bufferedAmount;
-    return typeof buffered === 'number' ? buffered : 0;
+    let bytes = typeof buffered === 'number' ? buffered : 0;
+    // Engine.IO queues packets here while the transport is waiting for its write callback.
+    for (const { data } of conn?.writeBuffer ?? []) {
+      if (typeof data === 'string') {
+        bytes += Buffer.byteLength(data);
+      } else if (ArrayBuffer.isView(data) || data instanceof ArrayBuffer) {
+        bytes += data.byteLength;
+      }
+    }
+    return bytes;
   }
 
   public sendQueuedCommandsToClient() {
     // Only state the next snapshot regenerates may be dropped; create/delete are one-shot.
     if (this.bufferedBytes > settings.maxBufferedBytesPerClient) {
-      this.commandsToBeSent = this.commandsToBeSent.filter(
+      const hasReliableCommands = this.commandsToBeSent.some(
         (c) => !sheddableWhenBackedUp.includes(c.constructor.name),
       );
+      this.commandsToBeSent = hasReliableCommands
+        ? this.commandsToBeSent.flatMap((c): Array<Command> => {
+            // Lifecycle events still need their snapshot time to enter the render timeline.
+            if (c.constructor.name === PropertyUpdatesForObjects.name) {
+              return [
+                new PropertyUpdatesForObjects(
+                  [],
+                  (c as PropertyUpdatesForObjects).timestamp,
+                ),
+              ];
+            }
+            return sheddableWhenBackedUp.includes(c.constructor.name) ? [] : [c];
+          })
+        : [];
     }
     if (this.commandsToBeSent.length === 0) {
       return;

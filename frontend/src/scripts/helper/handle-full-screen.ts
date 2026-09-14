@@ -18,32 +18,25 @@ export const handleFullScreen = (
   };
 
   showButtons();
-
-  let currentWindowHeight = innerHeight;
-
-  const followToggle = () => {
-    SoundHandler.play(Sounds.click);
-    showButtons();
-    currentWindowHeight = innerHeight;
-  };
+  document.addEventListener('fullscreenchange', showButtons);
 
   const triggerToggle = async () => {
-    await (isInFullScreen()
-      ? document.exitFullscreen()
-      : document.body.requestFullscreen());
-    followToggle();
+    try {
+      await (isInFullScreen()
+        ? document.exitFullscreen()
+        : document.body.requestFullscreen());
+      SoundHandler.play(Sounds.click);
+    } catch {
+      // The browser may deny fullscreen (for example, when embedded).
+    }
   };
 
   addEventListener('keydown', (e) => {
     if (e.key === 'F11') {
-      triggerToggle();
       e.preventDefault();
-    }
-  });
-
-  addEventListener('resize', () => {
-    if (isInFullScreen() && currentWindowHeight > innerHeight) {
-      followToggle();
+      if (!e.repeat) {
+        void triggerToggle();
+      }
     }
   });
 

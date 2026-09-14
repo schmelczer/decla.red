@@ -32,16 +32,15 @@ export const finiteVec2 = (value: unknown, maxMagnitude: number): vec2 | undefin
     return undefined;
   }
 
-  const result = vec2.fromValues(x, y);
-  const length = vec2.length(result);
+  const length = Math.hypot(x, y);
   if (length > maxMagnitude) {
-    vec2.scale(result, result, maxMagnitude / length);
+    return vec2.fromValues((x / length) * maxMagnitude, (y / length) * maxMagnitude);
   }
 
-  return result;
+  return vec2.fromValues(x, y);
 };
 
 export const sanitizeName = (value: unknown, maxLength: number): string => {
-  const text = typeof value === 'string' ? value : String(value ?? '');
+  const text = typeof value === 'string' ? value : '';
   return text.slice(0, maxLength);
 };

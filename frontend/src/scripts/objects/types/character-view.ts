@@ -39,6 +39,7 @@ const deathIcon =
 
 export class CharacterView extends CharacterBase implements View {
   public isMainCharacter = false;
+  public snapshotStrength = settings.playerMaxStrength;
 
   private readonly shape: CharacterShape;
   private readonly muzzleFlash: CircleLight;
@@ -144,6 +145,7 @@ export class CharacterView extends CharacterBase implements View {
     } else if (propertyKey === 'rightFoot') {
       this.rightFootInterpolator.addFrame(propertyValue, rateOfChange);
     } else if (propertyKey === 'strength') {
+      this.snapshotStrength = propertyValue;
       this.strengthInterpolator.addFrame(propertyValue, rateOfChange);
     }
   }
@@ -225,7 +227,6 @@ export class CharacterView extends CharacterBase implements View {
         0,
         this.muzzleFlashIntensity - deltaTimeInSeconds / muzzleFlashDecaySeconds,
       );
-      this.muzzleFlash.center = this.head.center;
       this.muzzleFlash.intensity = this.muzzleFlashIntensity;
     }
 
@@ -241,7 +242,6 @@ export class CharacterView extends CharacterBase implements View {
         0,
         this.deathBurstIntensity - deltaTimeInSeconds / deathBurstDecaySeconds,
       );
-      this.deathBurst.center = this.bodyCenter;
       this.deathBurst.intensity =
         deathBurstMaxIntensity * this.deathBurstIntensity * this.deathBurstIntensity;
     }
@@ -284,9 +284,11 @@ export class CharacterView extends CharacterBase implements View {
     renderer.addDrawable(this.shape);
 
     if (this.muzzleFlashIntensity > 0) {
+      this.muzzleFlash.center = this.head.center;
       renderer.addDrawable(this.muzzleFlash);
     }
     if (this.deathBurstIntensity > 0) {
+      this.deathBurst.center = this.bodyCenter;
       renderer.addDrawable(this.deathBurst);
     }
   }

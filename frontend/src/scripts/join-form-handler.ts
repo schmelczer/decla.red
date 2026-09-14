@@ -16,12 +16,8 @@ export class JoinFormHandler {
   private readonly decision: Promise<PlayerDecision>;
   private readonly pollServersTimer: ReturnType<typeof setInterval>;
   private servers: Array<ServerChooserOption> = [];
-
-  private keyUpListener = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !this.joinButton.disabled) {
-      this.form.requestSubmit();
-    }
-  };
+  private readonly pendingRequests = new Map<string, AbortController>();
+  private destroyed = false;
 
   constructor(
     private readonly form: HTMLFormElement,
@@ -33,14 +29,16 @@ export class JoinFormHandler {
     this.decision = new Promise((resolve) => {
       form.onsubmit = (e) => {
         e.preventDefault();
+        if (this.joinButton.disabled) {
+          return;
+        }
         SoundHandler.play(Sounds.click);
         const data = new FormData(form);
+        this.destroy();
         resolve({ name: String(data.get('name')), server: String(data.get('server')) });
       };
     });
-    this.decision.then(() => this.destroy());
 
-    addEventListener('keyup', this.keyUpListener);
     this.pollServersTimer = setInterval(() => this.loadServers(), pollInterval);
     this.loadServers();
   }
@@ -49,49 +47,60 @@ export class JoinFormHandler {
     return this.decision;
   }
 
-  private destroy() {
-    removeEventListener('keyup', this.keyUpListener);
+  public destroy() {
+    this.destroyed = true;
+    this.form.onsubmit = null;
     clearInterval(this.pollServersTimer);
+    this.pendingRequests.forEach((controller) => controller.abort());
     this.servers.forEach((s) => s.destroy());
   }
 
   private loadServers() {
-    servers
-      .filter((url) => !this.servers.some((s) => s.url === url))
-      .forEach(async (url) => {
-        const controller = new AbortController();
-        setTimeout(() => controller.abort(), pollInterval * 0.8);
+    for (const url of servers) {
+      if (!this.pendingRequests.has(url) && !this.servers.some((s) => s.url === url)) {
+        void this.loadServer(url);
+      }
+    }
+  }
 
-        let content: ServerInformation;
-        try {
-          const response = await fetch(url + serverInformationEndpoint, {
-            signal: controller.signal,
-          });
-          if (!response.ok) {
-            return;
-          }
-          content = await response.json();
-        } catch {
-          return;
-        }
-
-        if (!this.servers.some((s) => s.url === url)) {
-          const server = new ServerChooserOption(
-            content,
-            url,
-            (s) => this.removeServer(s),
-            this.servers.length === 0,
-          );
-          this.servers.push(server);
-          this.joinButton.disabled = false;
-          this.container.appendChild(server.element);
-        }
+  private async loadServer(url: string) {
+    const controller = new AbortController();
+    this.pendingRequests.set(url, controller);
+    const timeout = setTimeout(() => controller.abort(), pollInterval * 0.8);
+    try {
+      const response = await fetch(url + serverInformationEndpoint, {
+        signal: controller.signal,
       });
+      if (!response.ok) {
+        return;
+      }
+      const content: ServerInformation = await response.json();
+      if (this.destroyed) {
+        return;
+      }
+      const server = new ServerChooserOption(
+        content,
+        url,
+        (s) => this.removeServer(s),
+        this.servers.length === 0,
+      );
+      this.servers.push(server);
+      this.joinButton.disabled = false;
+      this.container.appendChild(server.element);
+    } catch {
+      // Unavailable servers are retried on the next poll.
+    } finally {
+      clearTimeout(timeout);
+      this.pendingRequests.delete(url);
+    }
   }
 
   private removeServer(server: ServerChooserOption) {
     this.servers = this.servers.filter((s) => s !== server);
     this.joinButton.disabled = this.servers.length === 0;
+    if (this.servers.length && !this.servers.some((s) => s.input.checked)) {
+      this.servers[0].input.checked = true;
+    }
   }
 }
 
@@ -107,9 +116,11 @@ const roundCompletionTexts = [
 
 class ServerChooserOption {
   public readonly element = document.createElement('div');
+  public readonly input = document.createElement('input');
   private readonly serverNameElement = document.createElement('span');
   private readonly completionElement = document.createElement('span');
   private readonly socket: Socket;
+  private readonly reconnectFailedListener = () => this.destroy();
 
   constructor(
     private readonly content: ServerInformation,
@@ -117,7 +128,7 @@ class ServerChooserOption {
     private readonly onDestroy: (v: ServerChooserOption) => unknown,
     isFirst: boolean,
   ) {
-    const input = document.createElement('input');
+    const input = this.input;
     input.required = true;
     input.type = 'radio';
     input.id = input.value = url;
@@ -144,7 +155,7 @@ class ServerChooserOption {
       parser,
     } as any);
 
-    this.socket.io.on('reconnect_failed', () => this.destroy());
+    this.socket.io.on('reconnect_failed', this.reconnectFailedListener);
     this.socket.on('connect', () =>
       this.socket.emit(TransportEvents.SubscribeForServerInfoUpdates),
     );
@@ -159,6 +170,7 @@ class ServerChooserOption {
   }
 
   public destroy() {
+    this.socket.io.off('reconnect_failed', this.reconnectFailedListener);
     this.socket.close();
     this.element.remove();
     this.onDestroy(this);

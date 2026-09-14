@@ -109,6 +109,9 @@ export class GameServer implements GameEvents {
     this.matchPointAnnounced = {};
     this.isInEndGame = false;
     this.timeScaling = 1;
+    this.physicsAccumulator = 0;
+    this.timeSinceLastServerStateUpdate = 0;
+    this.timeSinceLastPointUpdate = 0;
     previousPlayers?.queueCommandForEachClient(new GameStartCommand());
     previousPlayers?.sendQueuedCommands();
   }
@@ -139,15 +142,18 @@ export class GameServer implements GameEvents {
 
     const player = this.players.createPlayer(playerInfo, socket, carried);
 
-    const onPlayerToServer = (json: string) => {
+    const onPlayerToServer = (json: unknown) => {
       try {
-        if (json.length > settings.maxInboundMessageBytes) {
+        if (typeof json !== 'string' || json.length > settings.maxInboundMessageBytes) {
           return;
         }
         if (!this.allowInboundMessage(socket)) {
           return;
         }
         const commands: Array<Command> = deserialize(json);
+        if (!Array.isArray(commands)) {
+          return;
+        }
         commands.forEach((c) => player.handleCommand(c));
       } catch (e) {
         console.error('Error while processing command', e);
@@ -354,14 +360,20 @@ export class GameServer implements GameEvents {
     // of noise on every interpolated position and on the client's replay anchor.
     const simulatedThroughMs = frameStartMs - this.physicsAccumulator * 1000;
 
-    const propertyUpdates = new Map<GameObject, PropertyUpdatesForObject | undefined>();
-    this.players.stepCommunication(delta, simulatedThroughMs, (object) => {
-      if (!propertyUpdates.has(object)) {
-        propertyUpdates.set(object, object.getPropertyUpdates());
-      }
-      return propertyUpdates.get(object);
-    });
-    this.objects.resetRemoteCalls();
+    if (substeps > 0) {
+      const propertyUpdates = new Map<GameObject, PropertyUpdatesForObject | undefined>();
+      this.players.stepCommunication(
+        substeps * fixedDelta,
+        simulatedThroughMs,
+        (object) => {
+          if (!propertyUpdates.has(object)) {
+            propertyUpdates.set(object, object.getPropertyUpdates(1 / this.timeScaling));
+          }
+          return propertyUpdates.get(object);
+        },
+      );
+      this.objects.resetRemoteCalls();
+    }
 
     const elapsed = Number(process.hrtime.bigint() - frameStart) / 1e9;
     setTimeout(() => this.handlePhysics(), Math.max(0, fixedDelta - elapsed) * 1000);

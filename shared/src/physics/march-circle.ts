@@ -4,7 +4,7 @@ import { evaluateSdf } from './evaluate-sdf';
 import { sdfNormal } from './sdf-normal';
 
 export interface MarchResult {
-  hitSurface: boolean;
+  travelled: number;
   normal?: vec2;
   hitObject?: Sdf;
 }
@@ -20,7 +20,7 @@ export const marchCircle = (
 ): MarchResult => {
   const deltaLength = vec2.length(delta);
   if (!(deltaLength > 0)) {
-    return { hitSurface: false };
+    return { travelled: 0 };
   }
 
   const direction = vec2.normalize(vec2.create(), delta);
@@ -35,17 +35,17 @@ export const marchCircle = (
 
     if (minDistance < body.radius) {
       const intersecting = possibleIntersectors.find(
-        (i) => i.distance(rayEnd) <= body.radius,
+        (i) => i.canCollide && i.distance(rayEnd) < body.radius,
       )!;
-
-      onHit?.(intersecting);
 
       vec2.scaleAndAdd(rayEnd, body.center, direction, lastFreeDistance);
       vec2.copy(body.center, rayEnd);
+      const normal = sdfNormal(rayEnd, [intersecting]);
+      onHit?.(intersecting);
 
       return {
-        hitSurface: true,
-        normal: sdfNormal(rayEnd, [intersecting]),
+        travelled: lastFreeDistance,
+        normal,
         hitObject: intersecting,
       };
     }
@@ -64,5 +64,5 @@ export const marchCircle = (
 
   vec2.scaleAndAdd(body.center, body.center, direction, lastFreeDistance);
 
-  return { hitSurface: false };
+  return { travelled: lastFreeDistance };
 };

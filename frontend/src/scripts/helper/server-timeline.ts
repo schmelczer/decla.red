@@ -9,7 +9,7 @@ const resyncSeconds = 0.3;
 class ServerTimeline {
   private cursor?: number;
   private newestSnapshotTime?: number;
-  private sinceNewestSnapshot = 0;
+  private newestReceivedAtMs = 0;
   public snapshotTime = 0;
 
   public get renderTime(): number {
@@ -20,7 +20,7 @@ class ServerTimeline {
     this.snapshotTime = timestamp;
     if (this.newestSnapshotTime === undefined || timestamp > this.newestSnapshotTime) {
       this.newestSnapshotTime = timestamp;
-      this.sinceNewestSnapshot = 0;
+      this.newestReceivedAtMs = performance.now();
     }
   }
 
@@ -29,10 +29,9 @@ class ServerTimeline {
       return;
     }
 
-    this.sinceNewestSnapshot += deltaTimeInSeconds;
     const target =
       this.newestSnapshotTime +
-      this.sinceNewestSnapshot -
+      (performance.now() - this.newestReceivedAtMs) / 1000 -
       settings.interpolationDelaySeconds;
 
     if (this.cursor === undefined || Math.abs(target - this.cursor) > resyncSeconds) {
@@ -40,18 +39,16 @@ class ServerTimeline {
       return;
     }
 
-    const rate = clamp(
-      1 + (target - this.cursor) * rateGain,
-      1 - maxRateAdjustment,
-      1 + maxRateAdjustment,
-    );
-    this.cursor += deltaTimeInSeconds * rate;
+    this.cursor += deltaTimeInSeconds;
+    this.cursor +=
+      deltaTimeInSeconds *
+      clamp((target - this.cursor) * rateGain, -maxRateAdjustment, maxRateAdjustment);
   }
 
   public reset() {
     this.cursor = undefined;
     this.newestSnapshotTime = undefined;
-    this.sinceNewestSnapshot = 0;
+    this.newestReceivedAtMs = 0;
     this.snapshotTime = 0;
   }
 }

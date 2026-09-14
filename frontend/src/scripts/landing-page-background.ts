@@ -27,14 +27,16 @@ export class LandingPageBackground {
   };
 
   constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new Promise((r) => (this.resolveRenderer = r));
-    this.start(canvas);
+    this.renderer = new Promise((resolve, reject) => {
+      this.resolveRenderer = resolve;
+      void this.start(canvas).catch(reject);
+    });
   }
 
   private async start(canvas: HTMLCanvasElement): Promise<void> {
     const noiseTexture = await renderNoise([256, 256], 1.2, 2);
 
-    runAnimation(
+    await runAnimation(
       canvas,
       [
         { ...PlanetShape.descriptor, shaderCombinationSteps: [0, 1, 2] },

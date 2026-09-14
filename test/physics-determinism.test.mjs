@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
 
 const require = createRequire(import.meta.url);
 const shared = require('../shared/lib/main.js');
@@ -99,6 +100,41 @@ const runPlanetSimulation = () => {
 };
 
 describe('shared character simulation determinism', () => {
+  it('does not depend on configuring vector precision before imports', () => {
+    const run = (configureBeforeImport) =>
+      execFileSync(
+        process.execPath,
+        [
+          '-e',
+          `
+      const { glMatrix, vec2 } = require('./shared/node_modules/gl-matrix');
+      if (${configureBeforeImport}) glMatrix.setMatrixArrayType(Array);
+      const s = require('./shared/lib/main.js');
+      glMatrix.setMatrixArrayType(Array);
+      const body = (offset, radius) => ({
+        center: vec2.clone(offset), radius, velocity: vec2.create(),
+        lastNormal: [0, 1], restitution: 0,
+      });
+      const state = {
+        head: body(s.headOffset, s.headRadius),
+        leftFoot: body(s.leftFootOffset, s.feetRadius),
+        rightFoot: body(s.rightFootOffset, s.feetRadius),
+        direction: 0, currentPlanet: undefined,
+        secondsSinceOnSurface: 1, bodyVelocity: [0, 0],
+      };
+      const world = {
+        groundsNear: () => [],
+        stepBody: (body, dt) => s.resolveCircleMovement(body, dt, []),
+      };
+      for (let i = 0; i < 100; i++) s.stepCharacterMovement(state, world, [1, 0], 0.005);
+      process.stdout.write(JSON.stringify(state));
+    `,
+        ],
+        { encoding: 'utf8' },
+      );
+    expect(run(false)).toBe(run(true));
+  });
+
   it('produces identical output across independent runs', () => {
     expect(runSimulation()).toBe(runSimulation());
   });

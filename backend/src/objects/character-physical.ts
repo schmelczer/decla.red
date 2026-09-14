@@ -62,8 +62,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   private lastSyncedHealth = settings.playerMaxHealth;
   private killStreak = 0;
 
-  private movementDirections: Array<vec2> = [];
-  private lastMovementDirection = vec2.create();
+  private readonly movementDirection = vec2.create();
 
   private readonly previousPose = [0, 1, 2].map(() => new Circle(vec2.create(), 0));
   private readonly velocities = [0, 1, 2].map(() => new Circle(vec2.create(), 0));
@@ -136,6 +135,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
       vec2.clone(this.rightFoot.lastNormal),
       this.groundPlanet?.id ?? null,
       this.secondsSinceOnSurface,
+      Math.max(0, settings.leapCooldownSeconds - this.timeSinceLastLeap),
     );
   }
 
@@ -162,7 +162,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
   }
 
   public setMoveDirection(direction: vec2) {
-    this.movementDirections.push(direction);
+    vec2.normalize(this.movementDirection, direction);
   }
 
   public addKill(victimName: string, charge = 0) {
@@ -170,11 +170,13 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     this.killStreak++;
     this.remoteCall('setKillCount', this.killCount);
 
-    this.health = Math.min(
-      settings.playerMaxHealth,
-      this.health + settings.playerKillHealthReward,
-    );
-    this.syncHealth();
+    if (this.isAlive) {
+      this.health = Math.min(
+        settings.playerMaxHealth,
+        this.health + settings.playerKillHealthReward,
+      );
+      this.syncHealth();
+    }
     this.remoteCall('onKillConfirmed', victimName, this.killStreak, charge);
   }
 
@@ -293,7 +295,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
 
     this.timeSinceLastLeap = 0;
     this.projectileStrength -= settings.leapStrengthCost;
-    applyLeapImpulse(this, this.lastMovementDirection);
+    applyLeapImpulse(this, this.movementDirection);
     this.remoteCall('onLeap');
   }
 
@@ -311,8 +313,14 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     }
   }
 
-  public getPropertyUpdates(): PropertyUpdatesForObject {
-    const [headVelocity, leftFootVelocity, rightFootVelocity] = this.velocities;
+  public getPropertyUpdates(timeScale = 1): PropertyUpdatesForObject {
+    const [headVelocity, leftFootVelocity, rightFootVelocity] = this.velocities.map(
+      (velocity) =>
+        new Circle(
+          vec2.scale(vec2.create(), velocity.center, timeScale),
+          velocity.radius * timeScale,
+        ),
+    );
     return new PropertyUpdatesForObject(this.id, [
       new UpdatePropertyCommand('head', this.head, headVelocity),
       new UpdatePropertyCommand('leftFoot', this.leftFoot, leftFootVelocity),
@@ -320,7 +328,7 @@ export class CharacterPhysical extends CharacterBase implements Physical {
       new UpdatePropertyCommand(
         'strength',
         this.projectileStrength,
-        settings.playerStrengthRegenerationPerSeconds,
+        settings.playerStrengthRegenerationPerSeconds * timeScale,
       ),
     ]);
   }
@@ -387,25 +395,9 @@ export class CharacterPhysical extends CharacterBase implements Physical {
     stepCharacterMovement(
       this,
       this.movementWorld,
-      this.averageAndResetMovementDirections(),
+      this.movementDirection,
       deltaTimeInSeconds,
     );
-  }
-
-  private averageAndResetMovementDirections(): vec2 {
-    const direction = vec2.create();
-    if (this.movementDirections.length === 0) {
-      vec2.copy(direction, this.lastMovementDirection);
-    } else {
-      for (const d of this.movementDirections) {
-        vec2.add(direction, direction, d);
-      }
-      vec2.scale(direction, direction, 1 / this.movementDirections.length);
-      this.lastMovementDirection =
-        this.movementDirections[this.movementDirections.length - 1];
-      this.movementDirections = [];
-    }
-    return vec2.normalize(direction, direction);
   }
 
   private animateScaling(q: number) {
