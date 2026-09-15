@@ -8,37 +8,51 @@ import { options } from './options-handler';
 export const Sounds = { hit: 'hit', shoot: 'shoot', click: 'click' } as const;
 export type Sound = (typeof Sounds)[keyof typeof Sounds];
 
-let sounds: Record<Sound, HTMLAudioElement>;
+const sounds: Partial<Record<Sound, AudioBuffer>> = {};
+const maxVoices = 16;
+const voices = new Set<{ source: AudioBufferSourceNode; gain: GainNode }>();
+let context: AudioContext | undefined;
+let initialization: Promise<void> | undefined;
 let isAmbientPlaying = false;
 const ambient = new Audio(ambientAudio);
-let initialized = false;
+let ambientInitialized = false;
 
-async function initializeSound(src: string): Promise<HTMLAudioElement> {
-  const snd = new Audio(src);
-  snd.muted = true;
-  await snd.play().catch(() => undefined);
-  snd.pause();
-  snd.muted = false;
-  snd.currentTime = 0;
-  return snd;
+async function initializeEffects() {
+  try {
+    context = new AudioContext({ latencyHint: 'interactive' });
+  } catch {
+    return;
+  }
+  const audioContext = context;
+  // Unlock during the initiating gesture, before any network or decode work.
+  void audioContext.resume().catch(() => undefined);
+  await Promise.all(
+    Object.entries({ hit: hitSound, shoot: shootSound, click: clickSound }).map(
+      async ([name, src]) => {
+        try {
+          const response = await fetch(src);
+          if (response.ok) {
+            sounds[name as Sound] = await audioContext.decodeAudioData(
+              await response.arrayBuffer(),
+            );
+          }
+        } catch {
+          // Missing audio must not interrupt gameplay or prevent other effects loading.
+        }
+      },
+    ),
+  );
 }
 
-async function initialize(
-  onPlayKeypress: () => unknown = () => null,
-  onPauseKeypress: () => unknown = () => null,
+async function initializeAmbient(
+  onPlayKeypress: () => unknown,
+  onPauseKeypress: () => unknown,
 ) {
   ambient.muted = true;
   ambient.volume = 0.5;
   ambient.loop = true;
-  // Unlock every audio element during the initiating click, before awaiting any one.
-  const ambientReady = ambient.play().catch(() => undefined);
-  const [hit, shoot, click] = await Promise.all(
-    [hitSound, shootSound, clickSound].map(initializeSound),
-  );
-  sounds = { hit, shoot, click };
-
-  await ambientReady;
-  initialized = true;
+  await ambient.play().catch(() => undefined);
+  ambientInitialized = true;
   ambient.onpause = onPauseKeypress;
   ambient.onplay = onPlayKeypress;
 
@@ -49,32 +63,65 @@ async function initialize(
   }
 }
 
+function initialize(
+  onPlayKeypress: () => unknown = () => null,
+  onPauseKeypress: () => unknown = () => null,
+): Promise<void> {
+  if (!initialization) {
+    initialization = initializeEffects();
+    // Streaming music can take much longer to load than the short effects.
+    void initializeAmbient(onPlayKeypress, onPauseKeypress);
+  }
+  return initialization;
+}
+
 function play(snd: Sound, volume = 1, playbackRate = 1) {
-  if (!initialized || !options.soundsEnabled) {
+  const buffer = sounds[snd];
+  if (!context || !buffer || !options.soundsEnabled) {
+    return;
+  }
+  if (context.state !== 'running') {
+    void context.resume().catch(() => undefined);
     return;
   }
 
-  const pooled = sounds[snd];
-  const isBusy = !pooled.paused && !pooled.ended;
-  const audio = isBusy ? (pooled.cloneNode(true) as HTMLAudioElement) : pooled;
-  if (!isBusy) {
-    audio.currentTime = 0;
+  // Delayed network packets can deliver many effects together. Keep their audio work bounded.
+  if (voices.size >= maxVoices) {
+    const oldest = voices.values().next().value!;
+    oldest.source.stop();
+    oldest.source.disconnect();
+    oldest.gain.disconnect();
+    voices.delete(oldest);
   }
-  audio.volume = clamp01(volume);
-  audio.playbackRate = playbackRate;
-  void audio.play().catch(() => undefined);
+
+  const source = context.createBufferSource();
+  const gain = context.createGain();
+  source.buffer = buffer;
+  source.playbackRate.value = playbackRate;
+  gain.gain.value = clamp01(volume);
+  source.connect(gain);
+  gain.connect(context.destination);
+  const voice = { source, gain };
+  voices.add(voice);
+  source.onended = () => {
+    if (voices.delete(voice)) {
+      source.disconnect();
+      gain.disconnect();
+    }
+  };
+  source.start();
 }
 
 function playAmbient() {
   isAmbientPlaying = true;
-  if (initialized) {
+  if (ambientInitialized) {
     void ambient.play().catch(() => undefined);
   }
 }
 
 function stopAmbient() {
   isAmbientPlaying = false;
-  if (initialized) {
+  if (ambientInitialized) {
     ambient.pause();
   }
 }

@@ -3,7 +3,6 @@ import { getDisplayPosition } from './helper/pointer';
 
 let root: HTMLElement | undefined;
 let killfeed: HTMLElement | undefined;
-let elimination: HTMLElement | undefined;
 
 function ensureRoot(): { root: HTMLElement; killfeed: HTMLElement } {
   if (!root || !killfeed) {
@@ -74,27 +73,7 @@ function killConfirmed(victimName?: string, streak = 1, charge = 0) {
   }
 }
 
-function showElimination(): void {
-  if (elimination) {
-    return;
-  }
-  const { root: r } = ensureRoot();
-  const el = document.createElement('div');
-  el.className = 'elimination';
-  el.innerHTML =
-    '<div class="elimination-title">Eliminated</div>' +
-    '<div class="elimination-sub">Respawning…</div>';
-  r.appendChild(el);
-  elimination = el;
-}
-
-function hideElimination(): void {
-  elimination?.remove();
-  elimination = undefined;
-}
-
 function resetFeedbackHud(): void {
-  hideElimination();
   root?.remove();
   root = undefined;
   killfeed = undefined;
@@ -122,7 +101,5 @@ function escapeHtml(text: string): string {
 export const FeedbackHud = {
   hitMarker,
   killConfirmed,
-  showElimination,
-  hideElimination,
   reset: resetFeedbackHud,
 };

@@ -28,6 +28,11 @@ const maxReplayMs = 400;
 const correctionSeconds = 0.08;
 const snapDistance = 1500;
 
+interface PredictedMovementState extends CharacterMovementState {
+  availableStrength: number;
+  leapCooldownRemaining: number;
+}
+
 interface ReplaySnapshot {
   pose: { head: Circle; leftFoot: Circle; rightFoot: Circle };
   movement: CharacterMovementSnapshot;
@@ -35,7 +40,7 @@ interface ReplaySnapshot {
   leapAckMs: number;
   strength: number;
   planets: Array<PlanetSnapshot>;
-  horizonState?: CharacterMovementState;
+  horizonState?: PredictedMovementState;
 }
 
 const upwards = vec2.fromValues(0, 1);
@@ -59,6 +64,7 @@ export class LocalCharacterPredictor {
   private leapHistory: Array<number> = [];
   private lastLeapAckMs = -Infinity;
   private currentStrength = settings.playerMaxStrength;
+  private predicted?: PredictedMovementState;
 
   private alive = true;
   private previousSnapshot?: ReplaySnapshot;
@@ -77,6 +83,17 @@ export class LocalCharacterPredictor {
   }
   public get rightFoot(): Circle {
     return this.renderRightFoot;
+  }
+
+  public get canLeap(): boolean {
+    return (
+      this.enabled &&
+      this.alive &&
+      !this.isAnimatingInOrOut &&
+      !!this.predicted?.currentPlanet &&
+      this.predicted.leapCooldownRemaining <= 0 &&
+      this.predicted.availableStrength >= settings.leapStrengthCost
+    );
   }
 
   public recordInput(direction: vec2): number {
@@ -103,6 +120,7 @@ export class LocalCharacterPredictor {
   public recordLeap(): number {
     const timeMs = clientTimeMs();
     this.leapHistory.push(timeMs);
+    this.predicted = undefined;
     const cutoff = timeMs - 1500;
     while (this.leapHistory.length > 0 && this.leapHistory[0] <= cutoff) {
       this.leapHistory.shift();
@@ -126,6 +144,7 @@ export class LocalCharacterPredictor {
     this.replayAnchorMs = undefined;
     this.movement = undefined;
     this.currentStrength = settings.playerMaxStrength;
+    this.predicted = undefined;
     this.alive = true;
     this.previousSnapshot = undefined;
     this.lastUpdateMs = undefined;
@@ -149,6 +168,7 @@ export class LocalCharacterPredictor {
 
   public update(planets: Array<PlanetView>): boolean {
     if (!this.enabled || !this.alive || !this.canPredict || this.isAnimatingInOrOut) {
+      this.predicted = undefined;
       this.previousSnapshot = undefined;
       this.lastUpdateMs = undefined;
       vec2.zero(this.correction);
@@ -182,6 +202,7 @@ export class LocalCharacterPredictor {
             ),
           };
     const predicted = this.simulate(snapshot);
+    this.predicted = predicted;
 
     if (this.previousSnapshot && this.previousSnapshot.pose !== snapshot.pose) {
       // Compare both snapshots at the same instant: smooth only the correction,
@@ -210,7 +231,7 @@ export class LocalCharacterPredictor {
     return true;
   }
 
-  private simulate(snapshot: ReplaySnapshot): CharacterMovementState {
+  private simulate(snapshot: ReplaySnapshot): PredictedMovementState {
     if (snapshot.horizonState) {
       return snapshot.horizonState;
     }
@@ -222,7 +243,7 @@ export class LocalCharacterPredictor {
     const steps = Math.floor(windowMs / stepMs);
     const partialStep = (windowMs - steps * stepMs) / stepMs;
 
-    const state: CharacterMovementState = {
+    const state: PredictedMovementState = {
       head: makeBody(auth.head.center, auth.head.radius, upwards),
       leftFoot: makeBody(
         auth.leftFoot.center,
@@ -238,10 +259,9 @@ export class LocalCharacterPredictor {
       currentPlanet: this.world.surfaceById(movement.groundPlanetId),
       secondsSinceOnSurface: movement.secondsSinceOnSurface,
       bodyVelocity: vec2.fromValues(movement.bodyVelocity[0], movement.bodyVelocity[1]),
+      availableStrength: snapshot.strength,
+      leapCooldownRemaining: movement.leapCooldownRemaining ?? 0,
     };
-
-    let availableStrength = snapshot.strength;
-    let cooldown = movement.leapCooldownRemaining ?? 0;
 
     let t = startMs;
     for (let i = 0; i < steps + (partialStep > 0 ? 1 : 0); i++) {
@@ -258,12 +278,12 @@ export class LocalCharacterPredictor {
           leapMs < t + stepMs * fraction &&
           leapMs > snapshot.leapAckMs &&
           state.currentPlanet &&
-          cooldown <= 0 &&
-          availableStrength >= settings.leapStrengthCost
+          state.leapCooldownRemaining <= 0 &&
+          state.availableStrength >= settings.leapStrengthCost
         ) {
           applyLeapImpulse(state, this.inputHistory.directionAt(leapMs));
-          availableStrength -= settings.leapStrengthCost;
-          cooldown = settings.leapCooldownSeconds;
+          state.availableStrength -= settings.leapStrengthCost;
+          state.leapCooldownRemaining = settings.leapCooldownSeconds;
         }
       }
       this.world.advance(stepSeconds);
@@ -274,10 +294,14 @@ export class LocalCharacterPredictor {
         this.inputHistory.directionAt(t),
         stepSeconds,
       );
-      cooldown = Math.max(0, cooldown - stepSeconds);
-      availableStrength = Math.min(
+      state.leapCooldownRemaining = Math.max(
+        0,
+        state.leapCooldownRemaining - stepSeconds,
+      );
+      state.availableStrength = Math.min(
         settings.playerMaxStrength,
-        availableStrength + settings.playerStrengthRegenerationPerSeconds * stepSeconds,
+        state.availableStrength +
+          settings.playerStrengthRegenerationPerSeconds * stepSeconds,
       );
       if (from) {
         [state.head, state.leftFoot, state.rightFoot].forEach((body, index) =>

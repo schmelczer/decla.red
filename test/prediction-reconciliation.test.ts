@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { settings } from '../shared/src/settings';
 import {
   LocalCharacterPredictor,
   setFrameTimeMs,
@@ -311,5 +312,86 @@ describe('leap prediction', () => {
 
   it('does not predict a leap the authoritative cooldown will reject', () => {
     expect(leapHeight(0.2, true)).toEqual(leapHeight(0.2, false));
+  });
+});
+
+describe('leap availability', () => {
+  const prepare = (
+    cooldown = 0,
+    strength = settings.leapStrengthCost,
+    groundPlanetId: number | null = ground.id,
+  ) => {
+    const predictor = new LocalCharacterPredictor();
+    setFrameTimeMs(1000);
+    const pose = poseAt(0, 900);
+    predictor.acknowledge(
+      1000,
+      {
+        ...movementState(),
+        groundPlanetId,
+        secondsSinceOnSurface: 0,
+        leapCooldownRemaining: cooldown,
+      } as never,
+      -Infinity,
+    );
+    predictor.setStrength(strength);
+    predictor.setAuthoritative(
+      pose.head as never,
+      pose.leftFoot as never,
+      pose.rightFoot as never,
+    );
+    predictor.update([ground] as never);
+    return { predictor, pose };
+  };
+
+  it('requires a planet, sufficient strength, and an expired cooldown', () => {
+    expect(new LocalCharacterPredictor().canLeap).toBe(false);
+    expect(prepare().predictor.canLeap).toBe(true);
+    expect(prepare(0.2).predictor.canLeap).toBe(false);
+    expect(prepare(0, settings.leapStrengthCost - 1).predictor.canLeap).toBe(false);
+    expect(prepare(0, settings.playerMaxStrength, null).predictor.canLeap).toBe(false);
+  });
+
+  it('becomes available as the predicted cooldown and strength recover', () => {
+    const { predictor } = prepare(0.02, settings.leapStrengthCost - 1);
+    expect(predictor.canLeap).toBe(false);
+    setFrameTimeMs(1030);
+    predictor.update([ground] as never);
+    expect(predictor.canLeap).toBe(true);
+  });
+
+  it('disables immediately after a leap and stays unavailable in flight', () => {
+    const { predictor } = prepare();
+    predictor.recordLeap();
+    expect(predictor.canLeap).toBe(false);
+    setFrameTimeMs(1002);
+    predictor.update([ground] as never);
+    expect(predictor.canLeap).toBe(false);
+    setFrameTimeMs(1380);
+    predictor.update([ground] as never);
+    expect(predictor.canLeap).toBe(false);
+  });
+
+  it('clears availability on death, reset, spawn animation, and game end', () => {
+    const { predictor, pose } = prepare();
+    predictor.setAlive(false);
+    expect(predictor.canLeap).toBe(false);
+    predictor.update([ground] as never);
+    predictor.setAlive(true);
+    expect(predictor.canLeap).toBe(false);
+    predictor.update([ground] as never);
+    expect(predictor.canLeap).toBe(true);
+
+    predictor.enabled = false;
+    expect(predictor.canLeap).toBe(false);
+    predictor.enabled = true;
+    predictor.setAuthoritative(
+      { ...pose.head, radius: 10 } as never,
+      pose.leftFoot as never,
+      pose.rightFoot as never,
+    );
+    expect(predictor.canLeap).toBe(false);
+    predictor.reset();
+    expect(predictor.canLeap).toBe(false);
   });
 });

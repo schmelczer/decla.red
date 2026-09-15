@@ -6,6 +6,8 @@ import { TouchListener } from '../frontend/src/scripts/commands/touch-listener';
 import { JoinFormHandler } from '../frontend/src/scripts/join-form-handler';
 import { initializeOptions, options } from '../frontend/src/scripts/options-handler';
 import { loadStoredValue, saveStoredValue } from '../frontend/src/scripts/helper/storage';
+import { ChargeIndicator } from '../frontend/src/scripts/charge-indicator';
+import { localCharacterPredictor } from '../frontend/src/scripts/helper/prediction/local-character-predictor';
 
 const { connect } = vi.hoisted(() => ({ connect: vi.fn() }));
 vi.mock('../frontend/node_modules/socket.io-client/build/esm-debug/index.js', () => ({
@@ -30,8 +32,16 @@ class Element extends EventTarget {
   public className = '';
   public checked = false;
   public disabled = false;
+  public hidden = false;
+  private attributes = new Map<string, string>();
   public onsubmit: ((event: Event) => void) | null = null;
 
+  public setAttribute(name: string, value: string) {
+    this.attributes.set(name, value);
+  }
+  public getAttribute(name: string) {
+    return this.attributes.get(name) ?? null;
+  }
   public appendChild(child: Element) {
     child.remove();
     this.children.push(child);
@@ -81,6 +91,7 @@ let sockets: Socket[];
 
 beforeEach(() => {
   vi.useFakeTimers();
+  localCharacterPredictor.reset();
   windowTarget = new EventTarget();
   sockets = [];
   vi.stubGlobal('window', windowTarget);
@@ -103,6 +114,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 const chooser = () => {
@@ -194,10 +206,16 @@ const touchControls = () => {
   const canvas = new Element();
   const overlay = new Element();
   const send = vi.fn();
+  const character = {
+    health: 100,
+    bodyCenter: [0, 0],
+    facingDirection: [1, 0],
+    strengthFraction: 1,
+  };
   const game = {
     displayToWorldCoordinates: (position: number[]) => position,
     gameObjects: {
-      localPlayer: { bodyCenter: [0, 0], facingDirection: [1, 0], strengthFraction: 1 },
+      localPlayer: character as typeof character | undefined,
     },
   };
   const listener = new TouchListener(
@@ -207,8 +225,85 @@ const touchControls = () => {
     send,
   );
   listener.update();
-  return { canvas, overlay, send, listener, fire: overlay.children[0] };
+  return {
+    canvas,
+    overlay,
+    send,
+    listener,
+    game,
+    character,
+    fire: overlay.children[0],
+    leap: overlay.children[1],
+  };
 };
+
+describe('touch action availability', () => {
+  it('cancels a held shot on death and requires a fresh press after respawn', () => {
+    const { fire, send, listener, game, character } = touchControls();
+    touchEvent(fire, 'touchstart', [touch(1)]);
+    touchEvent(fire, 'touchmove', [touch(1, 100, 50)]);
+    expect(fire.children[1].style.opacity).toBe('1');
+
+    character.health = 0;
+    listener.update();
+    expect(fire.getAttribute('aria-disabled')).toBe('true');
+    expect(fire.children[1].style.opacity).toBe('0');
+    expect(ChargeIndicator.end).toHaveBeenCalled();
+    vi.mocked(ChargeIndicator.begin).mockClear();
+    touchEvent(fire, 'touchstart', [touch(2)]);
+    touchEvent(fire, 'touchend', [touch(2)], []);
+    expect(ChargeIndicator.begin).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+
+    game.gameObjects.localPlayer = undefined;
+    listener.update();
+    touchEvent(fire, 'touchstart', [touch(3)]);
+    touchEvent(fire, 'touchend', [touch(3)], []);
+    expect(send).not.toHaveBeenCalled();
+
+    game.gameObjects.localPlayer = { ...character, health: 100 };
+    listener.update();
+    expect(fire.getAttribute('aria-disabled')).toBe('false');
+    touchEvent(fire, 'touchend', [touch(1)], []);
+    expect(send).not.toHaveBeenCalled();
+    touchEvent(fire, 'touchstart', [touch(4)]);
+    touchEvent(fire, 'touchend', [touch(4)], []);
+    expect(send).toHaveBeenCalledTimes(1);
+    listener.destroy();
+  });
+
+  it('rejects a shot released after death before the controls update', () => {
+    const { fire, send, listener, character } = touchControls();
+    touchEvent(fire, 'touchstart', [touch(1)]);
+    character.health = 0;
+    touchEvent(fire, 'touchend', [touch(1)], []);
+    expect(send).not.toHaveBeenCalled();
+    listener.destroy();
+  });
+
+  it('only shows and accepts jumps while the living player can leap', () => {
+    const canLeap = vi.spyOn(localCharacterPredictor, 'canLeap', 'get');
+    canLeap.mockReturnValue(false);
+    const { leap, send, listener, character } = touchControls();
+    expect(leap.hidden).toBe(true);
+    touchEvent(leap, 'touchstart', [touch(1)]);
+    expect(send).not.toHaveBeenCalled();
+
+    canLeap.mockReturnValue(true);
+    listener.update();
+    expect(leap.hidden).toBe(false);
+    touchEvent(leap, 'touchstart', [touch(2)]);
+    expect(send.mock.lastCall?.[0].constructor.name).toBe('LeapActionCommand');
+    expect(leap.hidden).toBe(true);
+
+    character.health = 0;
+    listener.update();
+    expect(leap.hidden).toBe(true);
+    touchEvent(leap, 'touchstart', [touch(3)]);
+    expect(send).toHaveBeenCalledTimes(1);
+    listener.destroy();
+  });
+});
 
 describe('touch ownership', () => {
   it('keeps the first canvas gesture when a second finger lands before dragging', () => {

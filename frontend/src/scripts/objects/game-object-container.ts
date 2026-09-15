@@ -13,7 +13,6 @@ import {
   RemoteCallsForObjects,
   UpdatePropertyCommand,
 } from 'shared';
-import { FeedbackHud } from '../feedback-hud';
 import type { Game } from '../game';
 import { serverTimeline } from '../helper/server-timeline';
 import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
@@ -50,7 +49,6 @@ export class GameObjectContainer extends CommandReceiver {
       this.addObject(this.player);
       localCharacterPredictor.reset();
       this.game.resendMovement();
-      FeedbackHud.hideElimination();
       this.wasLocalPlayerAlive = true;
     },
 
@@ -133,9 +131,6 @@ export class GameObjectContainer extends CommandReceiver {
 
     const player = this.localPlayer;
     const alive = !!player && player.health > 0;
-    if (this.wasLocalPlayerAlive && !alive) {
-      FeedbackHud.showElimination();
-    }
     this.wasLocalPlayerAlive = alive;
 
     if (player) {

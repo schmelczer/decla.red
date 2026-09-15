@@ -13,10 +13,18 @@ import { PlanetView } from './objects/types/planet-view';
 
 type StageTrigger = 'move' | 'shoot' | 'leap' | 'capture';
 
-const stages: ReadonlyArray<{ hint: string; clearsOn: StageTrigger }> = [
-  { hint: 'WASD / drag to walk', clearsOn: 'move' },
-  { hint: 'Click / tap to shoot', clearsOn: 'shoot' },
-  { hint: 'Space / leap button to launch off a planet', clearsOn: 'leap' },
+const stages: ReadonlyArray<{
+  hint: string;
+  touchHint?: string;
+  clearsOn: StageTrigger;
+}> = [
+  { hint: 'WASD to walk', touchHint: 'Drag to walk', clearsOn: 'move' },
+  { hint: 'Click to shoot', touchHint: 'Tap to shoot', clearsOn: 'shoot' },
+  {
+    hint: 'Space to launch off a planet',
+    touchHint: 'Tap the leap button to launch off a planet',
+    clearsOn: 'leap',
+  },
   { hint: 'Stand on a planet to capture it', clearsOn: 'capture' },
 ];
 
@@ -54,7 +62,7 @@ export class Tutorial extends CommandReceiver {
   constructor(overlay: HTMLElement) {
     super();
     this.element.className = 'tutorial-hint';
-    this.element.innerText = stages[0].hint;
+    this.setStage(0);
     overlay.appendChild(this.element);
   }
 
@@ -107,6 +115,14 @@ export class Tutorial extends CommandReceiver {
 
   private setStage(stage: number) {
     this.stage = stage;
-    this.element.innerText = stages[stage]?.hint ?? '';
+    // Keep the hints consistent with the touch buttons' visibility in main.scss.
+    const useTouchControls = window.matchMedia(
+      '(hover: none) and (pointer: coarse)',
+    ).matches;
+    const currentStage = stages[stage];
+    this.element.innerText =
+      (useTouchControls ? currentStage?.touchHint : undefined) ??
+      currentStage?.hint ??
+      '';
   }
 }

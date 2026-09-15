@@ -271,7 +271,7 @@ export class GameServer implements GameEvents {
       points >= this.options.scoreLimit * settings.matchPointScoreRatio
     ) {
       this.matchPointAnnounced[team] = true;
-      this.announce(`Match point — team <span class="${team}">${team}</span>!`);
+      this.announce(`Match point: team <span class="${team}">${team}</span>!`);
     }
   }
 
