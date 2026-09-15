@@ -50,7 +50,6 @@ export class GameObjectContainer extends CommandReceiver {
       this.addObject(this.player);
       localCharacterPredictor.reset();
       this.game.resendMovement();
-      FeedbackHud.hideElimination();
       this.wasLocalPlayerAlive = true;
     },
 
@@ -133,9 +132,6 @@ export class GameObjectContainer extends CommandReceiver {
 
     const player = this.localPlayer;
     const alive = !!player && player.health > 0;
-    if (this.wasLocalPlayerAlive && !alive) {
-      FeedbackHud.showElimination();
-    }
     this.wasLocalPlayerAlive = alive;
 
     if (player) {
