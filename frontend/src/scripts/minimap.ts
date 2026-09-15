@@ -1,27 +1,14 @@
 import { vec2 } from 'gl-matrix';
-import { CharacterTeam, Id, settings } from 'shared';
+import { CharacterTeam, Id, MinimapPlayer, settings } from 'shared';
 
-export interface MinimapBlip {
-  id: Id;
-  position: vec2;
-  team: CharacterTeam;
-}
-
-// Top-down radar of the whole circular arena, pinned to the top-left. The map's
-// circular border is the world boundary (its radius maps to worldRadius), so the
-// local player's bright dot reads as a true position in the arena and every other
-// living player shows as a team-coloured dot. Owns its own <canvas>, so the Game
-// just appends `element` to the overlay and feeds it `update()` each frame.
-// Replaces the off-screen chevrons that used to point at other players.
 export class Minimap {
   public readonly element = document.createElement('canvas');
 
   private readonly ctx: CanvasRenderingContext2D;
   private readonly colors: Record<CharacterTeam, string>;
-  // World-space positions, smoothed per player so the 25 Hz snapshots glide
-  // rather than step between frames.
   private readonly smoothed = new Map<Id, vec2>();
   private bufferSize = 0;
+  private size = 0;
 
   constructor() {
     this.element.className = 'minimap';
@@ -37,10 +24,16 @@ export class Minimap {
     };
   }
 
-  public update(localPosition: vec2 | undefined, players: Array<MinimapBlip>) {
-    const size = this.element.clientWidth;
+  // Reading clientWidth after this frame's style writes would force a synchronous layout of
+  // the whole overlay inside the animation frame; the size only changes when the window does.
+  public measure() {
+    this.size = this.element.clientWidth;
+  }
+
+  public update(localPosition: vec2 | undefined, players: Array<MinimapPlayer>) {
+    const size = this.size;
     if (size === 0) {
-      return; // not laid out yet
+      return;
     }
     this.syncBufferSize(size);
 
@@ -52,8 +45,8 @@ export class Minimap {
     const scale = innerRadius / settings.worldRadius;
 
     const toMap = (world: vec2): { x: number; y: number } => {
-      let dx = world.x * scale;
-      let dy = -world.y * scale; // world Y points up, canvas Y points down
+      let dx = world[0] * scale;
+      let dy = -world[1] * scale;
       const distance = Math.hypot(dx, dy);
       if (distance > innerRadius) {
         dx = (dx / distance) * innerRadius;
@@ -62,7 +55,6 @@ export class Minimap {
       return { x: center + dx, y: center + dy };
     };
 
-    // Faint marker at the world's centre to aid orientation.
     ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.beginPath();
     ctx.arc(center, center, 1.5, 0, Math.PI * 2);
@@ -87,8 +79,6 @@ export class Minimap {
       }
     }
 
-    // The local player rides on top, drawn in white with a ring so "you" is
-    // unmistakable amongst the team-coloured dots.
     if (localPosition) {
       const { x, y } = toMap(localPosition);
       this.drawDot(x, y, 3.5, '#ffffff');
@@ -119,8 +109,6 @@ export class Minimap {
       this.element.width = target;
       this.element.height = target;
     }
-    // Setting the buffer size resets the transform, so (re)establish it every
-    // frame and draw in CSS pixels regardless of the device pixel ratio.
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 }

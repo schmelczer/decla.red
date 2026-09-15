@@ -6,4 +6,13 @@ export enum TransportEvents {
   ServerInfoUpdate = 'ServerInfoUpdate',
   Ping = 'Ping',
   Pong = 'Pong',
+  PlayerJoined = 'PlayerJoined',
+  JoinRejected = 'JoinRejected',
+}
+
+export enum JoinRejectionReason {
+  ServerFull = 'ServerFull',
+  RoundEnding = 'RoundEnding',
+  AlreadyJoined = 'AlreadyJoined',
+  InvalidRequest = 'InvalidRequest',
 }

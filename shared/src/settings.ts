@@ -7,8 +7,6 @@ const redColor = rgb255(209, 86, 82);
 const q = 2.5;
 const blueColorDim = rgb255(64 * q, 105 * q, 165 * q);
 const redColorDim = rgb255(209 * q, 86 * q, 82 * q);
-const bluePlanetColor = blueColorDim;
-const redPlanetColor = redColorDim;
 
 export const settings = {
   lightCutoffDistance: 600,
@@ -18,9 +16,6 @@ export const settings = {
   worldRadius: 4000,
   objectsOnCircleLength: 0.002,
   updateMessageInterval: 1 / 25,
-  // How far behind the estimated server time remote state is rendered: ~2.5
-  // update intervals, so a late packet rarely leaves the client without a
-  // newer snapshot to interpolate towards.
   interpolationDelaySeconds: 0.1,
   planetEdgeCount: 7,
   playerKillPoint: 25,
@@ -33,10 +28,6 @@ export const settings = {
   maxGravityDistance: 800,
   minGravityDistance: 1,
   maxGravityQ: 5000,
-  // Half-width of the neutral dead-band around 50% ownership. A planet only
-  // counts as captured (team(), point generation, flip) once |ownership-0.5|
-  // exceeds this, and the rendered ownership ring stays neutral until the same
-  // point — so what you see matches what scores.
   planetControlThreshold: 0.12,
   playerMaxHealth: 100,
   maxGravityStrength: 50000,
@@ -70,10 +61,8 @@ export const settings = {
   chargeShotRadiusMax: 32,
   chargeShotSpeedMin: 2500,
   chargeShotSpeedMax: 3400,
-  playerColorIndexOffset: 3,
   backgroundGradient: [rgb255(90, 38, 43), rgb255(43, 39, 73)],
-  blueColor,
-  bluePlanetColor,
+  bluePlanetColor: blueColorDim,
   npcNames: [
     'Adam',
     'Andrew',
@@ -124,8 +113,7 @@ export const settings = {
     'Will',
     'Wyatt',
   ],
-  redColor,
-  redPlanetColor,
+  redPlanetColor: redColorDim,
   colorIndices: {
     [CharacterTeam.blue]: 0,
     [CharacterTeam.neutral]: 1,
@@ -148,46 +136,21 @@ export const settings = {
 
   chargedHitThreshold: 0.6,
 
-  // Projectiles fall through planetary gravity like a free-falling character,
-  // so slower (charged) shots arc. Scale kept tiny: near a surface gravity is
-  // maxGravityStrength=50000, which at full strength would corkscrew a shot into
-  // the planet — 0.04 gives a readable bend instead.
-  projectileGravityEnabled: true,
   projectileGravityScale: 0.04,
 
-  // Speed the corpse is flung at along the killing shot's direction, lerped by
-  // that shot's charge. Added to whatever momentum the victim already carried.
   deathImpulseMin: 280,
   deathImpulseMax: 1300,
 
-  // A planet's net team head-count drives a single capture step per tick; the
-  // lead multiplier is capped so a zerg can't flip instantly. Equal head-counts
-  // freeze the planet (contested) instead of silently cancelling.
   maxContestLeadMultiplier: 2,
 
-  // Persistent body momentum decays per second by these exponents. Airborne is
-  // near-frictionless so leaps and slingshots carry across the gaps; grounded is
-  // stiff so you skid to a stop on landing rather than sliding forever.
   airMomentumFriction: 0.4,
 
   groundMomentumFriction: 7,
 
-  // On top of the exponential frictions above, a constant deceleration (u/s^2)
-  // applied to body momentum. The exponential alone only asymptotes toward zero,
-  // so a fast launch keeps a slow tail for 15+ seconds — it reads as drifting
-  // forever with nothing slowing you. This constant brake brings the momentum to
-  // a definite stop in a couple of seconds, while the gentle exponential still
-  // lets the launch cover its distance first.
-
   momentumStopDeceleration: 400,
-  // Hard ceiling (u/s) on body momentum, so stacked impulses — rapid charged-shot
-  // recoil, or a leap chained into a spin slingshot — can't build speed without
-  // bound. Kept above the overcharge fling (1700) so single launches survive.
 
   maxBodyMomentum: 2000,
 
-  // Leap: a charged-cost launch off a surface, paid from the shared shooting
-  // strength pool so it trades against firepower.
   leapStrengthCost: 32,
 
   leapSpeed: 1350,
@@ -195,15 +158,23 @@ export const settings = {
   leapMoveBias: 0.65,
   leapCooldownSeconds: 0.35,
 
-  // Fraction of the planet's tangential surface velocity you keep when you leave
-  // it (slingshot). Leap off a fast spinner to be flung far.
   slingshotScale: 1,
 
-  // Recoil speed imparted opposite a shot, scaled by its charge (0 for taps).
   chargeShotRecoilMax: 650,
 
-  // The central giant is a named, always-contested focus. Its neutral decay is
-  // slowed so control lingers and teams keep fighting over it; flips are
-  // announced to everyone and an off-screen arrow points the way.
+  maxInboundMessageBytes: 16 * 1024,
+
+  // Must not be the frame rate: dropped batches lose edge-triggered movement commands.
+  clientSendInterval: 1 / 30,
+
+  maxInboundMessagesPerSecond: 240,
+  maxInboundMessageBurst: 480,
+
+  maxMeasuredRttMs: 1000,
+
+  maxBufferedBytesPerClient: 256 * 1024,
+
+  maxClientPositionMagnitude: 1e6,
+
   keystoneLoseControlScale: 2.5,
 };

@@ -3,13 +3,6 @@ import { PhysicsBody, Sdf } from './sdf';
 import { evaluateSdf } from './evaluate-sdf';
 import { sdfNormal } from './sdf-normal';
 
-// Planet collision outlines rotate (see PlanetPhysical.distance), so a surface
-// can sweep into a circle that hasn't itself moved. marchCircle assumes an
-// overlap-free start — beginning inside, it registers a zero-distance hit and
-// never moves again — so any overlap must be resolved here, before marching.
-// Iterating handles concave spots, where leaving one face pushes into another;
-// if no overlap-free position exists nearby (a crevice narrower than the
-// circle), it gives up and leaves the rest to a later tick.
 export const depenetrateCircle = (
   body: PhysicsBody,
   possibleIntersectors: Array<Sdf>,
@@ -26,11 +19,6 @@ export const depenetrateCircle = (
     }
 
     vec2.copy(body.lastNormal, normal);
-    body.center = vec2.scaleAndAdd(
-      vec2.create(),
-      body.center,
-      normal,
-      body.radius - distance + 0.01,
-    );
+    vec2.scaleAndAdd(body.center, body.center, normal, body.radius - distance + 0.01);
   }
 };

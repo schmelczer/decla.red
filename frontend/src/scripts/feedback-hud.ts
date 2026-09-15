@@ -1,120 +1,128 @@
 import { settings } from 'shared';
-import { Pointer } from './helper/pointer';
+import { getDisplayPosition } from './helper/pointer';
 
-export abstract class FeedbackHud {
-  private static root?: HTMLElement;
-  private static killfeed?: HTMLElement;
-  private static elimination?: HTMLElement;
+let root: HTMLElement | undefined;
+let killfeed: HTMLElement | undefined;
+let elimination: HTMLElement | undefined;
 
-  private static ensureRoot(): { root: HTMLElement; killfeed: HTMLElement } {
-    if (!this.root || !this.killfeed) {
-      this.root = document.createElement('div');
-      this.root.className = 'feedback-hud';
+function ensureRoot(): { root: HTMLElement; killfeed: HTMLElement } {
+  if (!root || !killfeed) {
+    root = document.createElement('div');
+    root.className = 'feedback-hud';
 
-      this.killfeed = document.createElement('div');
-      this.killfeed.className = 'killfeed';
-      this.root.appendChild(this.killfeed);
+    killfeed = document.createElement('div');
+    killfeed.className = 'killfeed';
+    root.appendChild(killfeed);
 
-      document.body.appendChild(this.root);
-    }
-    return { root: this.root, killfeed: this.killfeed };
+    document.body.appendChild(root);
   }
+  return { root, killfeed };
+}
 
-  private static focusPoint(): { x: number; y: number } {
-    const cursor = Pointer.getDisplayPosition();
-    if (cursor) {
-      return { x: cursor.x, y: cursor.y };
-    }
-    return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+function focusPoint(): { x: number; y: number } {
+  const cursor = getDisplayPosition();
+  if (cursor) {
+    return { x: cursor[0], y: cursor[1] };
   }
+  return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+}
 
-  private static addTransient(element: HTMLElement, lifetimeMs: number) {
-    const { root } = this.ensureRoot();
-    root.appendChild(element);
-    setTimeout(() => element.parentElement?.removeChild(element), lifetimeMs);
-  }
+function addTransient(el: HTMLElement, lifetimeMs: number) {
+  const { root: r } = ensureRoot();
+  r.appendChild(el);
+  setTimeout(() => el.remove(), lifetimeMs);
+}
 
-  public static hitMarker(charge = 0) {
-    const { x, y } = this.focusPoint();
-    const marker = document.createElement('div');
-    marker.className =
-      'hitmarker' + (charge >= settings.chargedHitThreshold ? ' charged' : '');
-    marker.style.left = `${x}px`;
-    marker.style.top = `${y}px`;
-    this.addTransient(marker, 250);
-  }
+function hitMarker(charge = 0) {
+  const { x, y } = focusPoint();
+  const marker = document.createElement('div');
+  marker.className =
+    'hitmarker' + (charge >= settings.chargedHitThreshold ? ' charged' : '');
+  marker.style.left = `${x}px`;
+  marker.style.top = `${y}px`;
+  addTransient(marker, 250);
+}
 
-  public static killConfirmed(victimName?: string, streak = 1, charge = 0) {
-    const { killfeed } = this.ensureRoot();
-    const charged = charge >= settings.chargedHitThreshold;
+function killConfirmed(victimName?: string, streak = 1, charge = 0) {
+  const { killfeed: kf } = ensureRoot();
+  const charged = charge >= settings.chargedHitThreshold;
 
-    // A quick crimson vignette pulse around the whole frame to punctuate the kill.
-    const flash = document.createElement('div');
-    flash.className = 'kill-flash' + (charged ? ' charged' : '');
-    this.addTransient(flash, 420);
+  const flash = document.createElement('div');
+  flash.className = 'kill-flash' + (charged ? ' charged' : '');
+  addTransient(flash, 420);
 
-    const entry = document.createElement('div');
-    entry.className = 'kill-entry';
-    entry.innerHTML = `Eliminated <b>${this.escape(victimName ?? 'enemy')}</b>`;
-    killfeed.insertBefore(entry, killfeed.firstChild);
-    setTimeout(() => entry.parentElement?.removeChild(entry), 4500);
+  const entry = document.createElement('div');
+  entry.className = 'kill-entry';
+  entry.innerHTML = `Eliminated <b>${escapeHtml(victimName ?? 'enemy')}</b>`;
+  kf.insertBefore(entry, kf.firstChild);
+  setTimeout(() => entry.remove(), 4500);
 
-    const { x, y } = this.focusPoint();
-    const popup = document.createElement('div');
-    popup.className = 'kill-popup' + (charged ? ' charged' : '');
-    popup.innerHTML = `+${settings.playerKillPoint} <span class="heal">+${settings.playerKillHealthReward}❤</span>`;
-    popup.style.left = `${x}px`;
-    popup.style.top = `${y}px`;
-    this.addTransient(popup, 1200);
+  const { x, y } = focusPoint();
+  const popup = document.createElement('div');
+  popup.className = 'kill-popup' + (charged ? ' charged' : '');
+  popup.innerHTML = `+${settings.playerKillPoint} <span class="heal">+${settings.playerKillHealthReward}❤</span>`;
+  popup.style.left = `${x}px`;
+  popup.style.top = `${y}px`;
+  addTransient(popup, 1200);
 
-    const callout = this.streakName(streak) ?? (charged ? 'Charged Kill!' : undefined);
-    if (callout) {
-      const el = document.createElement('div');
-      el.className = 'streak-callout';
-      el.innerText = callout;
-      this.addTransient(el, 1400);
-    }
-  }
-
-  // Persistent centred overlay shown while the local player is dead and waiting
-  // to respawn. The countdown itself is the server-driven "Reviving in N…"
-  // announcement; this makes the death state unmistakable and stays up until
-  // hideElimination() is called on respawn.
-  public static showElimination(): void {
-    if (this.elimination) {
-      return;
-    }
-    const { root } = this.ensureRoot();
+  const callout = streakName(streak) ?? (charged ? 'Charged Kill!' : undefined);
+  if (callout) {
     const el = document.createElement('div');
-    el.className = 'elimination';
-    el.innerHTML =
-      '<div class="elimination-title">Eliminated</div>' +
-      '<div class="elimination-sub">Respawning…</div>';
-    root.appendChild(el);
-    this.elimination = el;
-  }
-
-  public static hideElimination(): void {
-    this.elimination?.parentElement?.removeChild(this.elimination);
-    this.elimination = undefined;
-  }
-
-  private static streakName(streak: number): string | undefined {
-    switch (streak) {
-      case 2:
-        return 'Double Kill!';
-      case 3:
-        return 'Triple Kill!';
-      case 4:
-        return 'Quad Kill!';
-      default:
-        return streak >= 5 ? 'Rampage!' : undefined;
-    }
-  }
-
-  private static escape(text: string): string {
-    const div = document.createElement('div');
-    div.innerText = text;
-    return div.innerHTML;
+    el.className = 'streak-callout';
+    el.innerText = callout;
+    addTransient(el, 1400);
   }
 }
+
+function showElimination(): void {
+  if (elimination) {
+    return;
+  }
+  const { root: r } = ensureRoot();
+  const el = document.createElement('div');
+  el.className = 'elimination';
+  el.innerHTML =
+    '<div class="elimination-title">Eliminated</div>' +
+    '<div class="elimination-sub">Respawning…</div>';
+  r.appendChild(el);
+  elimination = el;
+}
+
+function hideElimination(): void {
+  elimination?.remove();
+  elimination = undefined;
+}
+
+function resetFeedbackHud(): void {
+  hideElimination();
+  root?.remove();
+  root = undefined;
+  killfeed = undefined;
+}
+
+function streakName(streak: number): string | undefined {
+  switch (streak) {
+    case 2:
+      return 'Double Kill!';
+    case 3:
+      return 'Triple Kill!';
+    case 4:
+      return 'Quad Kill!';
+    default:
+      return streak >= 5 ? 'Rampage!' : undefined;
+  }
+}
+
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.innerText = text;
+  return div.innerHTML;
+}
+
+export const FeedbackHud = {
+  hitMarker,
+  killConfirmed,
+  showElimination,
+  hideElimination,
+  reset: resetFeedbackHud,
+};

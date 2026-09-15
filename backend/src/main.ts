@@ -2,15 +2,14 @@ import { Server as IoServer } from 'socket.io';
 import express from 'express';
 import { Server } from 'http';
 import cors from 'cors';
-import { applyArrayPlugins, Random, serverInformationEndpoint } from 'shared';
+import { Random, serverInformationEndpoint, settings } from 'shared';
 import minimist from 'minimist';
 import { glMatrix } from 'gl-matrix';
 import { GameServer } from './game-server';
-import { defaultOptions } from './default-options';
+import { defaultOptions } from './options';
 import parser from 'socket.io-msgpack-parser';
 
 glMatrix.setMatrixArrayType(Array);
-applyArrayPlugins();
 
 const optionOverrides = minimist(process.argv.slice(2));
 const options = {
@@ -24,6 +23,7 @@ const app = express();
 const server = new Server(app);
 const io = new IoServer(server, {
   parser,
+  maxHttpBufferSize: settings.maxInboundMessageBytes,
   cors: {
     origin: true,
     credentials: true,
@@ -32,14 +32,7 @@ const io = new IoServer(server, {
 
 const gameServer = new GameServer(io, options);
 
-app.use(
-  cors({
-    origin: (_, callback) => {
-      callback(null, true);
-    },
-    credentials: true,
-  }),
-);
+app.use(cors({ origin: true, credentials: true }));
 
 app.get(serverInformationEndpoint, (_, res) => {
   res.json(gameServer.serverInfo);

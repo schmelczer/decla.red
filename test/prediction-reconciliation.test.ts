@@ -1,43 +1,44 @@
-// Reconciliation guard for the REAL client predictor. It exercises
-// LocalCharacterPredictor end-to-end with an injected clock, verifying the two
-// properties reconciliation depends on:
-//   1. a fully-acknowledged snapshot reproduces the authoritative pose exactly
-//      (no spurious drift on top of server truth), and
-//   2. un-acknowledged input is replayed forward deterministically.
-// This is the net for prediction-touching changes (the death-while-dead fix,
-// future netcode work) — a regression shows up as drift or non-determinism.
 import { describe, it, expect } from 'vitest';
 import {
   LocalCharacterPredictor,
-  setPredictorClockForTesting,
+  setFrameTimeMs,
 } from '../frontend/src/scripts/helper/prediction/local-character-predictor';
 
 const HEAD_RADIUS = 50;
 const FEET_RADIUS = 20;
 
-// A Circle-shaped pose; the predictor only reads .center / .radius, so plain
-// objects with array centres are sufficient (and avoid importing gl-matrix).
 const poseAt = (cx: number, cy: number) => ({
   head: { center: [cx, cy + 37], radius: HEAD_RADIUS },
   leftFoot: { center: [cx - 33, cy - 18], radius: FEET_RADIUS },
   rightFoot: { center: [cx + 33, cy - 18], radius: FEET_RADIUS },
 });
 
+const movementState = (direction = 0) => ({
+  direction,
+  bodyVelocity: [0, 0],
+  leftFootNormal: [0, 1],
+  rightFootNormal: [0, 1],
+  groundPlanetId: null,
+  secondsSinceOnSurface: 1,
+});
+
 describe('local prediction reconciliation', () => {
   it('reproduces the authoritative pose exactly when all input is acknowledged', () => {
-    let clock = 1000;
-    setPredictorClockForTesting(() => clock);
+    setFrameTimeMs(1000);
 
     const predictor = new LocalCharacterPredictor();
     const auth = poseAt(500, 500);
 
     const t = predictor.recordInput([1, 0]);
-    predictor.acknowledge(t, [0, 0], -Infinity); // server has consumed this input
+    predictor.acknowledge(t, movementState() as never, -Infinity);
     predictor.setStrength(80);
-    predictor.setAuthoritative(auth.head as never, auth.leftFoot as never, auth.rightFoot as never);
+    predictor.setAuthoritative(
+      auth.head as never,
+      auth.leftFoot as never,
+      auth.rightFoot as never,
+    );
 
-    // No clock advance → zero replay window → predicted pose == authoritative.
-    const used = predictor.update([], 1 / 60);
+    const used = predictor.update([]);
 
     expect(used).toBe(true);
     expect(predictor.head.center[0]).toBeCloseTo(auth.head.center[0], 5);
@@ -48,19 +49,20 @@ describe('local prediction reconciliation', () => {
 
   it('replays un-acknowledged input deterministically', () => {
     const drive = () => {
-      let clock = 0;
-      setPredictorClockForTesting(() => clock);
-
       const predictor = new LocalCharacterPredictor();
-      clock = 1000;
-      predictor.acknowledge(900, [0, 0], -Infinity); // baseline ack (older than the input below)
+      setFrameTimeMs(1000);
+      predictor.acknowledge(900, movementState() as never, -Infinity);
       predictor.setStrength(80);
       const auth = poseAt(0, 0);
-      predictor.setAuthoritative(auth.head as never, auth.leftFoot as never, auth.rightFoot as never);
-      predictor.recordInput([1, 0]); // unacked rightward input at t=1000
+      predictor.setAuthoritative(
+        auth.head as never,
+        auth.leftFoot as never,
+        auth.rightFoot as never,
+      );
+      predictor.recordInput([1, 0]);
 
-      clock = 1100; // replay ~100 ms forward
-      predictor.update([], 1 / 60);
+      setFrameTimeMs(1100);
+      predictor.update([]);
       return [
         predictor.head.center[0],
         predictor.head.center[1],
@@ -71,26 +73,243 @@ describe('local prediction reconciliation', () => {
 
     const a = drive();
     const b = drive();
-    expect(a).toEqual(b); // deterministic replay
+    expect(a).toEqual(b);
     expect(a.every((n) => Number.isFinite(n))).toBe(true);
-    expect(a[0]).toBeGreaterThan(0.5); // rightward input actually moved the body
+    expect(a[0]).toBeGreaterThan(0.5);
   });
 
   it('suppresses prediction while the local player is dead', () => {
-    let clock = 5000;
-    setPredictorClockForTesting(() => clock);
+    setFrameTimeMs(5000);
 
     const predictor = new LocalCharacterPredictor();
     const auth = poseAt(200, 200);
     const t = predictor.recordInput([1, 0]);
-    predictor.acknowledge(t, [0, 0], -Infinity);
+    predictor.acknowledge(t, movementState() as never, -Infinity);
     predictor.setStrength(80);
-    predictor.setAuthoritative(auth.head as never, auth.leftFoot as never, auth.rightFoot as never);
-    predictor.setAlive(false); // dead, awaiting respawn
+    predictor.setAuthoritative(
+      auth.head as never,
+      auth.leftFoot as never,
+      auth.rightFoot as never,
+    );
+    predictor.setAlive(false);
 
-    clock = 5200; // input + elapsed time that would otherwise be replayed forward
-    // Even with a valid authoritative pose and pending input, a dead body must
-    // not be predicted/moved — that was the "move while dead" bug.
-    expect(predictor.update([], 1 / 60)).toBe(false);
+    setFrameTimeMs(5200);
+    expect(predictor.update([])).toBe(false);
+  });
+
+  it('replays the whole un-acknowledged span, so a longer trip predicts further', () => {
+    const driveWithUnackedSpan = (ackAgeMs: number) => {
+      const predictor = new LocalCharacterPredictor();
+      predictor.setStrength(80);
+      setFrameTimeMs(9_000);
+      predictor.recordInput([1, 0]);
+
+      setFrameTimeMs(10_000);
+      const auth = poseAt(0, 0);
+      predictor.acknowledge(10_000 - ackAgeMs, movementState() as never, -Infinity);
+      predictor.setAuthoritative(
+        auth.head as never,
+        auth.leftFoot as never,
+        auth.rightFoot as never,
+      );
+
+      predictor.update([]);
+      return predictor.head.center[0];
+    };
+
+    const shortTrip = driveWithUnackedSpan(40);
+    const longTrip = driveWithUnackedSpan(200);
+
+    expect(shortTrip).toBeGreaterThan(0);
+    expect(longTrip).toBeGreaterThan(shortTrip * 2);
+  });
+
+  it('cancels the age of the acknowledged input, so the send cadence cannot beat', () => {
+    const snapshotAgeMs = 20;
+    const drive = (inputAgeMs: number, serverReportsAge: boolean) => {
+      const predictor = new LocalCharacterPredictor();
+      predictor.setStrength(80);
+      setFrameTimeMs(9_000);
+      predictor.recordInput([1, 0]);
+
+      setFrameTimeMs(10_000);
+      predictor.acknowledge(
+        10_000 - snapshotAgeMs - inputAgeMs,
+        movementState() as never,
+        -Infinity,
+        serverReportsAge ? inputAgeMs : 0,
+      );
+      const auth = poseAt(0, 0);
+      predictor.setAuthoritative(
+        auth.head as never,
+        auth.leftFoot as never,
+        auth.rightFoot as never,
+      );
+
+      predictor.update([]);
+      return predictor.head.center[0];
+    };
+
+    expect(drive(16, true)).toBeCloseTo(drive(0, true), 6);
+    expect(Math.abs(drive(16, false) - drive(0, false))).toBeGreaterThan(0.5);
+  });
+
+  it('replays the streamed facing direction, not one guessed from the pose', () => {
+    const walkingPose = () => ({
+      head: { center: [-35, 37], radius: HEAD_RADIUS },
+      leftFoot: { center: [-33, -18], radius: FEET_RADIUS },
+      rightFoot: { center: [33, -18], radius: FEET_RADIUS },
+    });
+
+    const predictWithDirection = (direction: number) => {
+      const predictor = new LocalCharacterPredictor();
+      predictor.setStrength(80);
+      setFrameTimeMs(0);
+      predictor.recordInput([1, 0]);
+      predictor.acknowledge(0, movementState(direction) as never, -Infinity);
+      const auth = walkingPose();
+      predictor.setAuthoritative(
+        auth.head as never,
+        auth.leftFoot as never,
+        auth.rightFoot as never,
+      );
+
+      setFrameTimeMs(40);
+      predictor.update([]);
+      return [predictor.head.center[0], predictor.head.center[1]];
+    };
+
+    const upright = predictWithDirection(0);
+    const asThePoseImplies = predictWithDirection(0.566);
+    const apart = Math.hypot(
+      upright[0] - asThePoseImplies[0],
+      upright[1] - asThePoseImplies[1],
+    );
+
+    expect(apart).toBeGreaterThan(1);
+  });
+});
+
+const settledPoseAt = (x: number) => ({
+  head: { center: [x, 55 - 55 / 3], radius: HEAD_RADIUS },
+  leftFoot: { center: [x - 20, -55 / 3], radius: FEET_RADIUS },
+  rightFoot: { center: [x + 20, -55 / 3], radius: FEET_RADIUS },
+});
+
+const install = (predictor: LocalCharacterPredictor, timeMs: number, x: number) => {
+  const pose = settledPoseAt(x);
+  predictor.acknowledge(timeMs, movementState() as never, -Infinity);
+  predictor.setAuthoritative(
+    pose.head as never,
+    pose.leftFoot as never,
+    pose.rightFoot as never,
+  );
+};
+
+describe('prediction corrections and interruptions', () => {
+  it('blends an authoritative correction and converges without slowing ordinary motion', () => {
+    const predictor = new LocalCharacterPredictor();
+    setFrameTimeMs(1000);
+    install(predictor, 1000, 0);
+    predictor.update([]);
+
+    setFrameTimeMs(1016);
+    install(predictor, 1016, 100);
+    predictor.update([]);
+    expect(predictor.head.center[0]).toBeCloseTo(0, 5);
+
+    setFrameTimeMs(1032);
+    predictor.update([]);
+    expect(predictor.head.center[0]).toBeGreaterThan(0);
+    expect(predictor.head.center[0]).toBeLessThan(100);
+
+    setFrameTimeMs(1516);
+    predictor.update([]);
+    expect(predictor.head.center[0]).toBeCloseTo(100, 0);
+  });
+
+  it('freezes at the replay horizon during an outage even if held input changes', () => {
+    const predictor = new LocalCharacterPredictor();
+    setFrameTimeMs(0);
+    install(predictor, 0, 0);
+    predictor.recordInput([1, 0] as never);
+    setFrameTimeMs(400);
+    predictor.update([]);
+    const frozen = [...predictor.head.center];
+
+    setFrameTimeMs(450);
+    predictor.recordInput([-1, 0] as never);
+    setFrameTimeMs(600);
+    predictor.update([]);
+    expect([...predictor.head.center]).toEqual(frozen);
+
+    setFrameTimeMs(2000);
+    predictor.recordInput([0, 0] as never);
+    setFrameTimeMs(2500);
+    predictor.update([]);
+    expect([...predictor.head.center]).toEqual(frozen);
+  });
+
+  it('clears visual correction on respawn and disables prediction for end-game snapshots', () => {
+    const predictor = new LocalCharacterPredictor();
+    setFrameTimeMs(1000);
+    install(predictor, 1000, 0);
+    predictor.update([]);
+    install(predictor, 1000, 100);
+    predictor.update([]);
+    predictor.reset();
+    install(predictor, 1000, 1000);
+    predictor.update([]);
+    expect(predictor.head.center[0]).toBe(1000);
+    predictor.enabled = false;
+    expect(predictor.update([])).toBe(false);
+    predictor.reset();
+    install(predictor, 1000, 1000);
+    expect(predictor.update([])).toBe(false);
+  });
+});
+
+const ground = {
+  id: 1,
+  vertices: Array.from({ length: 15 }, (_, i) => {
+    const angle = (i / 15) * -Math.PI * 2;
+    return [800 * Math.cos(angle), 800 * Math.sin(angle)];
+  }),
+  snapshotRotation: 0,
+  snapshotRotationSpeed: 0,
+};
+
+const leapHeight = (cooldown: number, leap: boolean) => {
+  const predictor = new LocalCharacterPredictor();
+  setFrameTimeMs(1000);
+  const pose = poseAt(0, 900);
+  predictor.acknowledge(
+    1000,
+    {
+      ...movementState(),
+      groundPlanetId: 1,
+      secondsSinceOnSurface: 0,
+      leapCooldownRemaining: cooldown,
+    } as never,
+    -Infinity,
+  );
+  predictor.setAuthoritative(
+    pose.head as never,
+    pose.leftFoot as never,
+    pose.rightFoot as never,
+  );
+  if (leap) predictor.recordLeap();
+  setFrameTimeMs(1002);
+  predictor.update([ground] as never);
+  return predictor.head.center[1];
+};
+
+describe('leap prediction', () => {
+  it('applies a newly pressed leap in the very next fractional render tick', () => {
+    expect(leapHeight(0, true)).toBeGreaterThan(leapHeight(0, false) + 1);
+  });
+
+  it('does not predict a leap the authoritative cooldown will reject', () => {
+    expect(leapHeight(0.2, true)).toEqual(leapHeight(0.2, false));
   });
 });

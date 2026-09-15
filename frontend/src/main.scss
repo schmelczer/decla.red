@@ -127,7 +127,6 @@ body {
 
     .player-tag {
       border-radius: 1000px;
-      transition: transform 200ms;
 
       &.blue {
         color: $bright-blue;
@@ -231,8 +230,6 @@ body {
       }
     }
 
-    // Top-down radar of the whole arena (see Minimap). The circular border is
-    // the world boundary; dots are painted onto the canvas.
     .minimap {
       top: $small-padding;
       left: $small-padding;
@@ -247,16 +244,13 @@ body {
 
       border-radius: 1000px;
       background-color: rgba(0, 0, 0, 0.35);
-      box-shadow:
-        inset 0 0 3px 0 rgba(0, 0, 0, 0.4),
-        0 0 10px rgba(0, 0, 0, 0.3);
+      box-shadow: inset 0 0 3px 0 rgba(0, 0, 0, 0.4),
+      0 0 10px rgba(0, 0, 0, 0.3);
       border: $border-width solid rgba(255, 255, 255, 0.25);
       z-index: 100;
     }
 
-    // Off-screen pointer to the keystone "Heart", tinted by its current owner.
     .keystone-arrow {
-      transition: transform 150ms;
       opacity: 0.9;
 
       @include square($large-icon);
@@ -333,8 +327,6 @@ body {
           content: '\25C9';
         }
 
-        // Twin-stick aim indicator: drawn from the button centre toward the
-        // current drag direction while aiming a shot (see TouchListener).
         .aim-line {
           position: absolute;
           left: 50%;
@@ -738,8 +730,6 @@ body {
     }
   }
 
-  // Centred "Eliminated" overlay shown while the local player is dead; the
-  // respawn countdown is the server-driven "Reviving in N…" announcement.
   .elimination {
     position: absolute;
     top: 42%;
@@ -937,4 +927,29 @@ body {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
+}
+
+.connection-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.join-notice {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: rgba(209, 86, 82, 0.18);
+  color: #f2c9c7;
+  font-size: 0.85rem;
+  text-align: center;
 }

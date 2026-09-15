@@ -1,254 +1,292 @@
 import { vec2 } from 'gl-matrix';
-import {
-  CommandGenerator,
-  MoveActionCommand,
-  last,
-  PrimaryActionCommand,
-  LeapActionCommand,
-  holdDurationToCharge,
-  settings,
-} from 'shared';
-import { Game } from '../game';
+import { chargeHeldSince, settings } from 'shared';
+import type { Command } from 'shared';
+import type { Game } from '../game';
 import { ChargeIndicator } from '../charge-indicator';
-import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
+import { centeredTransform } from '../helper/centered-transform';
+import { InputGenerator } from './input-generator';
 
-export class TouchListener extends CommandGenerator {
-  private static readonly deadZone = 8;
-  private static readonly deltaScaling = 0.4;
-  // Min screen drag (px) from the fire button before a shot is aimed by the
-  // drag direction instead of firing straight ahead.
-  private static readonly aimDeadZone = 18;
+const deadZone = 8;
+const deltaScaling = 0.4;
+const aimDeadZone = 18;
+const joystickMaxLength = 20;
 
-  private joystick: HTMLElement;
-  private joystickButton: HTMLElement;
+export class TouchListener extends InputGenerator {
+  private readonly joystick = document.createElement('div');
+  private readonly joystickButton = document.createElement('div');
+  private readonly fireButton = document.createElement('div');
+  private readonly fireStrengthRing = document.createElement('div');
+  private readonly fireAimLine = document.createElement('div');
+  private readonly leapButton = document.createElement('div');
+
   private isJoystickActive = false;
-  private touchStartPosition!: vec2;
+  private touchStartPosition = vec2.create();
+  private movement = vec2.create();
   private primaryDownAt: number | null = null;
-
-  private fireButton: HTMLElement;
-  private fireStrengthRing: HTMLElement;
-  private fireAimLine!: HTMLElement;
-  private leapButton: HTMLElement;
+  private gestureTouchId: number | null = null;
 
   private fireDownAt: number | null = null;
-  private fireButtonCenter: vec2 | null = null;
-  private fireAimScreen: vec2 | null = null;
+  private fireTouchId: number | null = null;
+  private fireButtonCenter = vec2.create();
 
   constructor(
-    private target: HTMLElement,
-    private overlay: HTMLElement,
+    private readonly target: HTMLElement,
+    private readonly overlay: HTMLElement,
     private readonly game: Game,
+    onCommand: (command: Command) => void,
   ) {
-    super();
+    super(onCommand);
 
-    this.joystick = document.createElement('div');
     this.joystick.className = 'joystick';
-    this.joystickButton = document.createElement('div');
     this.joystick.appendChild(this.joystickButton);
 
-    this.fireButton = document.createElement('div');
     this.fireButton.className = 'touch-button fire';
-    this.fireStrengthRing = document.createElement('div');
     this.fireStrengthRing.className = 'strength-ring';
-    this.fireButton.appendChild(this.fireStrengthRing);
-    this.fireAimLine = document.createElement('div');
     this.fireAimLine.className = 'aim-line';
-    this.fireButton.appendChild(this.fireAimLine);
-
+    this.fireButton.append(this.fireStrengthRing, this.fireAimLine);
     this.fireButton.addEventListener('touchstart', this.fireButtonDownListener);
     this.fireButton.addEventListener('touchmove', this.fireButtonMoveListener);
     this.fireButton.addEventListener('touchend', this.fireButtonUpListener);
+    this.fireButton.addEventListener('touchcancel', this.fireButtonCancelListener);
 
-    this.leapButton = document.createElement('div');
     this.leapButton.className = 'touch-button leap';
     this.leapButton.addEventListener('touchstart', this.leapButtonListener);
-
-    this.overlay.appendChild(this.fireButton);
-    this.overlay.appendChild(this.leapButton);
 
     target.addEventListener('touchstart', this.touchStartListener);
     target.addEventListener('touchmove', this.touchMoveListener);
     target.addEventListener('touchend', this.touchEndListener);
+    target.addEventListener('touchcancel', this.touchCancelListener);
+    window.addEventListener('blur', this.cancelTouches);
+  }
+
+  private findTouch(list: TouchList, id: number | null): Touch | undefined {
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].identifier === id) {
+        return list[i];
+      }
+    }
+    return undefined;
   }
 
   private touchStartListener = (event: TouchEvent) => {
     event.preventDefault();
+    const touch = event.changedTouches[event.changedTouches.length - 1];
+    if (!touch) {
+      return;
+    }
     if (this.isJoystickActive) {
-      const center = vec2.fromValues(
-        last(event.touches)!.clientX,
-        last(event.touches)!.clientY,
+      this.sendPrimary(
+        this.game.displayToWorldCoordinates(
+          vec2.fromValues(touch.clientX, touch.clientY),
+        ),
+        0,
       );
-      this.sendCommandToSubscribers(
-        new PrimaryActionCommand(this.game.displayToWorldCoordinates(center)),
-      );
-    } else {
-      this.touchStartPosition = vec2.fromValues(
-        event.touches[0].clientX,
-        event.touches[0].clientY,
-      );
+    } else if (this.gestureTouchId === null) {
+      this.gestureTouchId = touch.identifier;
+      vec2.set(this.touchStartPosition, touch.clientX, touch.clientY);
       this.primaryDownAt = performance.now();
-      ChargeIndicator.begin(this.touchStartPosition.x, this.touchStartPosition.y);
+      ChargeIndicator.begin(touch.clientX, touch.clientY);
     }
   };
 
   private touchMoveListener = (event: TouchEvent) => {
     event.preventDefault();
 
-    const touchPosition = vec2.fromValues(
-      event.touches[0].clientX,
-      event.touches[0].clientY,
-    );
+    const touch = this.findTouch(event.touches, this.gestureTouchId);
+    if (!touch) {
+      return;
+    }
 
-    const delta = vec2.subtract(vec2.create(), touchPosition, this.touchStartPosition);
-    vec2.scale(delta, delta, TouchListener.deltaScaling);
+    const delta = vec2.fromValues(
+      touch.clientX - this.touchStartPosition[0],
+      touch.clientY - this.touchStartPosition[1],
+    );
+    vec2.scale(delta, delta, deltaScaling);
     const deltaLength = vec2.length(delta);
 
-    if (!this.isJoystickActive && deltaLength > TouchListener.deadZone) {
+    if (!this.isJoystickActive && deltaLength > deadZone) {
       this.isJoystickActive = true;
       this.primaryDownAt = null;
       ChargeIndicator.end();
       this.overlay.appendChild(this.joystick);
-      this.joystickButton.style.transform = `translateX(-50%) translateY(-50%)`;
-      this.joystick.style.transform = `translateX(${this.touchStartPosition.x}px) translateY(${this.touchStartPosition.y}px) translateX(-50%) translateY(-50%)`;
+      this.joystick.style.transform = centeredTransform(
+        this.touchStartPosition[0],
+        this.touchStartPosition[1],
+      );
     }
 
-    const maxLength = 20;
-    vec2.scale(delta, delta, Math.min(1, maxLength / deltaLength));
-    this.joystickButton.style.transform = `translateX(${delta.x}px) translateY(${delta.y}px) translateX(-50%) translateY(-50%)`;
+    vec2.scale(delta, delta, Math.min(1, joystickMaxLength / deltaLength));
+    this.joystickButton.style.transform = centeredTransform(delta[0], delta[1]);
 
-    vec2.set(delta, delta.x, -delta.y);
-    if (deltaLength > TouchListener.deadZone) {
-      const direction = vec2.normalize(delta, delta);
-      this.sendMove(direction);
+    if (deltaLength > deadZone) {
+      vec2.set(delta, delta[0], -delta[1]);
+      vec2.normalize(this.movement, delta);
     } else {
-      this.sendMove(vec2.create());
+      vec2.zero(this.movement);
     }
+    this.sendMove(vec2.clone(this.movement));
   };
-
-  private sendMove(direction: vec2) {
-    const clientTimeMs = localCharacterPredictor.recordInput(direction);
-    this.sendCommandToSubscribers(new MoveActionCommand(direction, clientTimeMs));
-  }
 
   private touchEndListener = (event: TouchEvent) => {
     event.preventDefault();
 
-    if (!this.isJoystickActive) {
-      ChargeIndicator.end();
-      const charge =
-        this.primaryDownAt === null
-          ? 0
-          : holdDurationToCharge((performance.now() - this.primaryDownAt) / 1000);
-      this.primaryDownAt = null;
-      const center = vec2.fromValues(
-        event.changedTouches[0].clientX,
-        event.changedTouches[0].clientY,
-      );
-      this.sendCommandToSubscribers(
-        new PrimaryActionCommand(this.game.displayToWorldCoordinates(center), charge),
-      );
-    } else if (event.touches.length === 0) {
-      this.isJoystickActive = false;
-      this.joystick.parentElement?.removeChild(this.joystick);
-      this.sendMove(vec2.create());
+    const touch = this.findTouch(event.changedTouches, this.gestureTouchId);
+    if (!touch) {
+      return;
+    }
+    this.gestureTouchId = null;
+
+    if (this.isJoystickActive) {
+      this.releaseJoystick();
+      return;
+    }
+
+    ChargeIndicator.end();
+    const charge = this.primaryDownAt === null ? 0 : chargeHeldSince(this.primaryDownAt);
+    this.primaryDownAt = null;
+    this.sendPrimary(
+      this.game.displayToWorldCoordinates(vec2.fromValues(touch.clientX, touch.clientY)),
+      charge,
+    );
+  };
+
+  private touchCancelListener = (event: TouchEvent) => {
+    if (!this.findTouch(event.changedTouches, this.gestureTouchId)) {
+      return;
+    }
+    this.gestureTouchId = null;
+    this.primaryDownAt = null;
+    ChargeIndicator.end();
+    if (this.isJoystickActive) {
+      this.releaseJoystick();
     }
   };
 
-  private swallowTouch = (event: TouchEvent) => {
+  private releaseJoystick() {
+    this.isJoystickActive = false;
+    this.joystick.remove();
+    vec2.zero(this.movement);
+    this.sendMove(vec2.clone(this.movement));
+  }
+
+  public resendMovement() {
+    if (this.isJoystickActive) {
+      this.sendMove(vec2.clone(this.movement));
+    }
+  }
+
+  private cancelTouches = () => {
+    this.gestureTouchId = null;
+    this.primaryDownAt = null;
+    this.cancelFire();
+    if (this.isJoystickActive) {
+      this.releaseJoystick();
+    }
+  };
+
+  private cancelFire() {
+    this.fireTouchId = null;
+    this.fireDownAt = null;
+    this.fireAimLine.style.opacity = '0';
+    ChargeIndicator.end();
+  }
+
+  private swallowTouch(event: TouchEvent) {
     event.preventDefault();
     event.stopPropagation();
-  };
+  }
 
   private leapButtonListener = (event: TouchEvent) => {
     this.swallowTouch(event);
-    const clientTimeMs = localCharacterPredictor.recordLeap();
-    this.sendCommandToSubscribers(new LeapActionCommand(clientTimeMs));
+    this.sendLeap();
   };
 
   private fireButtonDownListener = (event: TouchEvent) => {
     this.swallowTouch(event);
+    const touch = event.changedTouches[0];
+    if (this.fireTouchId !== null || !touch) {
+      return;
+    }
+    this.fireTouchId = touch.identifier;
     this.fireDownAt = performance.now();
     const rect = this.fireButton.getBoundingClientRect();
-    this.fireButtonCenter = vec2.fromValues(
+    vec2.set(
+      this.fireButtonCenter,
       rect.left + rect.width / 2,
       rect.top + rect.height / 2,
     );
-    this.fireAimScreen = null;
     ChargeIndicator.begin(this.fireButtonCenter[0], this.fireButtonCenter[1]);
   };
 
-  // Dragging from the fire button aims the shot: the drag vector sets the
-  // direction, decoupling aim from movement so a touch player can fire one way
-  // while walking another. A tap with no meaningful drag fires straight ahead.
   private fireButtonMoveListener = (event: TouchEvent) => {
     this.swallowTouch(event);
-    if (this.fireDownAt === null || !this.fireButtonCenter) {
+    const touch = this.findTouch(event.touches, this.fireTouchId);
+    if (this.fireDownAt === null || !touch) {
       return;
     }
-    const touch = event.targetTouches[0] ?? event.changedTouches[0];
-    if (!touch) {
-      return;
-    }
-    this.fireAimScreen = vec2.fromValues(touch.clientX, touch.clientY);
-    const dx = this.fireAimScreen[0] - this.fireButtonCenter[0];
-    const dy = this.fireAimScreen[1] - this.fireButtonCenter[1];
-    if (dx * dx + dy * dy > TouchListener.aimDeadZone * TouchListener.aimDeadZone) {
+    const aim = this.aimFromTouch(touch);
+    if (aim) {
       this.fireAimLine.style.opacity = '1';
-      this.fireAimLine.style.transform = `translateY(-50%) rotate(${Math.atan2(dy, dx)}rad)`;
+      this.fireAimLine.style.transform = `translateY(-50%) rotate(${Math.atan2(-aim[1], aim[0])}rad)`;
     } else {
       this.fireAimLine.style.opacity = '0';
     }
   };
 
+  private aimFromTouch(touch: Touch): vec2 | null {
+    const dx = touch.clientX - this.fireButtonCenter[0];
+    const dy = touch.clientY - this.fireButtonCenter[1];
+    if (dx * dx + dy * dy <= aimDeadZone * aimDeadZone) {
+      return null;
+    }
+    const aim = vec2.fromValues(dx, -dy);
+    return vec2.normalize(aim, aim);
+  }
+
   private fireButtonUpListener = (event: TouchEvent) => {
     this.swallowTouch(event);
-    ChargeIndicator.end();
-    this.fireAimLine.style.opacity = '0';
-    if (this.fireDownAt === null) {
+    const touch = this.findTouch(event.changedTouches, this.fireTouchId);
+    if (this.fireDownAt === null || !touch) {
       return;
     }
 
-    const charge = holdDurationToCharge((performance.now() - this.fireDownAt) / 1000);
-    this.fireDownAt = null;
+    const charge = chargeHeldSince(this.fireDownAt);
+    const aim = this.aimFromTouch(touch);
+    this.cancelFire();
 
-    const character = this.game.gameObjects.player;
+    const character = this.game.gameObjects.localPlayer;
     if (!character) {
-      this.fireButtonCenter = null;
-      this.fireAimScreen = null;
       return;
     }
 
-    // Screen drag → world aim direction (flip Y: screen +y is down). Below the
-    // dead-zone it's a tap, so fall back to firing along the facing direction.
-    let direction = character.facingDirection;
-    if (this.fireButtonCenter && this.fireAimScreen) {
-      const dx = this.fireAimScreen[0] - this.fireButtonCenter[0];
-      const dy = this.fireAimScreen[1] - this.fireButtonCenter[1];
-      if (dx * dx + dy * dy > TouchListener.aimDeadZone * TouchListener.aimDeadZone) {
-        direction = vec2.normalize(vec2.create(), vec2.fromValues(dx, -dy));
-      }
-    }
-    this.fireButtonCenter = null;
-    this.fireAimScreen = null;
-
-    const aim = vec2.scaleAndAdd(
-      vec2.create(),
-      character.bodyCenter,
-      direction,
-      settings.touchAimRange,
+    const direction = aim ?? character.facingDirection;
+    this.sendPrimary(
+      vec2.scaleAndAdd(
+        vec2.create(),
+        character.bodyCenter,
+        direction,
+        settings.touchAimRange,
+      ),
+      charge,
     );
-    this.sendCommandToSubscribers(new PrimaryActionCommand(aim, charge));
   };
 
-  public update(_deltaTimeInSeconds: number) {
-    if (!this.fireButton.parentElement) {
-      this.overlay.appendChild(this.fireButton);
+  private fireButtonCancelListener = (event: TouchEvent) => {
+    this.swallowTouch(event);
+    if (this.findTouch(event.changedTouches, this.fireTouchId)) {
+      this.cancelFire();
     }
-    if (!this.leapButton.parentElement) {
-      this.overlay.appendChild(this.leapButton);
+  };
+
+  public update() {
+    if (!this.fireButton.parentElement) {
+      this.overlay.append(this.fireButton, this.leapButton);
+    }
+    if (this.isJoystickActive && !this.joystick.parentElement) {
+      this.overlay.appendChild(this.joystick);
     }
 
-    const character = this.game.gameObjects.player;
+    const character = this.game.gameObjects.localPlayer;
     if (character) {
       this.fireStrengthRing.style.background = `conic-gradient(rgba(255, 255, 255, 0.75) ${
         character.strengthFraction * 360
@@ -261,13 +299,17 @@ export class TouchListener extends CommandGenerator {
     this.target.removeEventListener('touchstart', this.touchStartListener);
     this.target.removeEventListener('touchmove', this.touchMoveListener);
     this.target.removeEventListener('touchend', this.touchEndListener);
+    this.target.removeEventListener('touchcancel', this.touchCancelListener);
+    window.removeEventListener('blur', this.cancelTouches);
 
     this.fireButton.removeEventListener('touchstart', this.fireButtonDownListener);
     this.fireButton.removeEventListener('touchmove', this.fireButtonMoveListener);
     this.fireButton.removeEventListener('touchend', this.fireButtonUpListener);
+    this.fireButton.removeEventListener('touchcancel', this.fireButtonCancelListener);
     this.leapButton.removeEventListener('touchstart', this.leapButtonListener);
 
-    this.fireButton.parentElement?.removeChild(this.fireButton);
-    this.leapButton.parentElement?.removeChild(this.leapButton);
+    this.fireButton.remove();
+    this.leapButton.remove();
+    this.joystick.remove();
   }
 }

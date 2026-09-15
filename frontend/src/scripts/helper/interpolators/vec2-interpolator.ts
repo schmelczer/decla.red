@@ -6,13 +6,13 @@ export class Vec2Interpolator {
   private y: LinearInterpolator;
 
   constructor(currentValue: vec2) {
-    this.x = new LinearInterpolator(currentValue.x);
-    this.y = new LinearInterpolator(currentValue.y);
+    this.x = new LinearInterpolator(currentValue[0]);
+    this.y = new LinearInterpolator(currentValue[1]);
   }
 
   public addFrame(value: vec2, rateOfChange: vec2) {
-    this.x.addFrame(value.x, rateOfChange.x);
-    this.y.addFrame(value.y, rateOfChange.y);
+    this.x.addFrame(value[0], rateOfChange[0]);
+    this.y.addFrame(value[1], rateOfChange[1]);
   }
 
   public getValue(deltaTime: number): vec2 {

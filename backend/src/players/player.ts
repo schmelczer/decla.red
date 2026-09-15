@@ -25,49 +25,85 @@ import {
   PrimaryActionCommand,
   LeapActionCommand,
   InputAcknowledgement,
+  ClientHeartbeatCommand,
+  finiteInRange,
+  finiteVec2,
+  isFiniteNumber,
+  boundRadius,
 } from 'shared';
 import { Socket } from 'socket.io';
-import { BoundingBox } from '../physics/bounding-boxes/bounding-box';
-import { PhysicalContainer } from '../physics/containers/physical-container';
+import { BoundingBox } from '../physics/bounding-box';
+import { PhysicalContainer } from '../physics/physical-container';
 import { PlayerContainer } from './player-container';
-import { PlayerBase } from './player-base';
+import { PlayerBase, Score } from './player-base';
+import { CharacterPhysical } from '../objects/character-physical';
+import { planetsNear } from '../objects/planet-physical';
 
-// How often the server pings each client to measure round-trip time.
 const pingIntervalSeconds = 1;
+const minimumAspectRatio = 0.2;
+const maximumAspectRatio = 8;
+
+const sheddableWhenBackedUp: ReadonlyArray<string> = [
+  PropertyUpdatesForObjects.name,
+  UpdateMinimap.name,
+  InputAcknowledgement.name,
+];
 
 export class Player extends PlayerBase {
-  // default, until the clients sends its real value
-  private aspectRatio: number = 16 / 9;
-  private timeUntilRespawn = 0;
-  private timeSinceLastMessage = 0;
-  private objectsPreviouslyInViewArea: Array<GameObject> = [];
-  private lastInputClientTimeMs = 0;
-  private lastLeapClientTimeMs = 0;
-
-  // Measured round-trip time to this client (ms) — the latency primitive that
-  // lag compensation, a latency HUD, and adaptive interpolation build on.
+  public reconnectToken = '';
   public rttMs = 0;
+
+  private aspectRatio = 16 / 9;
+  private timeSinceLastMessage = 0;
+  private objectsInViewArea = new Set<GameObject>();
+  private commandsToBeSent: Array<Command> = [];
+  private winnerTeam?: CharacterTeam;
+
+  private lastInputClientTimeMs = 0;
+  private lastInputReceiptMs = 0;
+  private lastLeapClientTimeMs = -1;
+
   private timeSinceLastPing = 0;
   private lastPingSentMs = 0;
+  private pendingPingNonce = 0;
+  private nextPingNonce = 1;
 
+  // Input is untrusted: one non-finite value reaching the simulation leaves a character that never dies.
   protected commandExecutors: CommandExecutors = {
-    [SetAspectRatioActionCommand.type]: (v: SetAspectRatioActionCommand) =>
-      (this.aspectRatio = v.aspectRatio),
-    [MoveActionCommand.type]: (c: MoveActionCommand) => {
-      // Remember how far into this client's input timeline we've consumed, to
-      // echo back for client-side prediction reconciliation.
-      this.lastInputClientTimeMs = c.clientTimeMs;
-      this.character?.handleMovementAction(c);
+    [SetAspectRatioActionCommand.name]: (v: SetAspectRatioActionCommand) => {
+      this.aspectRatio = finiteInRange(
+        v.aspectRatio,
+        minimumAspectRatio,
+        maximumAspectRatio,
+        this.aspectRatio,
+      );
     },
-    [PrimaryActionCommand.type]: (c: PrimaryActionCommand) =>
-      this.character?.shootTowards(c.position, c.charge),
-    [LeapActionCommand.type]: (c: LeapActionCommand) => {
-      // Record receipt (whether or not leap() accepts it): either way its effect
-      // on bodyVelocity is now reflected in the streamed launch momentum, so the
-      // predictor must stop replaying this leap.
+    [MoveActionCommand.name]: (c: MoveActionCommand) => {
+      const direction = finiteVec2(c.direction, 1);
+      if (!direction) {
+        return;
+      }
+      this.observeClientTime(c.clientTimeMs);
+      this.character?.setMoveDirection(direction);
+    },
+    [PrimaryActionCommand.name]: (c: PrimaryActionCommand) => {
+      const position = finiteVec2(c.position, settings.maxClientPositionMagnitude);
+      if (!position) {
+        return;
+      }
+      this.observeClientTime(c.clientTimeMs);
+      this.character?.shootTowards(position, finiteInRange(c.charge, 0, 1, 0));
+    },
+    [LeapActionCommand.name]: (c: LeapActionCommand) => {
+      if (!isFiniteNumber(c.clientTimeMs)) {
+        return;
+      }
       this.lastLeapClientTimeMs = c.clientTimeMs;
+      this.observeClientTime(c.clientTimeMs);
       this.character?.leap();
     },
+    [ClientHeartbeatCommand.name]: (c: ClientHeartbeatCommand) =>
+      this.observeClientTime(c.clientTimeMs),
   };
 
   constructor(
@@ -76,116 +112,152 @@ export class Player extends PlayerBase {
     objectContainer: PhysicalContainer,
     team: CharacterTeam,
     private readonly socket: Socket,
+    score?: Score,
   ) {
-    super(playerInfo, playerContainer, objectContainer, team);
+    super(playerInfo, playerContainer, objectContainer, team, score);
     this.createCharacter();
-    this.step(0);
-
-    // The client already echoes a Pong for every Ping (see game.ts). Only one
-    // ping is ever in flight, so RTT is simply now − send-time; no payload
-    // needed and no client change required.
-    this.socket.on(TransportEvents.Pong, () => {
-      if (this.lastPingSentMs > 0) {
-        this.rttMs = performance.now() - this.lastPingSentMs;
-      }
-    });
+    this.socket.on(TransportEvents.Pong, this.onPong);
   }
 
-  protected createCharacter() {
-    super.createCharacter();
-
-    this.objectsPreviouslyInViewArea.push(this.character!);
-    this.queueCommandSend(new CreatePlayerCommand(this.character!));
+  private observeClientTime(clientTimeMs: number) {
+    if (isFiniteNumber(clientTimeMs) && clientTimeMs > this.lastInputClientTimeMs) {
+      this.lastInputClientTimeMs = clientTimeMs;
+      this.lastInputReceiptMs = performance.now();
+    }
   }
 
-  private winnerTeam?: CharacterTeam;
+  private readonly onPong = (nonce: unknown) => {
+    if (this.pendingPingNonce === 0 || nonce !== this.pendingPingNonce) {
+      return;
+    }
+    this.pendingPingNonce = 0;
+    this.rttMs = Math.min(
+      performance.now() - this.lastPingSentMs,
+      settings.maxMeasuredRttMs,
+    );
+  };
+
+  public detachFromSocket() {
+    this.socket.off(TransportEvents.Pong, this.onPong);
+  }
+
+  protected createCharacter(): CharacterPhysical {
+    const character = super.createCharacter();
+    this.objectsInViewArea.add(character);
+    this.queueCommandSend(new CreatePlayerCommand(character));
+    return character;
+  }
+
   public onGameEnded(winnerTeam: CharacterTeam) {
     this.winnerTeam = winnerTeam;
   }
 
-  public step(deltaTimeInSeconds: number) {
-    if (this.character) {
-      this.center = this.character?.center;
+  public queueCommandSend(command: Command) {
+    this.commandsToBeSent.push(command);
+  }
 
-      if (!this.character.isAlive) {
-        this.sumDeaths++;
-        this.sumKills = this.character.killCount;
+  public stepCommunications(
+    deltaTime: number,
+    simulatedThroughMs: number,
+    propertyUpdatesOf: (object: GameObject) => PropertyUpdatesForObject | undefined,
+  ) {
+    const remoteCalls: Array<RemoteCallsForObject> = [];
+    for (const object of this.objectsInViewArea) {
+      const calls = object.getRemoteCalls();
+      if (calls.length > 0) {
+        remoteCalls.push(new RemoteCallsForObject(object.id, calls));
+      }
+    }
+    if (remoteCalls.length > 0) {
+      this.queueCommandSend(new RemoteCallsForObjects(remoteCalls));
+    }
 
-        this.character = null;
-        this.timeUntilRespawn = settings.playerDiedTimeout;
-      }
-    } else {
-      if ((this.timeUntilRespawn -= deltaTimeInSeconds) < 0) {
-        this.createCharacter();
-        this.center = this.character!.center;
-      }
+    if ((this.timeSinceLastPing += deltaTime) > pingIntervalSeconds) {
+      this.timeSinceLastPing = 0;
+      this.lastPingSentMs = performance.now();
+      this.pendingPingNonce = this.nextPingNonce++;
+      this.socket.emit(TransportEvents.Ping, this.pendingPingNonce);
+    }
+
+    // Subtracted, not zeroed: zeroing would stretch every interval to the next physics frame.
+    if ((this.timeSinceLastMessage += deltaTime) >= settings.updateMessageInterval) {
+      this.timeSinceLastMessage = Math.min(
+        this.timeSinceLastMessage - settings.updateMessageInterval,
+        settings.updateMessageInterval,
+      );
+      this.queueAnnouncement();
+      this.queueSnapshot(simulatedThroughMs, propertyUpdatesOf);
+      this.sendQueuedCommandsToClient();
     }
   }
 
-  private handleViewAreaUpdate() {
-    const viewArea = calculateViewArea(this.center, this.aspectRatio, 1.2);
-    const bb = new BoundingBox();
-    bb.topLeft = viewArea.topLeft;
-    bb.size = viewArea.size;
-
-    const objectsInViewArea = Array.from(
-      new Set(this.objectContainer.findIntersecting(bb).map((o) => o.gameObject)),
+  private queueSnapshot(
+    simulatedThroughMs: number,
+    propertyUpdatesOf: (object: GameObject) => PropertyUpdatesForObject | undefined,
+  ) {
+    const { topLeft, size } = calculateViewArea(this.center, this.aspectRatio, 1.2);
+    const viewBox = new BoundingBox(
+      topLeft[0],
+      topLeft[0] + size[0],
+      topLeft[1] - size[1],
+      topLeft[1],
     );
 
-    // The owning character must always be in its own snapshot, regardless of the
-    // view-area query, so the client predictor never loses its authoritative
-    // anchor (the body can ride a fast spinner to the very edge of the box).
-    if (this.character && !objectsInViewArea.includes(this.character)) {
-      objectsInViewArea.push(this.character);
+    const inViewArea = new Set(
+      this.objectContainer.findIntersecting(viewBox).map((o) => o.gameObject),
+    );
+    if (this.character) {
+      inViewArea.add(this.character);
+      // Prediction needs every gravity source, including planets outside a narrow viewport.
+      for (const planet of planetsNear(
+        this.objectContainer,
+        this.character.center,
+        boundRadius + settings.maxGravityDistance,
+      )) {
+        inViewArea.add(planet);
+      }
     }
 
-    const newlyIntersecting = objectsInViewArea.filter(
-      (o) => !this.objectsPreviouslyInViewArea.includes(o),
-    );
+    const created = [...inViewArea].filter((o) => !this.objectsInViewArea.has(o));
+    const deleted = [...this.objectsInViewArea].filter((o) => !inViewArea.has(o));
+    this.objectsInViewArea = inViewArea;
 
-    const noLongerIntersecting = this.objectsPreviouslyInViewArea.filter(
-      (o) => !objectsInViewArea.includes(o),
-    );
-
-    this.objectsPreviouslyInViewArea = objectsInViewArea;
-
-    if (noLongerIntersecting.length > 0) {
-      this.queueCommandSend(
-        new DeleteObjectsCommand(noLongerIntersecting.map((g) => g.id)),
-      );
+    if (deleted.length > 0) {
+      this.queueCommandSend(new DeleteObjectsCommand(deleted.map((g) => g.id)));
     }
-
-    if (newlyIntersecting.length > 0) {
-      this.queueCommandSend(new CreateObjectsCommand(newlyIntersecting));
+    if (created.length > 0) {
+      this.queueCommandSend(new CreateObjectsCommand(created));
     }
 
     this.queueCommandSend(new UpdateMinimap(this.getMinimapPlayers()));
 
+    const propertyUpdates: Array<PropertyUpdatesForObject> = [];
+    for (const object of this.objectsInViewArea) {
+      const update = propertyUpdatesOf(object);
+      if (update) {
+        propertyUpdates.push(update);
+      }
+    }
     this.queueCommandSend(
-      new PropertyUpdatesForObjects(
-        this.objectsPreviouslyInViewArea
-          .map((o) => o.getPropertyUpdates())
-          .filter((u) => u) as Array<PropertyUpdatesForObject>,
-        performance.now() / 1000,
-      ),
+      new PropertyUpdatesForObjects(propertyUpdates, simulatedThroughMs / 1000),
     );
 
-    // Tell the client how much of its own input is reflected in the snapshot it
-    // just received, so its predictor can replay the rest. Only while alive —
-    // a dead player isn't predicting.
     if (this.character) {
       this.queueCommandSend(
         new InputAcknowledgement(
           this.lastInputClientTimeMs,
-          this.character.launchMomentum,
+          this.character.movementSnapshot,
           this.lastLeapClientTimeMs,
+          // Aged against the instant the pose is from, not the send time: the difference is
+          // the un-simulated remainder, and it would land straight in the client's replay.
+          this.lastInputReceiptMs > 0
+            ? Math.max(0, simulatedThroughMs - this.lastInputReceiptMs)
+            : 0,
         ),
       );
     }
   }
 
-  // Every living player except this one, reported by absolute world position so
-  // the client can plot the whole circular arena on its minimap.
   private getMinimapPlayers(): Array<MinimapPlayer> {
     return this.playerContainer.players
       .filter((p) => p !== this && p.character?.isAlive)
@@ -195,49 +267,66 @@ export class Player extends PlayerBase {
       );
   }
 
-  private commandsToBeSent: Array<Command> = [];
-  public queueCommandSend(command: Command) {
-    this.commandsToBeSent.push(command);
-  }
-
-  public stepCommunications(deltaTime: number) {
-    const remoteCalls = this.objectsPreviouslyInViewArea
-      .map((g) => new RemoteCallsForObject(g.id, g.getRemoteCalls()))
-      .filter((c) => c.calls.length > 0);
-
-    if (remoteCalls.length > 0) {
-      this.queueCommandSend(new RemoteCallsForObjects(remoteCalls));
+  private get bufferedBytes(): number {
+    const conn = this.socket.conn as unknown as
+      | {
+          transport?: { socket?: { bufferedAmount?: unknown } };
+          writeBuffer?: Array<{ data?: unknown }>;
+        }
+      | undefined;
+    const buffered = conn?.transport?.socket?.bufferedAmount;
+    let bytes = typeof buffered === 'number' ? buffered : 0;
+    // Engine.IO queues packets here while the transport is waiting for its write callback.
+    for (const { data } of conn?.writeBuffer ?? []) {
+      if (typeof data === 'string') {
+        bytes += Buffer.byteLength(data);
+      } else if (ArrayBuffer.isView(data) || data instanceof ArrayBuffer) {
+        bytes += data.byteLength;
+      }
     }
-
-    if ((this.timeSinceLastPing += deltaTime) > pingIntervalSeconds) {
-      this.timeSinceLastPing = 0;
-      this.lastPingSentMs = performance.now();
-      this.socket.emit(TransportEvents.Ping);
-    }
-
-    if ((this.timeSinceLastMessage += deltaTime) > settings.updateMessageInterval) {
-      this.handleAnnouncements();
-      this.handleViewAreaUpdate();
-      this.sendQueuedCommandsToClient();
-      this.timeSinceLastMessage = 0;
-    }
+    return bytes;
   }
 
   public sendQueuedCommandsToClient() {
+    // Only state the next snapshot regenerates may be dropped; create/delete are one-shot.
+    if (this.bufferedBytes > settings.maxBufferedBytesPerClient) {
+      const hasReliableCommands = this.commandsToBeSent.some(
+        (c) => !sheddableWhenBackedUp.includes(c.constructor.name),
+      );
+      this.commandsToBeSent = hasReliableCommands
+        ? this.commandsToBeSent.flatMap((c): Array<Command> => {
+            // Lifecycle events still need their snapshot time to enter the render timeline.
+            if (c.constructor.name === PropertyUpdatesForObjects.name) {
+              return [
+                new PropertyUpdatesForObjects(
+                  [],
+                  (c as PropertyUpdatesForObjects).timestamp,
+                ),
+              ];
+            }
+            return sheddableWhenBackedUp.includes(c.constructor.name) ? [] : [c];
+          })
+        : [];
+    }
+    if (this.commandsToBeSent.length === 0) {
+      return;
+    }
+
     this.socket.emit(TransportEvents.ServerToPlayer, serialize(this.commandsToBeSent));
     this.commandsToBeSent = [];
   }
 
-  private handleAnnouncements() {
-    let announcement = '';
+  private queueAnnouncement() {
     if (this.winnerTeam) {
-      announcement = `Team <span class="${this.winnerTeam}">${this.winnerTeam}</span> won 🎉`;
+      this.queueCommandSend(
+        new ServerAnnouncement(
+          `Team <span class="${this.winnerTeam}">${this.winnerTeam}</span> won 🎉`,
+        ),
+      );
     } else if (!this.character) {
-      announcement = `Reviving in ${Math.round(this.timeUntilRespawn)}…`;
-    }
-
-    if (announcement) {
-      this.queueCommandSend(new ServerAnnouncement(announcement));
+      this.queueCommandSend(
+        new ServerAnnouncement(`Reviving in ${Math.round(this.timeUntilRespawn)}…`),
+      );
     }
   }
 }

@@ -9,19 +9,11 @@ A 2-dimensional multiplayer game utilising ray tracing.
 
 For optimised 2D ray tracing, [SDF-2D](https://github.com/schmelczerandras/sdf-2d) is used.
 
-## Deployment
+## Development
 
-CI/CD runs on Forgejo Actions (`.forgejo/workflows/deploy.yml`). On a push to
-`main` it:
-
-- builds the static frontend and rsyncs `frontend/dist/` to the `/pages/declared`
-  mount on the runner host (the mount keeps its pre-rebrand name), and
-- builds the server image from the root `Dockerfile` and pushes it to the Forgejo
-  container registry as `<registry>/<owner>/<repo>-server`.
-
-The registry job needs a `FORGEJO_PACKAGE_TOKEN` secret (with package write
-scope) and, optionally, a `CONTAINER_REGISTRY_HOST` variable to override the
-registry host.
+Run `npm install && npm run init` once, then `npm run dev`. Run `npm test` for
+regressions, `npm run lint:check` for formatting and lint, and `npm run build` for
+all production bundles. Tests rebuild the shared library before running.
 
 The website's server list is hardcoded in
 [`frontend/src/scripts/configuration.ts`](frontend/src/scripts/configuration.ts) —

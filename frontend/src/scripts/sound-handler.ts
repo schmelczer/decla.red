@@ -1,82 +1,87 @@
+import { clamp01 } from 'shared';
 import hitSound from '../../static/hit.mp3';
 import shootSound from '../../static/shoot.mp3';
 import clickSound from '../../static/click.mp3';
-import ambientSound from '../../static/ambient.mp3';
-import { OptionsHandler } from './options-handler';
+import ambientAudio from '../../static/ambient.mp3';
+import { options } from './options-handler';
 
-export enum Sounds {
-  hit = 'hit',
-  shoot = 'shoot',
-  click = 'click',
+export const Sounds = { hit: 'hit', shoot: 'shoot', click: 'click' } as const;
+export type Sound = (typeof Sounds)[keyof typeof Sounds];
+
+let sounds: Record<Sound, HTMLAudioElement>;
+let isAmbientPlaying = false;
+const ambient = new Audio(ambientAudio);
+let initialized = false;
+
+async function initializeSound(src: string): Promise<HTMLAudioElement> {
+  const snd = new Audio(src);
+  snd.muted = true;
+  await snd.play().catch(() => undefined);
+  snd.pause();
+  snd.muted = false;
+  snd.currentTime = 0;
+  return snd;
 }
 
-export abstract class SoundHandler {
-  private static sounds: { [key in Sounds]: HTMLAudioElement };
-  private static isAmbientPlaying = false;
+async function initialize(
+  onPlayKeypress: () => unknown = () => null,
+  onPauseKeypress: () => unknown = () => null,
+) {
+  ambient.muted = true;
+  ambient.volume = 0.5;
+  ambient.loop = true;
+  // Unlock every audio element during the initiating click, before awaiting any one.
+  const ambientReady = ambient.play().catch(() => undefined);
+  const [hit, shoot, click] = await Promise.all(
+    [hitSound, shootSound, clickSound].map(initializeSound),
+  );
+  sounds = { hit, shoot, click };
 
-  private static ambientSound = new Audio(ambientSound);
+  await ambientReady;
+  initialized = true;
+  ambient.onpause = onPauseKeypress;
+  ambient.onplay = onPlayKeypress;
 
-  private static initialized = false;
-  public static async initialize(
-    onPlayKeypress: () => unknown = () => null,
-    onPauseKeypress: () => unknown = () => null,
-  ) {
-    this.sounds = {
-      [Sounds.hit]: await this.initializeSound(hitSound),
-      [Sounds.shoot]: await this.initializeSound(shootSound),
-      [Sounds.click]: await this.initializeSound(clickSound),
-    };
+  ambient.muted = false;
 
-    await this.ambientSound.play();
-    this.ambientSound.muted = true;
-    this.initialized = true;
-    this.ambientSound.onpause = onPauseKeypress;
-    this.ambientSound.onplay = onPlayKeypress;
-
-    this.ambientSound.muted = false;
-    this.ambientSound.volume = 0.5;
-    this.ambientSound.loop = true;
-
-    if (!this.isAmbientPlaying) {
-      this.ambientSound.pause();
-    }
-  }
-
-  private static async initializeSound(hitSound: string): Promise<HTMLAudioElement> {
-    const sound = new Audio(hitSound);
-    sound.muted = true;
-    await sound.play();
-    sound.pause();
-    sound.muted = false;
-    sound.currentTime = 0;
-    return sound;
-  }
-
-  public static play(sound: Sounds, volume = 1, playbackRate = 1) {
-    if (!this.initialized || !OptionsHandler.options.soundsEnabled) {
-      return;
-    }
-
-    const audio =
-      this.sounds[sound].currentTime > 0
-        ? (this.sounds[sound].cloneNode(true) as HTMLAudioElement)
-        : this.sounds[sound];
-    audio.volume = Math.max(0, Math.min(1, volume));
-    audio.playbackRate = playbackRate;
-    audio.play();
-  }
-
-  public static playAmbient() {
-    this.isAmbientPlaying = true;
-    if (this.initialized) {
-      this.ambientSound.play();
-    }
-  }
-
-  public static stopAmbient() {
-    this.isAmbientPlaying = false;
-    if (this.initialized) {
-      this.ambientSound.pause();
-    }
+  if (!isAmbientPlaying) {
+    ambient.pause();
   }
 }
+
+function play(snd: Sound, volume = 1, playbackRate = 1) {
+  if (!initialized || !options.soundsEnabled) {
+    return;
+  }
+
+  const pooled = sounds[snd];
+  const isBusy = !pooled.paused && !pooled.ended;
+  const audio = isBusy ? (pooled.cloneNode(true) as HTMLAudioElement) : pooled;
+  if (!isBusy) {
+    audio.currentTime = 0;
+  }
+  audio.volume = clamp01(volume);
+  audio.playbackRate = playbackRate;
+  void audio.play().catch(() => undefined);
+}
+
+function playAmbient() {
+  isAmbientPlaying = true;
+  if (initialized) {
+    void ambient.play().catch(() => undefined);
+  }
+}
+
+function stopAmbient() {
+  isAmbientPlaying = false;
+  if (initialized) {
+    ambient.pause();
+  }
+}
+
+export const SoundHandler = {
+  initialize,
+  play,
+  playAmbient,
+  stopAmbient,
+};

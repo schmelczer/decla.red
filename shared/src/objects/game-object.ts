@@ -1,6 +1,5 @@
 import { Command } from '../commands/command';
-import { CommandReceiver } from '../commands/command-receiver';
-import { Id } from '../communication/id';
+import { Id } from '../communication/communication';
 import { serializable } from '../serialization/serializable';
 
 @serializable
@@ -15,11 +14,6 @@ export class RemoteCall {
   }
 }
 
-// Every object property streamed via UpdatePropertyCommand. A single union means
-// a typo or rename on the producing (server *-physical) or consuming (client
-// *-view) side is a compile error instead of a silently dropped update that
-// just stops a body interpolating. The wire format is unchanged — these remain
-// the same strings, only now compiler-checked at both ends.
 export type SyncPropertyKey =
   | 'head'
   | 'leftFoot'
@@ -56,46 +50,42 @@ export class PropertyUpdatesForObject {
   }
 }
 
-export abstract class GameObject extends CommandReceiver {
+// Security: remote calls are dispatched by a raw string off the network.
+const allowedRemoteCalls: ReadonlySet<string> = new Set([
+  'onShoot',
+  'onLeap',
+  'onDie',
+  'onHitConfirmed',
+  'onKillConfirmed',
+  'setHealth',
+  'setKillCount',
+  'onFlipped',
+  'setContested',
+  'generatedPoints',
+  'setLight',
+]);
+
+export abstract class GameObject {
   private remoteCalls: Array<RemoteCall> = [];
 
-  // The only methods a peer may invoke over the wire. processRemoteCalls
-  // dispatches by a raw string taken straight off the network, so without this
-  // gate a malformed or hostile packet could call ANY method on the object
-  // (toArray, resetRemoteCalls, even prototype methods). Keep in sync with the
-  // remoteCall() emitters on the *-physical classes.
-  private static readonly allowedRemoteCalls: ReadonlySet<string> = new Set([
-    'onShoot',
-    'onLeap',
-    'onDie',
-    'onHitConfirmed',
-    'onKillConfirmed',
-    'setHealth',
-    'setKillCount',
-    'onFlipped',
-    'setContested',
-    'generatedPoints',
-    'setLight',
-  ]);
-
-  constructor(public readonly id: Id) {
-    super();
-  }
+  constructor(public readonly id: Id) {}
 
   public processRemoteCalls(remoteCalls: Array<RemoteCall>) {
-    remoteCalls.forEach((r) => {
-      if (!GameObject.allowedRemoteCalls.has(r.functionName)) {
-        console.warn(`Dropped disallowed remote call: ${r.functionName}`);
-        return;
+    for (const { functionName, args } of remoteCalls) {
+      if (!allowedRemoteCalls.has(functionName)) {
+        console.warn(`Dropped disallowed remote call: ${functionName}`);
+        continue;
       }
-      const fn = this[r.functionName as keyof this];
+      const fn = this[functionName as keyof this];
       if (typeof fn === 'function') {
-        (fn as (...args: Array<any>) => unknown).apply(this, r.args);
+        (fn as (...args: Array<any>) => unknown).apply(this, args);
       }
-    });
+    }
   }
 
-  public getPropertyUpdates(): PropertyUpdatesForObject | void {}
+  public getPropertyUpdates(_timeScale = 1): PropertyUpdatesForObject | undefined {
+    return undefined;
+  }
 
   public getRemoteCalls(): Array<RemoteCall> {
     return this.remoteCalls;

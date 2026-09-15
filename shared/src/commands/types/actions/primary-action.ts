@@ -6,12 +6,13 @@ import { Command } from '../../command';
 export class PrimaryActionCommand extends Command {
   public constructor(
     public readonly position: vec2,
-    public readonly charge: number = 0,
+    public readonly charge: number,
+    public readonly clientTimeMs: number,
   ) {
     super();
   }
 
   public toArray(): Array<any> {
-    return [this.position, this.charge];
+    return [this.position, this.charge, this.clientTimeMs];
   }
 }

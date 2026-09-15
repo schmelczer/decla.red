@@ -3,11 +3,8 @@
     "target": "es6",
     "esModuleInterop": true,
     "strict": true,
-    "experimentalDecorators": true,
-    "downlevelIteration": true,
     "moduleResolution": "node",
     "module": "commonjs",
-    "composite": true,
-    "lib": ["dom", "es2017"]
+    "lib": ["es2017"]
   }
 }

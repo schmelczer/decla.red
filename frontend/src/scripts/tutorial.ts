@@ -34,17 +34,17 @@ export class Tutorial extends CommandReceiver {
   private standingBaseline = 0;
 
   protected commandExecutors: CommandExecutors = {
-    [MoveActionCommand.type]: (c: MoveActionCommand) => {
+    [MoveActionCommand.name]: (c: MoveActionCommand) => {
       if (this.clearsOn() === 'move' && vec2.length(c.direction) > 0) {
         this.advance();
       }
     },
-    [PrimaryActionCommand.type]: () => {
+    [PrimaryActionCommand.name]: () => {
       if (this.clearsOn() === 'shoot') {
         this.advance();
       }
     },
-    [LeapActionCommand.type]: () => {
+    [LeapActionCommand.name]: () => {
       if (this.clearsOn() === 'leap') {
         this.advance();
       }
@@ -71,7 +71,7 @@ export class Tutorial extends CommandReceiver {
       return;
     }
 
-    const player = gameObjects.player;
+    const player = gameObjects.localPlayer;
     if (!player) {
       return;
     }

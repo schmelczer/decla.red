@@ -1,172 +1,250 @@
-import { vec2 } from 'gl-matrix';
+import { Renderer } from 'sdf-2d';
 import {
   Circle,
-  Command,
+  CharacterBase,
   CommandExecutors,
   CommandReceiver,
   CreateObjectsCommand,
   CreatePlayerCommand,
   DeleteObjectsCommand,
-  GameObject,
   Id,
   PropertyUpdatesForObjects,
+  RemoteCall,
   RemoteCallsForObjects,
-  settings,
   UpdatePropertyCommand,
 } from 'shared';
-import { BeforeDestroyCommand } from '../commands/types/before-destroy';
-import { StepCommand } from '../commands/types/step';
 import { FeedbackHud } from '../feedback-hud';
-import { Game } from '../game';
+import type { Game } from '../game';
 import { serverTimeline } from '../helper/server-timeline';
-import { PredictablePlanet } from '../helper/prediction/client-character-world';
 import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
 import { Camera } from './types/camera';
 import { CharacterView } from './types/character-view';
 import { PlanetView } from './types/planet-view';
+import { View } from './view';
+
+// Keep enough history for interpolation, without retaining a background tab's entire session.
+const deferredHistorySeconds = 0.5;
+const persistentRemoteCalls = new Set(['setKillCount', 'setLight', 'setContested']);
 
 export class GameObjectContainer extends CommandReceiver {
-  protected objects: Map<Id, GameObject> = new Map();
-  public player!: CharacterView;
-  public camera: Camera = new Camera(this.game);
+  public player?: CharacterView;
+  public readonly camera: Camera;
+  public planets: Array<PlanetView> = [];
+
+  private objects: Map<Id, View> = new Map();
   private wasLocalPlayerAlive = false;
+  private lastStepAtMs = performance.now();
+
+  // Creates and deletes take effect on the render timeline, not on arrival.
+  private visibleFrom = new Map<Id, number>();
+  private deleteAt = new Map<Id, number>();
+  private awaitingCreateStamp: Array<Id> = [];
+  private awaitingDeleteStamp: Array<Id> = [];
+  private remoteCalls: Array<{ object: View; calls: Array<RemoteCall>; at?: number }> =
+    [];
 
   protected commandExecutors: CommandExecutors = {
-    [CreatePlayerCommand.type]: (c: CreatePlayerCommand) => {
+    [CreatePlayerCommand.name]: (c: CreatePlayerCommand) => {
       this.player = c.character as CharacterView;
       this.player.isMainCharacter = true;
       this.addObject(this.player);
-      // Fresh character (first spawn or respawn at a far planet): drop any
-      // prediction state so it snaps to the new body instead of gliding across.
       localCharacterPredictor.reset();
-      // Respawned — clear the elimination overlay.
+      this.game.resendMovement();
       FeedbackHud.hideElimination();
       this.wasLocalPlayerAlive = true;
     },
 
-    [CreateObjectsCommand.type]: (c: CreateObjectsCommand) =>
-      c.objects.forEach((o) => this.addObject(o as GameObject)),
+    [CreateObjectsCommand.name]: (c: CreateObjectsCommand) =>
+      c.objects.forEach((o) => {
+        this.addObject(o as View);
+        this.awaitingCreateStamp.push(o.id);
+      }),
 
-    [StepCommand.type]: (c: StepCommand) => {
-      this.defaultCommandExecutor(c);
-
-      // The local body is alive only while its object still exists (the server
-      // deletes it on death) and its health is above zero — `player` keeps
-      // pointing at the now-stale view after death, so both checks are needed.
-      const bodyPresent = !!this.player && this.objects.has(this.player.id);
-      const alive = bodyPresent && this.player.health > 0;
-
-      // Show the elimination overlay on the alive→dead edge; CreatePlayerCommand
-      // clears it on respawn.
-      if (this.wasLocalPlayerAlive && !alive) {
-        FeedbackHud.showElimination();
-      }
-      this.wasLocalPlayerAlive = alive;
-
-      if (bodyPresent) {
-        // Override the interpolated pose of the local player with the predicted
-        // one so it responds to input immediately. Suppressed while dead so the
-        // corpse can't be walked around (the server ignores a dead player's
-        // input — a moving predicted body would be a pure client-side desync).
-        // A large correction (respawn / death) snaps inside the predictor.
-        localCharacterPredictor.setAlive(alive);
-        localCharacterPredictor.setStrength(
-          this.player.strengthFraction * settings.playerMaxStrength,
-        );
-        if (
-          localCharacterPredictor.update(this.predictablePlanets(), c.deltaTimeInSeconds)
-        ) {
-          this.player.head = localCharacterPredictor.head;
-          this.player.leftFoot = localCharacterPredictor.leftFoot;
-          this.player.rightFoot = localCharacterPredictor.rightFoot;
+    [RemoteCallsForObjects.name]: (c: RemoteCallsForObjects) =>
+      c.callsForObjects.forEach(({ id, calls }) => {
+        const object = this.objects.get(id);
+        if (object === this.player) {
+          object?.processRemoteCalls(calls);
+        } else if (object) {
+          this.remoteCalls.push({ object, calls });
         }
-        this.camera.follow(this.player.position, c.deltaTimeInSeconds);
-      }
-    },
+      }),
 
-    [RemoteCallsForObjects.type]: (c: RemoteCallsForObjects) =>
-      c.callsForObjects.forEach((c) =>
-        this.objects.get(c.id)?.processRemoteCalls(c.calls),
-      ),
-
-    [PropertyUpdatesForObjects.type]: (c: PropertyUpdatesForObjects) => {
+    [PropertyUpdatesForObjects.name]: (c: PropertyUpdatesForObjects) => {
       serverTimeline.onSnapshot(c.timestamp);
+      this.stampPending(c.timestamp);
+      this.pruneDeferred(c.timestamp - deferredHistorySeconds);
       c.updates.forEach((u) => {
-        u.updates.forEach((au) => this.objects.get(u.id)?.handleCommand(au));
-        if (this.player && u.id === this.player.id) {
+        const object = this.objects.get(u.id);
+        u.updates.forEach((au) => object?.updateProperty?.(au));
+        if (object && object === this.player) {
           this.feedPredictor(u.updates);
         }
       });
     },
 
-    [DeleteObjectsCommand.type]: (c: DeleteObjectsCommand) =>
-      c.ids.forEach((id: Id) => this.deleteObject(id)),
+    [DeleteObjectsCommand.name]: (c: DeleteObjectsCommand) =>
+      c.ids.forEach((id: Id) => this.awaitingDeleteStamp.push(id)),
   };
 
-  constructor(private game: Game) {
+  constructor(private readonly game: Game) {
     super();
+    this.camera = new Camera(game);
   }
 
-  // The local player's world position, but only while the body is alive. On
-  // death the server deletes the character object (yet `player` keeps pointing
-  // at the now-stale view), so gate on the object still being present — otherwise
-  // the minimap would pin the "you" dot at the death spot for the whole respawn.
-  public get localPlayerPosition(): vec2 | undefined {
-    return this.player && this.objects.has(this.player.id)
-      ? this.player.position
-      : undefined;
+  public reset() {
+    this.objects.forEach((o) => o.beforeDestroy?.());
+    this.objects.clear();
+    this.player = undefined;
+    this.planets = [];
+    this.visibleFrom.clear();
+    this.deleteAt.clear();
+    this.awaitingCreateStamp = [];
+    this.awaitingDeleteStamp = [];
+    this.remoteCalls = [];
+    this.wasLocalPlayerAlive = false;
+    this.lastStepAtMs = performance.now();
   }
 
-  public get planets(): Array<PlanetView> {
-    const planets: Array<PlanetView> = [];
+  public get localPlayer(): CharacterView | undefined {
+    return this.player && this.objects.has(this.player.id) ? this.player : undefined;
+  }
+
+  public step(deltaTimeInSeconds: number) {
+    this.stampPending(serverTimeline.snapshotTime);
+    const nowMs = performance.now();
+    const resumed = nowMs - this.lastStepAtMs > deferredHistorySeconds * 1000;
+    this.lastStepAtMs = nowMs;
+    this.pruneDeferred(
+      serverTimeline.renderTime - (resumed ? 0 : deferredHistorySeconds),
+    );
+    this.retireDueObjects();
+    this.remoteCalls = this.remoteCalls.filter(({ object, calls, at }) => {
+      if (this.objects.get(object.id) !== object) {
+        return false;
+      }
+      if (at !== undefined && at <= serverTimeline.renderTime) {
+        object.processRemoteCalls(calls);
+        return false;
+      }
+      return true;
+    });
+    this.objects.forEach((o) => o.step(deltaTimeInSeconds));
+
+    const player = this.localPlayer;
+    const alive = !!player && player.health > 0;
+    if (this.wasLocalPlayerAlive && !alive) {
+      FeedbackHud.showElimination();
+    }
+    this.wasLocalPlayerAlive = alive;
+
+    if (player) {
+      localCharacterPredictor.setAlive(alive);
+      localCharacterPredictor.setStrength(player.snapshotStrength);
+      if (localCharacterPredictor.update(this.planets)) {
+        player.head = localCharacterPredictor.head;
+        player.leftFoot = localCharacterPredictor.leftFoot;
+        player.rightFoot = localCharacterPredictor.rightFoot;
+      }
+      this.camera.follow(player.position);
+    }
+  }
+
+  public render(renderer: Renderer, overlay: HTMLElement, shouldChangeLayout: boolean) {
+    // First: everything below projects world coordinates through this frame's view area.
+    this.camera.draw(renderer);
     this.objects.forEach((o) => {
-      if (o instanceof PlanetView) {
-        planets.push(o);
+      if (this.isVisible(o.id)) {
+        o.render(renderer, overlay, shouldChangeLayout);
       }
     });
-    return planets;
   }
 
-  protected defaultCommandExecutor(c: Command) {
-    this.objects.forEach((o) => o.handleCommand(c));
-    this.camera.handleCommand(c);
+  private isVisible(id: Id): boolean {
+    const from = this.visibleFrom.get(id);
+    return from === undefined || serverTimeline.renderTime >= from;
   }
 
-  // Hand the local player's raw authoritative pose to the predictor (the
-  // interpolated pose would already be ~100 ms stale). The three body parts
-  // arrive together in one snapshot.
+  private stampPending(timestamp: number) {
+    for (const id of this.awaitingCreateStamp) {
+      this.visibleFrom.set(id, timestamp);
+    }
+    this.awaitingCreateStamp = [];
+
+    for (const id of this.awaitingDeleteStamp) {
+      this.deleteAt.set(id, timestamp);
+    }
+    this.awaitingDeleteStamp = [];
+    for (const call of this.remoteCalls) {
+      call.at ??= timestamp;
+    }
+  }
+
+  private pruneDeferred(cutoff: number) {
+    this.retireDueObjects(cutoff);
+    this.remoteCalls = this.remoteCalls.filter(({ object, calls, at }) => {
+      if (at === undefined || at > cutoff) {
+        return true;
+      }
+      for (const call of calls) {
+        if (call.functionName === 'setHealth' && object instanceof CharacterBase) {
+          // The view's health setter also plays hit feedback; expired damage is state only.
+          object.health = call.args[0];
+        } else if (persistentRemoteCalls.has(call.functionName)) {
+          object.processRemoteCalls([call]);
+        }
+      }
+      return false;
+    });
+  }
+
+  private retireDueObjects(renderTime = serverTimeline.renderTime) {
+    for (const [id, at] of this.deleteAt) {
+      if (renderTime >= at) {
+        this.deleteObject(id);
+      }
+    }
+  }
+
   private feedPredictor(updates: Array<UpdatePropertyCommand>) {
-    let head: Circle | undefined;
-    let leftFoot: Circle | undefined;
-    let rightFoot: Circle | undefined;
+    const pose: Partial<Record<'head' | 'leftFoot' | 'rightFoot', Circle>> = {};
     for (const u of updates) {
-      if (u.propertyKey === 'head') head = u.propertyValue as Circle;
-      else if (u.propertyKey === 'leftFoot') leftFoot = u.propertyValue as Circle;
-      else if (u.propertyKey === 'rightFoot') rightFoot = u.propertyValue as Circle;
+      if (
+        u.propertyKey === 'head' ||
+        u.propertyKey === 'leftFoot' ||
+        u.propertyKey === 'rightFoot'
+      ) {
+        pose[u.propertyKey] = u.propertyValue;
+      }
     }
-    if (head && leftFoot && rightFoot) {
-      localCharacterPredictor.setAuthoritative(head, leftFoot, rightFoot);
+    if (pose.head && pose.leftFoot && pose.rightFoot) {
+      localCharacterPredictor.setAuthoritative(pose.head, pose.leftFoot, pose.rightFoot);
     }
   }
 
-  private predictablePlanets(): Array<PredictablePlanet> {
-    return this.planets.map((p) => ({
-      id: p.id,
-      vertices: p.vertices,
-      center: p.center,
-      radius: p.radius,
-      rotation: p.predictionRotation,
-      rotationSpeed: p.predictionRotationSpeed,
-    }));
-  }
-
-  private addObject(object: GameObject) {
+  private addObject(object: View) {
+    // An object can re-enter the interest area before its delayed deletion is drawn.
+    // Retire the old view and its pending deletion before installing the replacement.
+    if (this.objects.has(object.id)) {
+      this.deleteObject(object.id);
+    }
+    this.awaitingDeleteStamp = this.awaitingDeleteStamp.filter((id) => id !== object.id);
     this.objects.set(object.id, object);
+    if (object instanceof PlanetView) {
+      this.planets.push(object);
+    }
   }
 
   private deleteObject(id: Id) {
     const object = this.objects.get(id);
-    object?.handleCommand(new BeforeDestroyCommand());
+    object?.beforeDestroy?.();
     this.objects.delete(id);
+    this.remoteCalls = this.remoteCalls.filter((call) => call.object !== object);
+    if (this.player === object) {
+      this.player = undefined;
+    }
+    this.planets = this.planets.filter((p) => p.id !== id);
+    this.visibleFrom.delete(id);
+    this.deleteAt.delete(id);
   }
 }

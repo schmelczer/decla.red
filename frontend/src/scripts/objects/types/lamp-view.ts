@@ -1,19 +1,12 @@
 import { vec2, vec3 } from 'gl-matrix';
-import { CircleLight } from 'sdf-2d';
-import { CommandExecutors, Id, LampBase, mixRgb, settings } from 'shared';
-import { RenderCommand } from '../../commands/types/render';
-import { StepCommand } from '../../commands/types/step';
+import { CircleLight, Renderer } from 'sdf-2d';
+import { Id, LampBase, mix, mixRgb, settings, smoothing } from 'shared';
+import { View } from '../view';
 
-export class LampView extends LampBase {
-  private light: CircleLight;
-
+export class LampView extends LampBase implements View {
+  private readonly light: CircleLight;
   private targetColor: vec3;
   private targetLightness: number;
-
-  protected commandExecutors: CommandExecutors = {
-    [RenderCommand.type]: this.draw.bind(this),
-    [StepCommand.type]: this.step.bind(this),
-  };
 
   constructor(id: Id, center: vec2, color: vec3, lightness: number) {
     super(id, center, color, lightness);
@@ -27,13 +20,13 @@ export class LampView extends LampBase {
     this.targetLightness = lightness;
   }
 
-  private step({ deltaTimeInSeconds }: StepCommand): void {
-    const t = 1 - Math.exp(-deltaTimeInSeconds / settings.lampLerpSeconds);
+  public step(deltaTimeInSeconds: number) {
+    const t = smoothing(deltaTimeInSeconds, settings.lampLerpSeconds);
     this.light.color = mixRgb(this.light.color, this.targetColor, t);
-    this.light.intensity += (this.targetLightness - this.light.intensity) * t;
+    this.light.intensity = mix(this.light.intensity, this.targetLightness, t);
   }
 
-  private draw({ renderer }: RenderCommand): void {
+  public render(renderer: Renderer) {
     renderer.addDrawable(this.light);
   }
 }

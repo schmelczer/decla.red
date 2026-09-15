@@ -1,28 +1,46 @@
 import { vec2 } from 'gl-matrix';
+import { Id } from '../../communication/communication';
 import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 
-// Sent server -> owning client only, alongside that client's own character
-// snapshot. Carries the clientTimeMs of the most recent movement input the
-// server had received when the snapshot was taken (so the client's predictor
-// can reset to the snapshot and replay just the inputs the server hasn't seen
-// yet) and the authoritative launch momentum (so the predictor reproduces a
-// leap/slingshot/recoil flight rather than only snapping to it). See
-// LocalCharacterPredictor.
+// `direction` is not recoverable from the pose: the body lags the posture it is sprung towards.
+@serializable
+export class CharacterMovementSnapshot {
+  public constructor(
+    public readonly direction: number,
+    public readonly bodyVelocity: vec2,
+    public readonly leftFootNormal: vec2,
+    public readonly rightFootNormal: vec2,
+    public readonly groundPlanetId: Id | null,
+    public readonly secondsSinceOnSurface: number,
+    public readonly leapCooldownRemaining: number = 0,
+  ) {}
+
+  public toArray(): Array<any> {
+    return [
+      this.direction,
+      this.bodyVelocity,
+      this.leftFootNormal,
+      this.rightFootNormal,
+      this.groundPlanetId,
+      this.secondsSinceOnSurface,
+      this.leapCooldownRemaining,
+    ];
+  }
+}
+
 @serializable
 export class InputAcknowledgement extends Command {
   public constructor(
     public readonly clientTimeMs: number,
-    public readonly bodyVelocity: vec2,
-    // clientTimeMs of the most recent leap the server has received: any leap at
-    // or before it is already reflected in bodyVelocity, so the predictor must
-    // not replay it.
+    public readonly movement: CharacterMovementSnapshot,
     public readonly lastLeapClientTimeMs: number,
+    public readonly ackAgeMs: number = 0,
   ) {
     super();
   }
 
   public toArray(): Array<any> {
-    return [this.clientTimeMs, this.bodyVelocity, this.lastLeapClientTimeMs];
+    return [this.clientTimeMs, this.movement, this.lastLeapClientTimeMs, this.ackAgeMs];
   }
 }

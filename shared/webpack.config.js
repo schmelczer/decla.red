@@ -27,7 +27,6 @@ module.exports = (env, argv) => ({
   optimization: {
     minimize: false,
   },
-  plugins: [],
   module: {
     rules: [
       {

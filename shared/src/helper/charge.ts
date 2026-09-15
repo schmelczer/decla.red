@@ -1,5 +1,11 @@
 import { clamp01 } from './clamp';
 import { settings } from '../settings';
 
-export const holdDurationToCharge = (heldSeconds: number): number =>
-  clamp01(heldSeconds / settings.chargeShotFullHoldSeconds);
+export const chargeHeldSince = (heldSinceMs: number): number =>
+  clamp01((performance.now() - heldSinceMs) / 1000 / settings.chargeShotFullHoldSeconds);
+
+export const strengthToCharge = (strength: number): number =>
+  clamp01(
+    (strength - settings.chargeShotStrengthMin) /
+      (settings.chargeShotStrengthMax - settings.chargeShotStrengthMin),
+  );

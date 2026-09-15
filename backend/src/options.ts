@@ -6,3 +6,14 @@ export interface Options {
   npcCount: number;
   seed: number;
 }
+
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+export const defaultOptions: Options = {
+  port: 3000,
+  name: isDevelopment ? 'Dev server' : 'Doppler server',
+  playerLimit: 16,
+  npcCount: 8,
+  seed: (Math.random() * 0x100000000) >>> 0,
+  scoreLimit: 2500,
+};

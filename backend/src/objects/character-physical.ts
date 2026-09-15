@@ -2,22 +2,23 @@ import { vec2 } from 'gl-matrix';
 import {
   id,
   settings,
-  MoveActionCommand,
-  serializesTo,
-  last,
   Circle,
   CharacterBase,
   CharacterTeam,
   PropertyUpdatesForObject,
   UpdatePropertyCommand,
-  CommandExecutors,
-  CommandReceiver,
+  CharacterMovementSnapshot,
+  GameObject,
   mix,
   clamp01,
+  strengthToCharge,
   stepCharacterMovement,
+  applyForce,
   applyLeapImpulse,
   decayMomentum,
-  CharacterMovementState,
+  tickPlanetDetachment,
+  characterCenter,
+  sumGravity,
   CharacterWorld,
   GroundSurface,
   headRadius,
@@ -27,69 +28,45 @@ import {
   rightFootOffset,
   boundRadius,
 } from 'shared';
-import { DynamicPhysical } from '../physics/physicals/dynamic-physical';
+import { addPointsForTeam } from '../game-events';
+import { Physical } from '../physics/physical';
 import { CirclePhysical } from './circle-physical';
-import { PhysicalContainer } from '../physics/containers/physical-container';
-import { BoundingBoxBase } from '../physics/bounding-boxes/bounding-box-base';
+import { PhysicalContainer } from '../physics/physical-container';
+import { BoundingBox } from '../physics/bounding-box';
 import { ProjectilePhysical } from './projectile-physical';
-import { forceAtPosition } from '../physics/functions/force-at-position';
-import { getBoundingBoxOfCircle } from '../physics/functions/get-bounding-box-of-circle';
-import { PlanetPhysical } from './planet-physical';
-import { StepCommand } from '../commands/step';
-import { ReactToCollisionCommand } from '../commands/react-to-collision';
-import { GeneratePointsCommand } from '../commands/generate-points';
+import { PlanetPhysical, planetsNear } from './planet-physical';
 
-@serializesTo(CharacterBase)
-export class CharacterPhysical extends CharacterBase implements DynamicPhysical {
+const placeholder = new Circle(vec2.create(), 0);
+
+export class CharacterPhysical extends CharacterBase implements Physical {
   public readonly canCollide = true;
-  public readonly canMove = true;
-
-  private projectileStrength = settings.playerMaxStrength;
-
-  // Body geometry (head/foot radii, posture offsets, bound radius) is defined
-  // once in the shared movement module and imported here, so the authoritative
-  // body and the client's predicted body are bit-identical by construction
-  // instead of by a hand-synced "copied verbatim" duplicate. Re-exposed as a
-  // static only because external callers reference CharacterPhysical.boundRadius.
-  public static readonly boundRadius = boundRadius;
-
-  private timeSinceDying = 0;
-  private isDestroyed = false;
-  private timeSinceBorn = 0;
-  private hasJustBorn = true;
-  private timeAlive = 0;
-
-  private timeSinceLastShot = settings.projectileCreationInterval;
-  private timeSinceLastDamage = settings.playerOutOfCombatDelaySeconds;
-  private lastSyncedHealth = settings.playerMaxHealth;
-
-  private killStreak = 0;
-
-  private direction = 0;
-  private currentPlanet?: PlanetPhysical;
-  private secondsSinceOnSurface = settings.planetDetachmentSeconds;
-
-  private bodyVelocity = vec2.create();
-  private timeSinceLastLeap = settings.leapCooldownSeconds;
 
   public head: CirclePhysical;
   public leftFoot: CirclePhysical;
   public rightFoot: CirclePhysical;
 
-  private movementState!: CharacterMovementState;
-  private movementWorld!: CharacterWorld;
+  public direction = 0;
+  public currentPlanet: GroundSurface | undefined;
+  public secondsSinceOnSurface = settings.planetDetachmentSeconds;
+  public readonly bodyVelocity = vec2.create();
 
-  private movementActions: Array<MoveActionCommand> = [];
-  private lastMovementAction: MoveActionCommand = new MoveActionCommand(vec2.create());
+  private projectileStrength = settings.playerMaxStrength;
+  private timeAlive = 0;
+  private timeSinceDying = 0;
+  private isDestroyed = false;
+  private hasJustBorn = true;
+  private hasFiredSinceSpawn = false;
+  private timeSinceLastShot = settings.projectileCreationInterval;
+  private timeSinceLastLeap = settings.leapCooldownSeconds;
+  private timeSinceLastDamage = settings.playerOutOfCombatDelaySeconds;
+  private lastSyncedHealth = settings.playerMaxHealth;
+  private killStreak = 0;
 
-  private headVelocity = new Circle(vec2.create(), 0);
-  private leftFootVelocity = new Circle(vec2.create(), 0);
-  private rightFootVelocity = new Circle(vec2.create(), 0);
+  private readonly movementDirection = vec2.create();
 
-  protected commandExecutors: CommandExecutors = {
-    [StepCommand.type]: this.step.bind(this),
-    [ReactToCollisionCommand.type]: this.onCollision.bind(this),
-  };
+  private readonly previousPose = [0, 1, 2].map(() => new Circle(vec2.create(), 0));
+  private readonly velocities = [0, 1, 2].map(() => new Circle(vec2.create(), 0));
+  private readonly box = new BoundingBox();
 
   constructor(
     name: string,
@@ -99,112 +76,93 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     private readonly container: PhysicalContainer,
     startPosition: vec2,
   ) {
-    super(id(), name, killCount, deathCount, team, settings.playerMaxHealth);
-    this.head = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, headOffset),
-      headRadius,
-      this,
-      container,
+    super(
+      id(),
+      name,
+      killCount,
+      deathCount,
+      team,
+      settings.playerMaxHealth,
+      placeholder,
+      placeholder,
+      placeholder,
     );
-    this.leftFoot = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, leftFootOffset),
-      feetRadius,
-      this,
-      container,
-    );
-    this.rightFoot = new CirclePhysical(
-      vec2.add(vec2.create(), startPosition, rightFootOffset),
-      feetRadius,
-      this,
-      container,
-    );
-    container.addObject(this.head);
-    container.addObject(this.leftFoot);
-    container.addObject(this.rightFoot);
-
-    this.initMovementBridge();
+    const part = (offset: vec2, radius: number) =>
+      new CirclePhysical(
+        vec2.add(vec2.create(), startPosition, offset),
+        radius,
+        this,
+        container,
+      );
+    this.head = part(headOffset, headRadius);
+    this.leftFoot = part(leftFootOffset, feetRadius);
+    this.rightFoot = part(rightFootOffset, feetRadius);
   }
 
-  private initMovementBridge() {
-    // The movementState object-literal getters/setters below can't use `this`
-    // (it would bind to the literal), so alias the character instance.
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-    this.movementState = {
-      head: this.head,
-      leftFoot: this.leftFoot,
-      rightFoot: this.rightFoot,
-      get direction() {
-        return self.direction;
-      },
-      set direction(value: number) {
-        self.direction = value;
-      },
-      get currentPlanet() {
-        return self.currentPlanet;
-      },
-      set currentPlanet(value: GroundSurface | undefined) {
-        // On the server every ground is a PlanetPhysical (the world only ever
-        // hands back planets), so this narrowing is safe.
-        self.currentPlanet = value as PlanetPhysical | undefined;
-      },
-      get secondsSinceOnSurface() {
-        return self.secondsSinceOnSurface;
-      },
-      set secondsSinceOnSurface(value: number) {
-        self.secondsSinceOnSurface = value;
-      },
-      bodyVelocity: this.bodyVelocity,
-    };
+  private readonly movementWorld: CharacterWorld = {
+    groundsNear: (center, radius) => planetsNear(this.container, center, radius),
+    stepBody: (body, deltaTimeInSeconds) => {
+      const hit = (body as CirclePhysical).stepManually(deltaTimeInSeconds);
+      return hit instanceof PlanetPhysical ? hit : undefined;
+    },
+  };
 
-    this.movementWorld = {
-      // Same set and order forceAtPosition used: planets in the force field,
-      // in container-traversal order (so the f64 gravity sum is unchanged).
-      groundsNear: (center, radius) =>
-        self.container
-          .findIntersecting(getBoundingBoxOfCircle(new Circle(center, radius)))
-          .filter((o): o is PlanetPhysical => o instanceof PlanetPhysical),
-      stepBody: (body, deltaTimeInSeconds) => {
-        const { hitObject } = (body as CirclePhysical).stepManually(deltaTimeInSeconds);
-        return hitObject instanceof PlanetPhysical ? hitObject : undefined;
-      },
-    };
+  private get parts(): Array<CirclePhysical> {
+    return [this.head, this.leftFoot, this.rightFoot];
   }
 
   private get isSpawnProtected(): boolean {
     return (
+      !this.hasFiredSinceSpawn &&
       this.timeAlive <
-      settings.spawnDespawnTime + settings.spawnInvulnerabilityExtraSeconds
+        settings.spawnDespawnTime + settings.spawnInvulnerabilityExtraSeconds
     );
-  }
-
-  private hasGeneratedPoints = false;
-  private getPoints(game: CommandReceiver) {
-    if (!this.isAlive && !this.hasGeneratedPoints) {
-      this.hasGeneratedPoints = true;
-      const blue = this.team === CharacterTeam.blue ? 0 : settings.playerKillPoint;
-      const red = this.team === CharacterTeam.red ? 0 : settings.playerKillPoint;
-
-      game.handleCommand(new GeneratePointsCommand(blue, red));
-    }
   }
 
   public get isAlive(): boolean {
     return !this.isDestroyed;
   }
 
-  public handleMovementAction(c: MoveActionCommand) {
-    this.movementActions.push(c);
-  }
-
   public get groundPlanet(): PlanetPhysical | undefined {
-    return this.currentPlanet;
+    return this.currentPlanet as PlanetPhysical | undefined;
   }
 
-  // Persistent launch momentum, streamed to the owning client so its predictor
-  // can reproduce a leap/slingshot/recoil flight instead of only snapping to it.
-  public get launchMomentum(): vec2 {
-    return this.bodyVelocity;
+  public get movementSnapshot(): CharacterMovementSnapshot {
+    return new CharacterMovementSnapshot(
+      this.direction,
+      vec2.clone(this.bodyVelocity),
+      vec2.clone(this.leftFoot.lastNormal),
+      vec2.clone(this.rightFoot.lastNormal),
+      this.groundPlanet?.id ?? null,
+      this.secondsSinceOnSurface,
+      Math.max(0, settings.leapCooldownSeconds - this.timeSinceLastLeap),
+    );
+  }
+
+  public get boundingBox(): BoundingBox {
+    return this.box.setCircle(this.center, boundRadius);
+  }
+
+  public get gameObject(): this {
+    return this;
+  }
+
+  public get center(): vec2 {
+    return characterCenter(this.head, this.leftFoot, this.rightFoot);
+  }
+
+  public distance(target: vec2): number {
+    return (
+      Math.min(
+        this.head.distance(target),
+        this.leftFoot.distance(target),
+        this.rightFoot.distance(target),
+      ) - 5
+    );
+  }
+
+  public setMoveDirection(direction: vec2) {
+    vec2.normalize(this.movementDirection, direction);
   }
 
   public addKill(victimName: string, charge = 0) {
@@ -212,11 +170,13 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     this.killStreak++;
     this.remoteCall('setKillCount', this.killCount);
 
-    this.health = Math.min(
-      settings.playerMaxHealth,
-      this.health + settings.playerKillHealthReward,
-    );
-    this.syncHealth();
+    if (this.isAlive) {
+      this.health = Math.min(
+        settings.playerMaxHealth,
+        this.health + settings.playerKillHealthReward,
+      );
+      this.syncHealth();
+    }
     this.remoteCall('onKillConfirmed', victimName, this.killStreak, charge);
   }
 
@@ -232,39 +192,38 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
     }
   }
 
-  public onCollision({ other }: ReactToCollisionCommand) {
+  public onCollision(other: GameObject) {
     if (
-      // A corpse keeps its collidable circles for the despawn animation; the
-      // isAlive guard stops a flying corpse from eating shots aimed past it.
-      this.isAlive &&
-      other instanceof ProjectilePhysical &&
-      other.team !== this.team &&
-      other.isAlive
+      !this.isAlive ||
+      !(other instanceof ProjectilePhysical) ||
+      other.team === this.team ||
+      !other.isAlive
     ) {
-      other.destroy();
+      return;
+    }
 
-      if (this.isSpawnProtected) {
-        return;
-      }
+    other.destroy();
 
-      this.timeSinceLastDamage = 0;
-      this.health -= other.strength;
-      this.lastSyncedHealth = Math.round(this.health);
-      this.remoteCall('setHealth', this.health);
+    if (this.isSpawnProtected) {
+      return;
+    }
 
-      if (this.health <= 0 && this.isAlive) {
-        // Throw the corpse along the killing shot, harder for charged hits.
-        vec2.scaleAndAdd(
-          this.bodyVelocity,
-          this.bodyVelocity,
-          other.direction,
-          mix(settings.deathImpulseMin, settings.deathImpulseMax, other.charge),
-        );
-        this.onDie();
-        other.originator.addKill(this.name, other.charge);
-      } else {
-        other.originator.registerHit(other.charge);
-      }
+    this.timeSinceLastDamage = 0;
+    this.health -= other.strength;
+    this.lastSyncedHealth = Math.round(this.health);
+    this.remoteCall('setHealth', this.health);
+
+    if (this.health <= 0) {
+      vec2.scaleAndAdd(
+        this.bodyVelocity,
+        this.bodyVelocity,
+        other.direction,
+        mix(settings.deathImpulseMin, settings.deathImpulseMax, other.charge),
+      );
+      this.onDie(true);
+      other.originator.addKill(this.name, other.charge);
+    } else {
+      other.originator.registerHit(other.charge);
     }
   }
 
@@ -277,42 +236,45 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       return;
     }
 
-    this.timeSinceLastShot = 0;
+    const direction = vec2.subtract(vec2.create(), position, this.center);
+    if (vec2.length(direction) === 0) {
+      return;
+    }
 
-    const c = clamp01(charge);
+    this.timeSinceLastShot = 0;
+    this.hasFiredSinceSpawn = true;
+
     const desiredStrength = mix(
       settings.chargeShotStrengthMin,
       settings.chargeShotStrengthMax,
-      c,
+      clamp01(charge),
     );
     const strength = Math.min(desiredStrength, this.projectileStrength);
     this.projectileStrength -= strength;
 
+    const c = strengthToCharge(strength);
     const radius = mix(settings.chargeShotRadiusMin, settings.chargeShotRadiusMax, c);
     const speed = mix(settings.chargeShotSpeedMin, settings.chargeShotSpeedMax, c);
 
-    const direction = vec2.subtract(vec2.create(), position, this.center);
     vec2.normalize(direction, direction);
-    // Keep the unit direction before vec2.scale repurposes it as the velocity.
-    const shotDirection = vec2.clone(direction);
-    const velocity = vec2.scale(direction, direction, speed);
-    const projectile = new ProjectilePhysical(
-      vec2.clone(this.center),
-      radius,
-      strength,
-      this.team,
-      velocity,
-      this,
-      this.container,
-      c,
+    this.container.addObject(
+      new ProjectilePhysical(
+        vec2.clone(this.center),
+        radius,
+        strength,
+        this.team,
+        vec2.scale(vec2.create(), direction, speed),
+        this,
+        this.container,
+        c,
+      ),
     );
-    this.container.addObject(projectile);
 
     if (c > 0) {
       vec2.scaleAndAdd(
         this.bodyVelocity,
         this.bodyVelocity,
-        shotDirection,
+        direction,
         -settings.chargeShotRecoilMax * c,
       );
     }
@@ -333,210 +295,89 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
 
     this.timeSinceLastLeap = 0;
     this.projectileStrength -= settings.leapStrengthCost;
-
-    // Same impulse the client predicts with (shared), so a leap launches
-    // identically on both sides.
-    applyLeapImpulse(this.movementState, this.lastMovementAction.direction);
+    applyLeapImpulse(this, this.movementDirection);
     this.remoteCall('onLeap');
   }
 
-  public get boundingBox(): BoundingBoxBase {
-    return getBoundingBoxOfCircle(new Circle(this.center, CharacterPhysical.boundRadius));
-  }
-
-  public get gameObject(): this {
-    return this;
-  }
-
-  public get center(): vec2 {
-    const bodyCenter = vec2.add(vec2.create(), this.head.center, this.leftFoot.center);
-    vec2.add(bodyCenter, bodyCenter, this.rightFoot.center);
-    return vec2.scale(bodyCenter, bodyCenter, 1 / 3);
-  }
-
-  public distance(target: vec2): number {
-    return (
-      Math.min(
-        this.head.distance(target),
-        this.leftFoot.distance(target),
-        this.rightFoot.distance(target),
-      ) - 5
-    );
-  }
-
-  private averageAndResetMovementActions(): vec2 {
-    let direction: vec2;
-    if (this.movementActions.length === 0) {
-      direction = vec2.clone(this.lastMovementAction.direction);
-    } else {
-      direction = this.movementActions.reduce(
-        (sum, current) => vec2.add(sum, sum, current.direction),
-        vec2.create(),
-      );
-
-      vec2.scale(direction, direction, 1 / this.movementActions.length);
-
-      this.lastMovementAction = last(this.movementActions)!;
-      this.movementActions = [];
+  public onDie(killedInCombat = false) {
+    if (this.isDestroyed) {
+      return;
     }
+    this.isDestroyed = true;
+    this.remoteCall('onDie');
 
-    return vec2.length(direction) > 0
-      ? vec2.normalize(direction, direction)
-      : vec2.create();
+    if (killedInCombat) {
+      const opposingTeam =
+        this.team === CharacterTeam.blue ? CharacterTeam.red : CharacterTeam.blue;
+      addPointsForTeam(this.container.game, opposingTeam, settings.playerKillPoint);
+    }
   }
 
-  private animateScaling(q: number) {
-    this.head.radius = headRadius * q;
-    this.leftFoot.radius = this.rightFoot.radius = feetRadius * q;
-  }
-
-  public getPropertyUpdates(): PropertyUpdatesForObject {
+  public getPropertyUpdates(timeScale = 1): PropertyUpdatesForObject {
+    const [headVelocity, leftFootVelocity, rightFootVelocity] = this.velocities.map(
+      (velocity) =>
+        new Circle(
+          vec2.scale(vec2.create(), velocity.center, timeScale),
+          velocity.radius * timeScale,
+        ),
+    );
     return new PropertyUpdatesForObject(this.id, [
-      new UpdatePropertyCommand('head', this.head, this.headVelocity),
-      new UpdatePropertyCommand('leftFoot', this.leftFoot, this.leftFootVelocity),
-      new UpdatePropertyCommand('rightFoot', this.rightFoot, this.rightFootVelocity),
+      new UpdatePropertyCommand('head', this.head, headVelocity),
+      new UpdatePropertyCommand('leftFoot', this.leftFoot, leftFootVelocity),
+      new UpdatePropertyCommand('rightFoot', this.rightFoot, rightFootVelocity),
       new UpdatePropertyCommand(
         'strength',
         this.projectileStrength,
-        settings.playerStrengthRegenerationPerSeconds,
+        settings.playerStrengthRegenerationPerSeconds * timeScale,
       ),
     ]);
   }
 
-  private setPropertyUpdates(
-    oldHead: Circle,
-    oldLeftFoot: Circle,
-    oldRightFoot: Circle,
-    deltaTime: number,
-  ) {
-    this.headVelocity = new Circle(
-      vec2.scale(
-        oldHead.center,
-        vec2.subtract(oldHead.center, this.head.center, oldHead.center),
-        1 / deltaTime,
-      ),
-      (this.head.radius - oldHead.radius) / deltaTime,
-    );
-
-    this.leftFootVelocity = new Circle(
-      vec2.scale(
-        oldLeftFoot.center,
-        vec2.subtract(oldLeftFoot.center, this.leftFoot.center, oldLeftFoot.center),
-        1 / deltaTime,
-      ),
-      (this.leftFoot.radius - oldLeftFoot.radius) / deltaTime,
-    );
-
-    this.rightFootVelocity = new Circle(
-      vec2.scale(
-        oldRightFoot.center,
-        vec2.subtract(oldRightFoot.center, this.rightFoot.center, oldRightFoot.center),
-        1 / deltaTime,
-      ),
-      (this.rightFoot.radius - oldRightFoot.radius) / deltaTime,
-    );
-
-    this.animateScaling(1);
-  }
-
-  private step({ deltaTimeInSeconds, game }: StepCommand) {
-    this.getPoints(game);
+  public step(deltaTimeInSeconds: number) {
     this.timeAlive += deltaTimeInSeconds;
     this.timeSinceLastLeap += deltaTimeInSeconds;
-    const oldHead = new Circle(vec2.clone(this.head.center), this.head.radius);
-    const oldLeftFoot = new Circle(
-      vec2.clone(this.leftFoot.center),
-      this.leftFoot.radius,
-    );
-    const oldRightFoot = new Circle(
-      vec2.clone(this.rightFoot.center),
-      this.rightFoot.radius,
-    );
+    this.parts.forEach((part, i) => {
+      vec2.copy(this.previousPose[i].center, part.center);
+      this.previousPose[i].radius = part.radius;
+    });
 
     if (this.isDestroyed) {
       if ((this.timeSinceDying += deltaTimeInSeconds) > settings.spawnDespawnTime) {
-        this.destroy();
+        this.container.removeObject(this);
       } else {
         this.freeFallCorpse(deltaTimeInSeconds);
         this.animateScaling(1 - this.timeSinceDying / settings.spawnDespawnTime);
       }
-      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
-      return;
-    }
-
-    if (this.hasJustBorn) {
-      if ((this.timeSinceBorn += deltaTimeInSeconds) > settings.spawnDespawnTime) {
+    } else if (this.hasJustBorn) {
+      if (this.timeAlive > settings.spawnDespawnTime) {
         this.hasJustBorn = false;
+        this.animateScaling(1);
       } else {
-        this.animateScaling(this.timeSinceBorn / settings.spawnDespawnTime);
+        this.animateScaling(this.timeAlive / settings.spawnDespawnTime);
       }
-      this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
-      return;
+    } else {
+      this.stepAlive(deltaTimeInSeconds);
     }
 
-    if (
-      (this.secondsSinceOnSurface += deltaTimeInSeconds) >
-      settings.planetDetachmentSeconds
-    ) {
-      this.currentPlanet = undefined;
-    }
+    this.parts.forEach((part, i) => {
+      const velocity = this.velocities[i];
+      const previous = this.previousPose[i];
+      vec2.subtract(velocity.center, part.center, previous.center);
+      vec2.scale(velocity.center, velocity.center, 1 / deltaTimeInSeconds);
+      velocity.radius = (part.radius - previous.radius) / deltaTimeInSeconds;
+    });
+  }
+
+  private stepAlive(deltaTimeInSeconds: number) {
+    tickPlanetDetachment(this, deltaTimeInSeconds);
 
     this.timeSinceLastShot += deltaTimeInSeconds;
-
     this.projectileStrength = Math.min(
       settings.playerMaxStrength,
       this.projectileStrength +
         settings.playerStrengthRegenerationPerSeconds * deltaTimeInSeconds,
     );
 
-    this.regenerateHealth(deltaTimeInSeconds);
-
-    // The planet tallies who is standing on it and resolves capture itself, so
-    // a contested rock can freeze instead of two squads silently cancelling.
-    this.currentPlanet?.registerPresence(this);
-
-    // The whole walking model — gravity gather, movement force, on/off-planet
-    // branch, posture springs, body-momentum, and stepping the three parts —
-    // is the shared simulation the client predicts with, so the two can never
-    // drift. Server-only concerns (scoring, health, shooting, spawn/death,
-    // ownership) stay here around it.
-    const direction = this.averageAndResetMovementActions();
-    stepCharacterMovement(
-      this.movementState,
-      this.movementWorld,
-      direction,
-      deltaTimeInSeconds,
-    );
-
-    this.setPropertyUpdates(oldHead, oldLeftFoot, oldRightFoot, deltaTimeInSeconds);
-  }
-
-  private freeFallCorpse(deltaTime: number) {
-    const intersecting = this.container.findIntersecting(
-      getBoundingBoxOfCircle(
-        new Circle(
-          this.center,
-          CharacterPhysical.boundRadius + settings.maxGravityDistance,
-        ),
-      ),
-    );
-    let grounded = false;
-    for (const part of [this.leftFoot, this.rightFoot, this.head]) {
-      part.applyForce(forceAtPosition(part.center, intersecting), deltaTime);
-      vec2.add(part.velocity, part.velocity, this.bodyVelocity);
-      const { hitObject } = part.stepManually(deltaTime);
-      if (hitObject instanceof PlanetPhysical) {
-        grounded = true;
-      }
-    }
-    // Brake with the exact shared model the living body uses: stiff on contact
-    // so the corpse skids to rest, gentle in the air, plus the constant stop and
-    // the speed cap — so a flung corpse comes to a definite stop instead of
-    // sliding forever.
-    decayMomentum(this.bodyVelocity, grounded, deltaTime);
-  }
-
-  private regenerateHealth(deltaTimeInSeconds: number) {
     this.timeSinceLastDamage += deltaTimeInSeconds;
     if (
       this.timeSinceLastDamage > settings.playerOutOfCombatDelaySeconds &&
@@ -548,17 +389,35 @@ export class CharacterPhysical extends CharacterBase implements DynamicPhysical 
       );
       this.syncHealth();
     }
+
+    this.groundPlanet?.registerPresence(this);
+
+    stepCharacterMovement(
+      this,
+      this.movementWorld,
+      this.movementDirection,
+      deltaTimeInSeconds,
+    );
   }
 
-  public onDie() {
-    this.isDestroyed = true;
-    this.remoteCall('onDie');
+  private animateScaling(q: number) {
+    this.head.radius = headRadius * q;
+    this.leftFoot.radius = this.rightFoot.radius = feetRadius * q;
   }
 
-  private destroy() {
-    this.container.removeObject(this);
-    this.container.removeObject(this.head);
-    this.container.removeObject(this.leftFoot);
-    this.container.removeObject(this.rightFoot);
+  private freeFallCorpse(deltaTime: number) {
+    const planets = this.movementWorld.groundsNear(
+      this.center,
+      boundRadius + settings.maxGravityDistance,
+    );
+    let grounded = false;
+    for (const part of this.parts) {
+      vec2.copy(part.velocity, this.bodyVelocity);
+      applyForce(part, sumGravity(planets, part.center), deltaTime);
+      if (part.stepManually(deltaTime) instanceof PlanetPhysical) {
+        grounded = true;
+      }
+    }
+    decayMomentum(this.bodyVelocity, grounded, deltaTime);
   }
 }

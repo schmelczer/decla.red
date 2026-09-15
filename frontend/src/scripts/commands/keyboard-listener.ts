@@ -1,53 +1,71 @@
 import { vec2 } from 'gl-matrix';
-import { CommandGenerator, LeapActionCommand, MoveActionCommand } from 'shared';
-import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
+import type { Command } from 'shared';
+import { InputGenerator } from './input-generator';
 
-export class KeyboardListener extends CommandGenerator {
+const movementKeys = new Set([
+  'KeyW',
+  'KeyA',
+  'KeyS',
+  'KeyD',
+  'ArrowUp',
+  'ArrowLeft',
+  'ArrowDown',
+  'ArrowRight',
+]);
+const leapKeys = new Set(['Space', 'ShiftLeft', 'ShiftRight']);
+
+export class KeyboardListener extends InputGenerator {
   private keysDown: Set<string> = new Set();
 
-  constructor() {
-    super();
-
+  constructor(onCommand: (command: Command) => void) {
+    super(onCommand);
     addEventListener('keydown', this.keyDownListener);
     addEventListener('keyup', this.keyUpListener);
     addEventListener('blur', this.blurListener);
   }
 
   private keyDownListener = (event: KeyboardEvent) => {
-    const key = event.key.toLowerCase();
-    // Space leaps (W / ArrowUp already cover walking up). Edge-triggered so a
-    // held key's auto-repeat doesn't spam leaps.
-    if ((key === ' ' || key === 'shift') && !this.keysDown.has(key)) {
-      const clientTimeMs = localCharacterPredictor.recordLeap();
-      this.sendCommandToSubscribers(new LeapActionCommand(clientTimeMs));
+    const key = event.code;
+    if (!movementKeys.has(key) && !leapKeys.has(key)) {
+      return;
+    }
+    event.preventDefault();
+    if (this.keysDown.has(key)) {
+      return;
     }
     this.keysDown.add(key);
-    this.generateCommands();
+    if (leapKeys.has(key)) {
+      this.sendLeap();
+    } else {
+      this.sendMovement();
+    }
   };
 
   private keyUpListener = (event: KeyboardEvent) => {
-    this.keysDown.delete(event.key.toLowerCase());
-    this.generateCommands();
+    if (this.keysDown.delete(event.code) && movementKeys.has(event.code)) {
+      this.sendMovement();
+    }
   };
 
   private blurListener = () => {
     this.keysDown.clear();
-    this.generateCommands();
+    this.sendMovement();
   };
 
-  private generateCommands() {
-    const up = ~~(this.keysDown.has('w') || this.keysDown.has('arrowup'));
-    const down = ~~(this.keysDown.has('s') || this.keysDown.has('arrowdown'));
-    const left = ~~(this.keysDown.has('a') || this.keysDown.has('arrowleft'));
-    const right = ~~(this.keysDown.has('d') || this.keysDown.has('arrowright'));
-
-    const movement = vec2.fromValues(right - left, up - down);
-    if (vec2.squaredLength(movement) > 0) {
-      vec2.normalize(movement, movement);
+  public resendMovement() {
+    if ([...this.keysDown].some((key) => movementKeys.has(key))) {
+      this.sendMovement();
     }
+  }
 
-    const clientTimeMs = localCharacterPredictor.recordInput(movement);
-    this.sendCommandToSubscribers(new MoveActionCommand(movement, clientTimeMs));
+  private sendMovement() {
+    const down = (...codes: Array<string>) =>
+      codes.some((c) => this.keysDown.has(c)) ? 1 : 0;
+    const movement = vec2.fromValues(
+      down('KeyD', 'ArrowRight') - down('KeyA', 'ArrowLeft'),
+      down('KeyW', 'ArrowUp') - down('KeyS', 'ArrowDown'),
+    );
+    this.sendMove(vec2.normalize(movement, movement));
   }
 
   public destroy() {

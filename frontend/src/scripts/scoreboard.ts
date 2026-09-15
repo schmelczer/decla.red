@@ -1,10 +1,5 @@
 import { CharacterTeam, UpdateGameState, clamp, settings } from 'shared';
 
-// Centred tug-of-war territory bar. The two fills meet at the bar's centre and
-// grow outward by each team's share of the score limit, so the meeting point
-// reads as the lead at a glance. Numeric scores are overlaid (the leader's is
-// emphasised) and a "YOU" tick marks the local team's half. Owns its own DOM so
-// the Game just appends `element` to the overlay and feeds it `update()`.
 export class Scoreboard {
   public readonly element = document.createElement('div');
 

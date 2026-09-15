@@ -1,4 +1,4 @@
-import { Id } from '../../communication/id';
+import { Id } from '../../communication/communication';
 import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';
 

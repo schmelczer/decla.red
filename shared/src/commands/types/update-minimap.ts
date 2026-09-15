@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { Id } from '../../communication/id';
+import { Id } from '../../communication/communication';
 import { CharacterTeam } from '../../objects/types/character-base';
 import { serializable } from '../../serialization/serializable';
 import { Command } from '../command';

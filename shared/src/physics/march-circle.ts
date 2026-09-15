@@ -4,77 +4,65 @@ import { evaluateSdf } from './evaluate-sdf';
 import { sdfNormal } from './sdf-normal';
 
 export interface MarchResult {
-  hitSurface: boolean;
+  travelled: number;
   normal?: vec2;
   hitObject?: Sdf;
 }
 
-// Raymarch a circle by `delta`, stopping at the first surface it would overlap.
-// Extracted verbatim from the backend's move-circle so server and client
-// resolve motion identically. The collision *reaction* is no longer dispatched
-// here: on a real (non-ignored) hit, `onHit(intersecting)` is invoked at the
-// exact point the backend used to dispatch its ReactToCollisionCommands, and
-// the backend wrapper supplies that callback. The client passes none.
+const minimumStep = 0.5;
+const maximumSteps = 256;
+
 export const marchCircle = (
   body: PhysicsBody,
   delta: vec2,
   possibleIntersectors: Array<Sdf>,
-  ignoreCollision = false,
   onHit?: (intersecting: Sdf) => void,
 ): MarchResult => {
-  const direction = vec2.clone(delta);
-
-  if (vec2.length(delta) > 0) {
-    vec2.normalize(direction, direction);
+  const deltaLength = vec2.length(delta);
+  if (!(deltaLength > 0)) {
+    return { travelled: 0 };
   }
 
-  const deltaLength = vec2.length(delta);
-  let travelled = 0;
+  const direction = vec2.normalize(vec2.create(), delta);
   const rayEnd = vec2.create();
-  let prevMinDistance = 0;
-  while (travelled < deltaLength) {
-    travelled += prevMinDistance;
-    vec2.add(
-      rayEnd,
-      body.center,
-      vec2.scale(vec2.create(), direction, Math.min(travelled, deltaLength)),
-    );
+  let travelled = 0;
+  let lastFreeDistance = 0;
+
+  for (let step = 0; step < maximumSteps; step++) {
+    vec2.scaleAndAdd(rayEnd, body.center, direction, travelled);
 
     const minDistance = evaluateSdf(rayEnd, possibleIntersectors);
 
     if (minDistance < body.radius) {
       const intersecting = possibleIntersectors.find(
-        (i) => i.distance(rayEnd) <= body.radius,
+        (i) => i.canCollide && i.distance(rayEnd) < body.radius,
       )!;
 
-      if (ignoreCollision) {
-        body.center = vec2.add(body.center, body.center, delta);
-      } else {
-        onHit?.(intersecting);
-      }
-
-      vec2.add(
-        rayEnd,
-        body.center,
-        vec2.scale(vec2.create(), direction, travelled - prevMinDistance),
-      );
-
+      vec2.scaleAndAdd(rayEnd, body.center, direction, lastFreeDistance);
       vec2.copy(body.center, rayEnd);
-
       const normal = sdfNormal(rayEnd, [intersecting]);
+      onHit?.(intersecting);
+
       return {
-        hitSurface: true,
+        travelled: lastFreeDistance,
         normal,
         hitObject: intersecting,
       };
     }
 
-    prevMinDistance = minDistance;
+    lastFreeDistance = travelled;
+
+    if (travelled >= deltaLength) {
+      break;
+    }
+
+    travelled = Math.min(
+      travelled + Math.max(minDistance - body.radius, minimumStep),
+      deltaLength,
+    );
   }
 
-  vec2.add(body.center, body.center, delta);
+  vec2.scaleAndAdd(body.center, body.center, direction, lastFreeDistance);
 
-  return {
-    hitSurface: false,
-  };
+  return { travelled: lastFreeDistance };
 };

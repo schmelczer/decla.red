@@ -1,13 +1,25 @@
-import { CharacterTeam, PlayerInformation, Random, settings, Command } from 'shared';
+import {
+  CharacterTeam,
+  PlayerInformation,
+  Random,
+  settings,
+  Command,
+  GameObject,
+  PropertyUpdatesForObject,
+} from 'shared';
 import { Socket } from 'socket.io';
-import { PhysicalContainer } from '../physics/containers/physical-container';
+import { PhysicalContainer } from '../physics/physical-container';
 import { NPC } from './npc';
 import { Player } from './player';
-import { PlayerBase } from './player-base';
+import { PlayerBase, Score } from './player-base';
+
+export interface CarriedScore extends Score {
+  team: CharacterTeam;
+}
 
 export class PlayerContainer {
   private _players: Array<Player> = [];
-  private _npcs: Array<NPC> = [];
+  private npcs: Array<NPC> = [];
 
   constructor(
     private readonly objects: PhysicalContainer,
@@ -17,58 +29,65 @@ export class PlayerContainer {
     this.createNPCs();
   }
 
-  public createNPCs() {
-    const newNpcCount = Math.min(
-      this.playerMaxCount - this._players.length - this._npcs.length,
-      this.npcMaxCount - this._npcs.length,
-    );
+  private createNPCs() {
+    const newNpcCount =
+      Math.min(this.playerMaxCount, this.npcMaxCount) -
+      this._players.length -
+      this.npcs.length;
     for (let i = 0; i < newNpcCount; i++) {
       const name = `🤖 ${Random.choose(settings.npcNames)}`;
-      this._npcs.push(
-        new NPC({ name }, this, this.objects, this.getTeamOfNextPlayer(true)),
+      this.npcs.push(
+        new NPC({ name }, this, this.objects, this.teamOfNext(this.players)),
       );
     }
   }
 
-  public createPlayer(playerInfo: PlayerInformation, socket: Socket): Player {
-    if (this._players.length === this.playerMaxCount) {
-      throw new Error('Too many players');
-    }
+  public createPlayer(
+    playerInfo: PlayerInformation,
+    socket: Socket,
+    carried?: CarriedScore,
+  ): Player {
+    const team = carried ? carried.team : this.teamOfNext(this._players);
 
-    const team = this.getTeamOfNextPlayer();
-    let npcToReplace = this._npcs.find((n) => n.team === team);
-    if (!npcToReplace) {
-      npcToReplace = this._npcs.find((n) => n.team !== team);
-    }
+    const npcToReplace =
+      this.npcs.find((n) => n.team === team) ?? this.npcs.find((n) => n.team !== team);
     npcToReplace?.destroy();
-    this._npcs = this._npcs.filter((n) => n !== npcToReplace);
+    this.npcs = this.npcs.filter((n) => n !== npcToReplace);
 
-    const player = new Player(playerInfo, this, this.objects, team, socket);
+    const player = new Player(playerInfo, this, this.objects, team, socket, carried);
     this._players.push(player);
-
     return player;
   }
 
   public get players(): Array<PlayerBase> {
-    return [...this._players, ...this._npcs];
+    return [...this._players, ...this.npcs];
   }
 
   public get count(): number {
     return this._players.length;
   }
 
-  // Measured round-trip times (ms) of the real connected players, for
-  // server-side latency stats. NPCs have no socket and are excluded.
+  public get isFull(): boolean {
+    return this._players.length >= this.playerMaxCount;
+  }
+
   public get connectedPlayerRttsMs(): Array<number> {
     return this._players.map((p) => p.rttMs);
   }
 
   public step(deltaTimeInSeconds: number) {
-    this.players.forEach((p) => p.step(deltaTimeInSeconds));
+    this._players.forEach((p) => p.step(deltaTimeInSeconds));
+    this.npcs.forEach((p) => p.step(deltaTimeInSeconds));
   }
 
-  public stepCommunication(deltaTimeInSeconds: number) {
-    this._players.forEach((p) => p.stepCommunications(deltaTimeInSeconds));
+  public stepCommunication(
+    deltaTimeInSeconds: number,
+    simulatedThroughMs: number,
+    propertyUpdatesOf: (object: GameObject) => PropertyUpdatesForObject | undefined,
+  ) {
+    this._players.forEach((p) =>
+      p.stepCommunications(deltaTimeInSeconds, simulatedThroughMs, propertyUpdatesOf),
+    );
   }
 
   public endGame(winner: CharacterTeam) {
@@ -83,8 +102,7 @@ export class PlayerContainer {
     this._players.forEach((p) => p.sendQueuedCommandsToClient());
   }
 
-  private getTeamOfNextPlayer(isNpc = false): CharacterTeam {
-    const players = isNpc ? this.players : this._players;
+  private teamOfNext(players: Array<PlayerBase>): CharacterTeam {
     const blueCount = players.filter((p) => p.team === CharacterTeam.blue).length;
     const redCount = players.filter((p) => p.team === CharacterTeam.red).length;
 
@@ -96,7 +114,9 @@ export class PlayerContainer {
   }
 
   public deletePlayer(player: Player) {
-    this._players = this._players.filter((p) => p !== player);
-    this.createNPCs();
+    if (this._players.includes(player)) {
+      this._players = this._players.filter((p) => p !== player);
+      this.createNPCs();
+    }
   }
 }

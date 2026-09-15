@@ -10,9 +10,8 @@
     "ignoreDeprecations": "6.0",
     "skipLibCheck": true,
     "module": "commonjs",
-    "lib": ["dom", "es2017"],
-    "typeRoots": ["./types", "./node_modules/@types"]
+    "lib": ["dom", "es2017"]
   },
-  "include": ["src/**/*.ts", "src/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "typings"]
 }

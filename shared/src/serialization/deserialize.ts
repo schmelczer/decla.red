@@ -1,15 +1,12 @@
 import { serializableMapping } from './serializable-mapping';
 
-export const deserialize = (json: string): any => {
-  return JSON.parse(json, (_, v) => {
-    if (v !== null && Object.prototype.hasOwnProperty.call(v, '0')) {
-      const possibleType = v[0];
-      const overridableConstructor = serializableMapping.get(possibleType);
-      if (overridableConstructor) {
-        return new overridableConstructor.constructor(...v.slice(1));
+export const deserialize = (json: string): any =>
+  JSON.parse(json, (_, value) => {
+    if (Array.isArray(value) && typeof value[0] === 'string') {
+      const Ctor = serializableMapping.get(value[0]);
+      if (Ctor) {
+        return new Ctor(...value.slice(1));
       }
-      return v;
     }
-    return v;
+    return value;
   });
-};

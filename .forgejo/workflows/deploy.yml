@@ -13,7 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ---- Static website -> /pages mount on the runner host --------------------
   website:
     name: Build & deploy website
     runs-on: docker
@@ -26,8 +25,11 @@ jobs:
           node-version-file: .nvmrc
 
       - name: Install dependencies
-        # No lockfiles are committed (see .gitignore), so use `npm install`.
-        run: npm install && npm run init
+        run: |
+          npm ci
+          npm --prefix shared ci
+          npm --prefix frontend ci
+          npm --prefix backend ci
 
       - name: Build (shared -> frontend -> backend)
         run: npm run build
@@ -45,11 +47,9 @@ jobs:
           source: frontend/dist
           target: declared
 
-  # ---- Server Docker image -> Forgejo container registry --------------------
   server-image:
     name: Build & publish server image
     runs-on: docker
-    # No registry push on PRs; build validation still happens in the website job.
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout

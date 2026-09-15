@@ -1,3 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`shared character simulation determinism > matches the pinned reference pose (changes only with intentional physics edits) 1`] = `"{"head":[76.14,123.412],"leftFoot":[83.214,105.036],"rightFoot":[79.974,123.01],"bodyVelocity":[0,0]}"`;
+
+exports[`shared character simulation determinism > matches the pinned reference pose on a spinning planet 1`] = `"{"head":[321.49,-34.424],"leftFoot":[249.254,-51.093],"rightFoot":[281.714,-72.595],"direction":-0.315,"onSurface":true,"secondsSinceOnSurface":0}"`;
