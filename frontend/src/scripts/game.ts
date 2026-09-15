@@ -281,9 +281,9 @@ export class Game extends CommandReceiver {
   public static rejectionText(reason: JoinRejectionReason): string {
     switch (reason) {
       case JoinRejectionReason.ServerFull:
-        return 'That server is full — pick another';
+        return 'That server is full. Pick another';
       case JoinRejectionReason.RoundEnding:
-        return 'That round is just finishing — try again in a moment';
+        return 'That round is just finishing. Try again in a moment';
       case JoinRejectionReason.AlreadyJoined:
         return 'Already joined on this connection';
       default:
