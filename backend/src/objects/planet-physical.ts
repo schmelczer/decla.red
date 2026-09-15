@@ -140,12 +140,6 @@ export class PlanetPhysical extends PlanetBase implements Physical {
         Math.round(settings.captureFlipPointReward * this.sizePointMultiplier),
       );
       this.awardToOwner(settings.captureFlipPointReward);
-
-      if (this.isKeystone) {
-        this.game.announce(
-          `Team <span class="${currentTeam}">${currentTeam}</span> captured the Heart`,
-        );
-      }
     }
 
     const control = Math.abs(this.ownership - 0.5) / 0.5;
