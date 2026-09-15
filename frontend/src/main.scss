@@ -208,7 +208,9 @@ body {
       mask-image: url('../static/mask.svg');
 
       &.contested {
-        animation: contested-pulse 0.7s ease-in-out infinite;
+        box-shadow:
+          inset 0 0 0 2px rgba(255, 255, 255, 0.7),
+          inset 0 0 3px 0px rgba(0, 0, 0, 0.2);
       }
 
       &.keystone {
@@ -318,6 +320,15 @@ body {
 
       @media (hover: none) and (pointer: coarse) {
         display: inline-block;
+      }
+
+      &[hidden] {
+        display: none;
+      }
+
+      &[aria-disabled='true'] {
+        opacity: 0.3;
+        cursor: default;
       }
 
       &.fire {
@@ -754,18 +765,6 @@ body {
       opacity: 0.85;
       text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
     }
-  }
-}
-
-@keyframes contested-pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.35;
   }
 }
 

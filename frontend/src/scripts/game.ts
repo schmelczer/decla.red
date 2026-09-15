@@ -55,7 +55,7 @@ export class Game extends CommandReceiver {
 
   private socket!: Socket;
   private socketReceiver!: CommandSocket;
-  private tutorial!: Tutorial;
+  private tutorial?: Tutorial;
   private resolveStarted!: () => void;
   private isBetweenGames = false;
   private isActive = true;
@@ -92,7 +92,7 @@ export class Game extends CommandReceiver {
       ),
     [GameEndCommand.name]: () => (localCharacterPredictor.enabled = false),
     [UpdateMinimap.name]: (c: UpdateMinimap) => (this.lastMinimap = c),
-    [GameStartCommand.name]: () => this.initialize(),
+    [GameStartCommand.name]: () => this.initialize(true),
   };
 
   constructor(
@@ -106,7 +106,7 @@ export class Game extends CommandReceiver {
 
     const onInput = (c: Command) => {
       this.socketReceiver.queue(c);
-      this.tutorial.handleCommand(c);
+      this.tutorial?.handleCommand(c);
     };
     this.keyboardListener = new KeyboardListener(onInput);
     this.mouseListener = new MouseListener(this.canvas, this, onInput);
@@ -117,7 +117,7 @@ export class Game extends CommandReceiver {
     this.gameObjects.handleCommand(c);
   }
 
-  private initialize() {
+  private initialize(isNewGame = false) {
     this.isBetweenGames = true;
 
     this.socket?.close();
@@ -131,14 +131,15 @@ export class Game extends CommandReceiver {
     this.keystoneArrow = undefined;
     this.connectionBanner = undefined;
     this.lastMinimap = undefined;
-    this.lastAnnouncementText = '';
+    this.lastAnnouncementText = isNewGame ? 'New game!' : '';
+    this.timeSinceLastAnnouncement = 0;
     this.announcementText.innerText = '';
     this.overlay.append(
       this.scoreboard.element,
       this.minimap.element,
       this.announcementText,
     );
-    this.tutorial = new Tutorial(this.overlay);
+    this.tutorial = isNewGame ? undefined : new Tutorial(this.overlay);
 
     this.socket = io(this.playerDecision.server, {
       reconnectionDelayMax: 10000,
@@ -354,7 +355,7 @@ export class Game extends CommandReceiver {
     this.gameObjects.step(deltaTime);
     this.gameObjects.render(renderer, this.overlay, shouldChangeLayout);
     this.touchListener.update();
-    this.tutorial.step(this.gameObjects);
+    this.tutorial?.step(this.gameObjects);
     this.socketReceiver.sendQueuedCommands();
 
     return this.isActive;

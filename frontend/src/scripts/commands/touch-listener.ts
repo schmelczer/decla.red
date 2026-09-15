@@ -4,6 +4,7 @@ import type { Command } from 'shared';
 import type { Game } from '../game';
 import { ChargeIndicator } from '../charge-indicator';
 import { centeredTransform } from '../helper/centered-transform';
+import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';
 import { InputGenerator } from './input-generator';
 
 const deadZone = 8;
@@ -196,15 +197,23 @@ export class TouchListener extends InputGenerator {
     event.stopPropagation();
   }
 
+  private get isAlive(): boolean {
+    return (this.game.gameObjects.localPlayer?.health ?? 0) > 0;
+  }
+
   private leapButtonListener = (event: TouchEvent) => {
     this.swallowTouch(event);
+    if (!this.isAlive || !localCharacterPredictor.canLeap) {
+      return;
+    }
     this.sendLeap();
+    this.leapButton.hidden = true;
   };
 
   private fireButtonDownListener = (event: TouchEvent) => {
     this.swallowTouch(event);
     const touch = event.changedTouches[0];
-    if (this.fireTouchId !== null || !touch) {
+    if (!this.isAlive || this.fireTouchId !== null || !touch) {
       return;
     }
     this.fireTouchId = touch.identifier;
@@ -255,7 +264,7 @@ export class TouchListener extends InputGenerator {
     this.cancelFire();
 
     const character = this.game.gameObjects.localPlayer;
-    if (!character) {
+    if (!character || character.health <= 0) {
       return;
     }
 
@@ -287,6 +296,11 @@ export class TouchListener extends InputGenerator {
     }
 
     const character = this.game.gameObjects.localPlayer;
+    this.fireButton.setAttribute('aria-disabled', String(!this.isAlive));
+    this.leapButton.hidden = !this.isAlive || !localCharacterPredictor.canLeap;
+    if (!this.isAlive && this.fireTouchId !== null) {
+      this.cancelFire();
+    }
     if (character) {
       this.fireStrengthRing.style.background = `conic-gradient(rgba(255, 255, 255, 0.75) ${
         character.strengthFraction * 360
