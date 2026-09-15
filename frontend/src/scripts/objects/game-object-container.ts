@@ -13,7 +13,6 @@ import {
   RemoteCallsForObjects,
   UpdatePropertyCommand,
 } from 'shared';
-import { FeedbackHud } from '../feedback-hud';
 import type { Game } from '../game';
 import { serverTimeline } from '../helper/server-timeline';
 import { localCharacterPredictor } from '../helper/prediction/local-character-predictor';

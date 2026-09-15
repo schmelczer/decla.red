@@ -73,7 +73,6 @@ function killConfirmed(victimName?: string, streak = 1, charge = 0) {
   }
 }
 
-
 function resetFeedbackHud(): void {
   root?.remove();
   root = undefined;
