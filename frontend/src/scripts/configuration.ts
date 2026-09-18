@@ -1,4 +1,4 @@
-const productionServers: Array<string> = ['https://declared.schmelczer.dev'];
+const productionServers: Array<string> = ['https://doppler.schmelczer.dev'];
 
 const isDevelopment =
   typeof location !== 'undefined' &&

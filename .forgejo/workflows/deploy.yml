@@ -45,7 +45,7 @@ jobs:
         uses: http://forgejo:3000/andras/ci-actions/deploy-pages@main
         with:
           source: frontend/dist
-          target: declared
+          target: doppler
 
   server-image:
     name: Build & publish server image
