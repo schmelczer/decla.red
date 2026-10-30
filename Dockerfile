@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # The full image carries the build tools for socket.io's optional native dependencies.
-FROM node:22-bookworm AS build
+FROM node:26-bookworm AS build
 WORKDIR /app
 
 # `shared` is consumed by the backend as `file:../shared` and is bundled into
@@ -20,7 +20,7 @@ RUN npm --prefix backend run build
 # left external (express, socket.io, cors, gl-matrix, minimist, msgpack parser).
 RUN npm --prefix backend prune --production
 
-FROM node:22-bookworm-slim
+FROM node:26-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 
