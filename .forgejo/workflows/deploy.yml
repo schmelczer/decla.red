@@ -59,7 +59,7 @@ jobs:
         uses: https://github.com/actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Build and publish server image
-        uses: https://git.schmelczer.dev/andras/ci-actions/docker-publish@a415e2a50992af99b7b6dd3f02cca372d87b11f6
+        uses: https://git.schmelczer.dev/andras/ci-actions/docker-publish@18419c79a58572be1bb3759b334f43306be44a29
         with:
           context: .
           image-suffix: -server
@@ -85,7 +85,7 @@ jobs:
           path: frontend/dist
       - name: Deploy to host pages mount
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: https://git.schmelczer.dev/andras/ci-actions/deploy-pages@a415e2a50992af99b7b6dd3f02cca372d87b11f6
+        uses: https://git.schmelczer.dev/andras/ci-actions/deploy-pages@18419c79a58572be1bb3759b334f43306be44a29
         with:
           source: frontend/dist
           target: doppler
