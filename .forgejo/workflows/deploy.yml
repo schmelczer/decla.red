@@ -70,10 +70,10 @@ jobs:
         with:
           context: .
           image-suffix: -server
-          token: ${{ !(github.actor == 'renovate-bot' || github.event.pull_request.user.login == 'renovate-bot' || startsWith(github.ref, 'refs/heads/renovate/')
-            || startsWith(github.head_ref, 'renovate/')) && (secrets.FORGEJO_PACKAGE_TOKEN) || '' }}
-          push: ${{ !(github.actor == 'renovate-bot' || github.event.pull_request.user.login == 'renovate-bot' || startsWith(github.ref, 'refs/heads/renovate/') ||
-            startsWith(github.head_ref, 'renovate/')) && (true) }}
+          token: ${{ !github.event.pull_request && (!(github.actor == 'renovate-bot' || github.event.pull_request.user.login == 'renovate-bot' || startsWith(github.ref,
+            'refs/heads/renovate/') || startsWith(github.head_ref, 'renovate/')) && (true)) && secrets.FORGEJO_PACKAGE_TOKEN || '' }}
+          push: ${{ !github.event.pull_request && (!(github.actor == 'renovate-bot' || github.event.pull_request.user.login == 'renovate-bot' || startsWith(github.ref,
+            'refs/heads/renovate/') || startsWith(github.head_ref, 'renovate/')) && (true)) }}
   website-pages:
     name: Deploy static site artifacts
     needs: website
