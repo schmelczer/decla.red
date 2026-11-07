@@ -66,7 +66,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Build and publish server image
-        uses: https://git.schmelczer.dev/andras/ci-actions/docker-publish@c80f2f0701d7618f1f0b2bb52ebd332ea34b6e28
+        uses: https://git.schmelczer.dev/andras/ci-actions/docker-publish@10ab5db88c5f6fc1d2a368ce0ea934807f7ebfca
         with:
           context: .
           image-suffix: -server
