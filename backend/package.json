@@ -19,7 +19,7 @@
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "gl-matrix": "3.3.0",
+    "gl-matrix": "3.4.4",
     "minimist": "^1.2.8",
     "socket.io": "^4.8.3",
     "socket.io-msgpack-parser": "^3.0.2"
